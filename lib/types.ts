@@ -16,6 +16,8 @@ export interface Restaurant {
   delivery_min: number;
   delivery_max: number;
   address: string;
+  lat: number | null;
+  lng: number | null;
 }
 
 export interface MenuItem {
@@ -54,6 +56,17 @@ export interface Order {
   total: number;
   placed_at: string;
   restaurant_name?: string;
+}
+
+export interface Review {
+  id: number;
+  user_id: number | null;
+  restaurant_id: number;
+  order_id: number | null;
+  rating: number;
+  comment: string;
+  reviewer_name: string;
+  created_at: string;
 }
 
 export interface OrderItem {

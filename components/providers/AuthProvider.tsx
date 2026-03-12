@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { triggerAddressLoad } from '@/components/providers/LocationProvider';
 
 interface AuthUser {
   id: number;
@@ -28,6 +29,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch('/api/auth/me');
       const data = await res.json();
       setUser(data.user || null);
+      if (data.user) {
+        triggerAddressLoad();
+      }
     } catch {
       setUser(null);
     }
@@ -47,6 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await res.json();
       if (!res.ok) return { error: data.error || 'Login failed' };
       setUser(data.user);
+      triggerAddressLoad();
       return {};
     } catch {
       return { error: 'Network error. Please try again.' };
@@ -63,6 +68,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await res.json();
       if (!res.ok) return { error: data.error || 'Registration failed' };
       setUser(data.user);
+      triggerAddressLoad();
       return {};
     } catch {
       return { error: 'Network error. Please try again.' };

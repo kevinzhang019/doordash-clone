@@ -43,7 +43,6 @@ export default function MenuItemCard({ item }: MenuItemCardProps) {
 
     setAdded(true);
     setTimeout(() => setAdded(false), 1500);
-    openSidebar();
   };
 
   return (
@@ -80,11 +79,11 @@ export default function MenuItemCard({ item }: MenuItemCardProps) {
           <button
             onClick={handleAddToCart}
             disabled={loading}
-            className={`w-24 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+            className={`w-24 py-1.5 rounded-lg text-sm font-semibold transition-all cursor-pointer ${
               added
                 ? 'bg-green-500 text-white'
                 : 'bg-[#FF3008] text-white hover:bg-red-600'
-            } disabled:opacity-50`}
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             {loading ? '...' : added ? 'Added!' : 'Add'}
           </button>

@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import getDb from '@/db/database';
-import { Order, OrderItem } from '@/lib/types';
+import { Order, OrderItem, Review } from '@/lib/types';
 
 export async function GET(
   request: NextRequest,
@@ -34,7 +34,11 @@ export async function GET(
       'SELECT * FROM order_items WHERE order_id = ?'
     ).all(orderId) as OrderItem[];
 
-    return Response.json({ order, orderItems });
+    const existingReview = db.prepare(
+      'SELECT * FROM reviews WHERE order_id = ?'
+    ).get(orderId) as Review | undefined;
+
+    return Response.json({ order, orderItems, existingReview: existingReview || null });
   } catch (error) {
     console.error('Get order error:', error);
     return Response.json({ error: 'Internal server error' }, { status: 500 });

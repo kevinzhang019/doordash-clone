@@ -28,11 +28,12 @@ export async function POST(request: NextRequest) {
   if (!userId) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const { deliveryAddress } = await request.json();
+    const { deliveryAddress, tip = 0, deliveryFee: clientDeliveryFee } = await request.json();
 
     if (!deliveryAddress || !deliveryAddress.trim()) {
       return Response.json({ error: 'Delivery address is required' }, { status: 400 });
     }
+    const tipAmount = Math.max(0, parseFloat(tip) || 0);
 
     const db = getDb();
 
@@ -59,12 +60,15 @@ export async function POST(request: NextRequest) {
 
       const restaurantId = cartItems[0].restaurant_id;
 
-      // Get delivery fee
+      // Use client-supplied delivery fee (calculated from distance) or fall back to restaurant default
       const restaurant = db.prepare('SELECT delivery_fee FROM restaurants WHERE id = ?').get(restaurantId) as { delivery_fee: number };
 
       const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
-      const deliveryFee = restaurant.delivery_fee;
-      const total = subtotal + deliveryFee;
+      const deliveryFee =
+        typeof clientDeliveryFee === 'number' && clientDeliveryFee >= 0
+          ? Math.round(clientDeliveryFee * 100) / 100
+          : restaurant.delivery_fee;
+      const total = subtotal + deliveryFee + tipAmount;
 
       // Insert order
       const orderResult = db.prepare(`

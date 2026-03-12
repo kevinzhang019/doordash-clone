@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-A full-stack DoorDash-like food delivery app. Users register/login, browse 10 fake restaurants across various cuisines, add items to a cart, and place orders. All user data (cart, orders) is strictly isolated by authenticated session.
+A full-stack DoorDash-like food delivery app. Users register/login, browse 20 fake restaurants across various cuisines, add items to a cart, and place orders. All user data (cart, orders) is strictly isolated by authenticated session.
 
 ## Commands
 
@@ -107,4 +107,4 @@ Bella Napoli (Italian), Sakura Garden (Japanese), Casa Fuego (Mexican), Spice Ro
 
 Always use context7 when I need code generation, setup or configuration steps, or library/API documentation. This means you should automatically use the Context7 MCP tools to resolve library id and get library docs without me having to explicitly ask.
 
-Make clean commit messsages, save them locally and then push them to Github, so that we always have a saved version of the project and it's easier for us to revert back in case we make any changes. Set up a GitHub repository, configure everything and use Git and Github for this project.
+Make clean commit messsages, constantly save them locally and then occasionally push them to Github, so that we always have a saved version of the project and it's easier for us to revert back in case we make any changes. Set up a GitHub repository, configure everything and use Git and Github for this project.

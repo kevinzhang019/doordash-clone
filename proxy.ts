@@ -6,9 +6,9 @@ const secret = new TextEncoder().encode(
 );
 
 const protectedRoutes = ['/cart', '/checkout', '/orders'];
-const protectedApiRoutes = ['/api/cart', '/api/orders'];
+const protectedApiRoutes = ['/api/cart', '/api/orders', '/api/reviews', '/api/addresses'];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isProtectedPage = protectedRoutes.some(route => pathname.startsWith(route));
@@ -46,5 +46,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/cart', '/checkout', '/orders/:path*', '/api/cart/:path*', '/api/orders/:path*'],
+  matcher: ['/cart', '/checkout', '/orders/:path*', '/api/cart/:path*', '/api/orders/:path*', '/api/reviews', '/api/addresses', '/api/addresses/:path*'],
 };

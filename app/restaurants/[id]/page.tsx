@@ -1,8 +1,12 @@
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import getDb from '@/db/database';
-import { Restaurant, MenuItem } from '@/lib/types';
+import { Restaurant, MenuItem, Review } from '@/lib/types';
 import MenuItemCard from '@/components/restaurant/MenuItemCard';
+import RestaurantDistance from '@/components/restaurant/RestaurantDistance';
+import RestaurantDeliveryStats from '@/components/restaurant/RestaurantDeliveryStats';
+import VirtualRestaurantAddress from '@/components/restaurant/VirtualRestaurantAddress';
+import VirtualRestaurantMap from '@/components/restaurant/VirtualRestaurantMap';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,7 +14,7 @@ interface RestaurantPageProps {
   params: Promise<{ id: string }>;
 }
 
-async function getRestaurantWithMenu(id: number): Promise<{ restaurant: Restaurant; menu: Record<string, MenuItem[]> } | null> {
+async function getRestaurantData(id: number) {
   const db = getDb();
   const restaurant = db.prepare('SELECT * FROM restaurants WHERE id = ?').get(id) as Restaurant | undefined;
   if (!restaurant) return null;
@@ -25,7 +29,11 @@ async function getRestaurantWithMenu(id: number): Promise<{ restaurant: Restaura
     menu[item.category].push(item);
   }
 
-  return { restaurant, menu };
+  const reviews = db.prepare(
+    'SELECT * FROM reviews WHERE restaurant_id = ? ORDER BY created_at DESC LIMIT 20'
+  ).all(id) as Review[];
+
+  return { restaurant, menu, reviews };
 }
 
 export default async function RestaurantPage({ params }: RestaurantPageProps) {
@@ -33,11 +41,15 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
   const restaurantId = parseInt(id);
   if (isNaN(restaurantId)) notFound();
 
-  const data = await getRestaurantWithMenu(restaurantId);
+  const data = await getRestaurantData(restaurantId);
   if (!data) notFound();
 
-  const { restaurant, menu } = data;
+  const { restaurant, menu, reviews } = data;
   const categories = Object.keys(menu);
+
+  const avgRating = reviews.length > 0
+    ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+    : restaurant.rating;
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -54,39 +66,63 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
         <div className="absolute bottom-0 left-0 p-6 text-white">
           <h1 className="text-3xl font-bold">{restaurant.name}</h1>
-          <p className="text-gray-200 mt-1">{restaurant.cuisine} • {restaurant.address}</p>
+          <p className="text-gray-200 mt-1">
+            {restaurant.cuisine} •{' '}
+            <VirtualRestaurantAddress restaurantId={restaurant.id} fallback={restaurant.address} />
+          </p>
         </div>
       </div>
 
       {/* Info Bar */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-8 flex flex-wrap gap-6">
-        <div className="flex items-center gap-2">
+        <a href="#reviews" className="flex items-center gap-2 group cursor-pointer">
           <span className="text-yellow-400 text-lg">★</span>
           <div>
-            <p className="font-bold text-gray-900">{restaurant.rating.toFixed(1)}</p>
-            <p className="text-xs text-gray-500">Rating</p>
+            <p className="font-bold text-gray-900 group-hover:text-[#FF3008] transition-colors">
+              {avgRating.toFixed(1)}
+            </p>
+            <p className="text-xs text-gray-500 group-hover:text-[#FF3008] transition-colors flex items-center gap-0.5">
+              {reviews.length} review{reviews.length !== 1 ? 's' : ''}
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
+              </svg>
+            </p>
           </div>
-        </div>
+        </a>
         <div className="w-px bg-gray-200" />
-        <div>
-          <p className="font-bold text-gray-900">{restaurant.delivery_min}–{restaurant.delivery_max} min</p>
-          <p className="text-xs text-gray-500">Delivery time</p>
-        </div>
+        <RestaurantDeliveryStats
+          restaurantId={restaurant.id}
+          fallbackFee={restaurant.delivery_fee}
+          fallbackMin={restaurant.delivery_min}
+          fallbackMax={restaurant.delivery_max}
+        />
         <div className="w-px bg-gray-200" />
-        <div>
-          <p className="font-bold text-gray-900">
-            {restaurant.delivery_fee === 0 ? 'Free' : `$${restaurant.delivery_fee.toFixed(2)}`}
-          </p>
-          <p className="text-xs text-gray-500">Delivery fee</p>
-        </div>
-        <div className="w-px bg-gray-200 hidden sm:block" />
-        <div className="hidden sm:block">
-          <p className="font-bold text-gray-900 max-w-xs text-sm leading-snug">{restaurant.description}</p>
+        <div className="flex items-center gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+          <div>
+            <p className="font-bold text-gray-900 text-sm">
+              <VirtualRestaurantAddress restaurantId={restaurant.id} fallback={restaurant.address} />
+            </p>
+            <RestaurantDistance restaurantId={restaurant.id} />
+          </div>
         </div>
       </div>
 
+      {/* Map */}
+      <div className="mb-8">
+        <VirtualRestaurantMap
+          restaurantId={restaurant.id}
+          name={restaurant.name}
+          fallbackLat={restaurant.lat}
+          fallbackLng={restaurant.lng}
+        />
+      </div>
+
       {/* Menu */}
-      <div className="space-y-10">
+      <div className="space-y-10 mb-12">
         {categories.map((category) => (
           <section key={category}>
             <h2 className="text-xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">
@@ -100,6 +136,52 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
           </section>
         ))}
       </div>
+
+      {/* Reviews */}
+      {reviews.length > 0 && (
+        <section id="reviews" className="scroll-mt-20">
+          <div className="flex items-end gap-4 mb-6">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Reviews</h2>
+              <p className="text-gray-500 mt-1">
+                {reviews.length} review{reviews.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+            <div className="ml-auto flex items-center gap-2 bg-gray-50 rounded-xl px-4 py-2 border border-gray-200">
+              <span className="text-yellow-400 text-2xl">★</span>
+              <div>
+                <p className="text-2xl font-bold text-gray-900 leading-none">{avgRating.toFixed(1)}</p>
+                <p className="text-xs text-gray-500">out of 5</p>
+              </div>
+            </div>
+          </div>
+          <div className="space-y-5">
+            {reviews.map((review) => (
+              <div key={review.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                <div className="flex items-start justify-between gap-4 mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-full bg-[#FF3008] flex items-center justify-center flex-shrink-0">
+                      <span className="text-white font-bold text-base">{review.reviewer_name[0]}</span>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900">{review.reviewer_name}</p>
+                      <p className="text-gray-400 text-sm">
+                        {new Date(review.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-0.5 flex-shrink-0">
+                    {[1,2,3,4,5].map(s => (
+                      <span key={s} className={`text-xl ${review.rating >= s ? 'text-yellow-400' : 'text-gray-200'}`}>★</span>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-gray-700 leading-relaxed">{review.comment}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

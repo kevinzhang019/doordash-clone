@@ -10,13 +10,15 @@ interface CartContextType {
   cartTotal: number;
   isSidebarOpen: boolean;
   loading: boolean;
+  lastAddedItem: CartItem | null;
+  clearLastAdded: () => void;
   openSidebar: () => void;
   closeSidebar: () => void;
   addItem: (menuItemId: number) => Promise<{ error?: string; conflictingRestaurant?: string }>;
   removeItem: (cartItemId: number) => Promise<void>;
   updateQuantity: (cartItemId: number, quantity: number) => Promise<void>;
   clearCart: () => void;
-  refreshCart: () => Promise<void>;
+  refreshCart: () => Promise<CartItem[]>;
 }
 
 const CartContext = createContext<CartContextType | null>(null);
@@ -26,24 +28,28 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [lastAddedItem, setLastAddedItem] = useState<CartItem | null>(null);
 
-  const refreshCart = useCallback(async () => {
+  const refreshCart = useCallback(async (): Promise<CartItem[]> => {
     if (!user) {
       setCartItems([]);
-      return;
+      return [];
     }
     try {
       setLoading(true);
       const res = await fetch('/api/cart');
       if (res.ok) {
         const data = await res.json();
-        setCartItems(data.cartItems || []);
+        const items: CartItem[] = data.cartItems || [];
+        setCartItems(items);
+        return items;
       }
     } catch {
       // silent fail
     } finally {
       setLoading(false);
     }
+    return [];
   }, [user]);
 
   useEffect(() => {
@@ -55,6 +61,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const openSidebar = () => setIsSidebarOpen(true);
   const closeSidebar = () => setIsSidebarOpen(false);
+  const clearLastAdded = () => setLastAddedItem(null);
 
   const addItem = async (menuItemId: number): Promise<{ error?: string; conflictingRestaurant?: string }> => {
     try {
@@ -67,7 +74,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       if (!res.ok) {
         return { error: data.error, conflictingRestaurant: data.conflictingRestaurant };
       }
-      await refreshCart();
+      const updatedItems = await refreshCart();
+      const added = updatedItems.find(item => item.menu_item_id === menuItemId);
+      if (added) setLastAddedItem(added);
       return {};
     } catch {
       return { error: 'Failed to add item' };
@@ -106,6 +115,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     <CartContext.Provider value={{
       cartItems, cartCount, cartTotal,
       isSidebarOpen, loading,
+      lastAddedItem, clearLastAdded,
       openSidebar, closeSidebar,
       addItem, removeItem, updateQuantity, clearCart,
       refreshCart,

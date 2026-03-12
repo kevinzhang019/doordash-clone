@@ -3,7 +3,117 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Order, OrderItem } from '@/lib/types';
+import { Order, OrderItem, Review } from '@/lib/types';
+
+function StarPicker({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [hovered, setHovered] = useState(0);
+  return (
+    <div className="flex gap-1">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          onClick={() => onChange(star)}
+          onMouseEnter={() => setHovered(star)}
+          onMouseLeave={() => setHovered(0)}
+          className="text-3xl transition-transform hover:scale-110 cursor-pointer leading-none"
+        >
+          <span className={(hovered || value) >= star ? 'text-yellow-400' : 'text-gray-300'}>★</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ReviewSection({ orderId, restaurantName }: { orderId: number; restaurantName: string }) {
+  const [existingReview, setExistingReview] = useState<Review | null>(null);
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/orders/${orderId}`)
+      .then(r => r.json())
+      .then(d => { if (d.existingReview) setExistingReview(d.existingReview); });
+  }, [orderId]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!comment.trim()) { setError('Please write a comment'); return; }
+    setError('');
+    setSubmitting(true);
+    try {
+      const res = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId, rating, comment }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || 'Failed to submit review'); return; }
+      setSubmitted(true);
+      setExistingReview({ id: data.reviewId, user_id: null, restaurant_id: 0, order_id: orderId, rating, comment, reviewer_name: 'You', created_at: new Date().toISOString() });
+    } catch {
+      setError('Something went wrong. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (existingReview) {
+    return (
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
+        <h3 className="font-semibold text-gray-900 mb-4">Your Review</h3>
+        {submitted && (
+          <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-3 mb-4">
+            Thanks for your review! It helps others discover great food.
+          </div>
+        )}
+        <div className="flex gap-1 mb-2">
+          {[1,2,3,4,5].map(s => (
+            <span key={s} className={`text-xl ${existingReview.rating >= s ? 'text-yellow-400' : 'text-gray-300'}`}>★</span>
+          ))}
+        </div>
+        <p className="text-gray-700 text-sm">{existingReview.comment}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
+      <h3 className="font-semibold text-gray-900 mb-1">Rate your experience</h3>
+      <p className="text-sm text-gray-500 mb-4">How was your order from {restaurantName}?</p>
+
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <StarPicker value={rating} onChange={setRating} />
+
+        {error && (
+          <p className="text-red-600 text-sm">{error}</p>
+        )}
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">Your review</label>
+          <textarea
+            value={comment}
+            onChange={e => setComment(e.target.value)}
+            rows={3}
+            placeholder="What did you think? Tell others about your experience..."
+            className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm resize-none"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={submitting}
+          className="w-full bg-[#FF3008] text-white font-semibold py-3 rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+        >
+          {submitting ? 'Submitting...' : 'Submit Review'}
+        </button>
+      </form>
+    </div>
+  );
+}
 
 export default function OrderDetailPage() {
   const params = useParams();
@@ -74,26 +184,20 @@ export default function OrderDetailPage() {
             <p className="font-semibold text-gray-900">Order #{order.id}</p>
             <p className="text-gray-500 text-sm mt-0.5">
               {new Date(order.placed_at).toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
+                year: 'numeric', month: 'long', day: 'numeric',
+                hour: '2-digit', minute: '2-digit',
               })}
             </p>
           </div>
           <span className={`px-3 py-1 rounded-full text-sm font-medium capitalize ${
-            order.status === 'delivered'
-              ? 'bg-green-100 text-green-700'
-              : order.status === 'placed'
-              ? 'bg-blue-100 text-blue-700'
-              : 'bg-yellow-100 text-yellow-700'
+            order.status === 'delivered' ? 'bg-green-100 text-green-700'
+            : order.status === 'placed' ? 'bg-blue-100 text-blue-700'
+            : 'bg-yellow-100 text-yellow-700'
           }`}>
             {order.status}
           </span>
         </div>
 
-        {/* Items */}
         <div className="divide-y divide-gray-100">
           {orderItems.map((item) => (
             <div key={item.id} className="flex justify-between items-center px-6 py-3">
@@ -106,7 +210,6 @@ export default function OrderDetailPage() {
           ))}
         </div>
 
-        {/* Totals */}
         <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 space-y-2">
           <div className="flex justify-between text-gray-600 text-sm">
             <span>Subtotal</span>
@@ -129,11 +232,14 @@ export default function OrderDetailPage() {
         <p className="text-gray-600">{order.delivery_address}</p>
       </div>
 
+      {/* Review Section */}
+      <ReviewSection orderId={order.id} restaurantName={order.restaurant_name || ''} />
+
       <div className="flex gap-3">
-        <Link href="/" className="flex-1 bg-[#FF3008] text-white text-center font-semibold py-3 rounded-xl hover:bg-red-600 transition-colors">
+        <Link href="/" className="flex-1 bg-[#FF3008] text-white text-center font-semibold py-3 rounded-xl hover:bg-red-600 transition-colors cursor-pointer">
           Order Again
         </Link>
-        <Link href="/orders" className="flex-1 bg-gray-100 text-gray-700 text-center font-semibold py-3 rounded-xl hover:bg-gray-200 transition-colors">
+        <Link href="/orders" className="flex-1 bg-gray-100 text-gray-700 text-center font-semibold py-3 rounded-xl hover:bg-gray-200 transition-colors cursor-pointer">
           View All Orders
         </Link>
       </div>

@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p \"/tmp/doordash-temp\")",
+      "Read(//tmp/**)",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --no-src-dir --import-alias \"@/*\" --yes)",
+      "Bash(cp -r /tmp/doordash-temp/. \"/Users/kevin/Desktop/projects 2026/doordash clone/\" && ls \"/Users/kevin/Desktop/projects 2026/doordash clone/\")",
+      "Bash(cd \"/Users/kevin/Desktop/projects 2026/doordash clone\" && npm install better-sqlite3 bcryptjs jose && npm install --save-dev @types/better-sqlite3 @types/bcryptjs 2>&1)",
+      "Bash(mkdir -p \"/Users/kevin/Desktop/projects 2026/doordash clone/app/api/auth/register\" && mkdir -p \"/Users/kevin/Desktop/projects 2026/doordash clone/app/api/auth/login\" && mkdir -p \"/Users/kevin/Desktop/projects 2026/doordash clone/app/api/auth/logout\" && mkdir -p \"/Users/kevin/Desktop/projects 2026/doordash clone/app/api/auth/me\" && mkdir -p \"/Users/kevin/Desktop/projects 2026/doordash clone/app/api/restaurants/[id]\" && mkdir -p \"/Users/kevin/Desktop/projects 2026/doordash clone/app/api/cart/items/[itemId]\" && mkdir -p \"/Users/kevin/Desktop/projects 2026/doordash clone/app/api/orders/[id]\")",
+      "Bash(mkdir -p \"/Users/kevin/Desktop/projects 2026/doordash clone/app/\\(auth\\)/login\" && mkdir -p \"/Users/kevin/Desktop/projects 2026/doordash clone/app/\\(auth\\)/register\" && mkdir -p \"/Users/kevin/Desktop/projects 2026/doordash clone/app/restaurants/[id]\" && mkdir -p \"/Users/kevin/Desktop/projects 2026/doordash clone/app/cart\" && mkdir -p \"/Users/kevin/Desktop/projects 2026/doordash clone/app/checkout\" && mkdir -p \"/Users/kevin/Desktop/projects 2026/doordash clone/app/orders/[id]\")",
+      "Bash(cd \"/Users/kevin/Desktop/projects 2026/doordash clone\" && npm run build 2>&1)",
+      "Bash(cd \"/Users/kevin/Desktop/projects 2026/doordash clone\" && node_modules/.bin/next --version 2>&1 | head -5 || npx next --version 2>&1 | head -5)",
+      "Bash(node --version && npm --version)",
+      "Bash(node -e \"require\\('/Users/kevin/Desktop/projects 2026/doordash clone/node_modules/next/dist/server/require-hook.js'\\)\" 2>&1)",
+      "Bash(cd \"/Users/kevin/Desktop/projects 2026/doordash clone\" && node node_modules/next/dist/bin/next build 2>&1 | head -50)",
+      "Bash(cd \"/Users/kevin/Desktop/projects 2026/doordash clone\" && node node_modules/next/dist/bin/next build 2>&1 | tail -20)",
+      "Bash(gh auth:*)",
+      "Bash(cd \"/Users/kevin/Desktop/projects 2026/doordash clone\" && gh repo create doordash-clone --public --description \"Full-stack DoorDash clone built with Next.js 14, TypeScript, SQLite, and Tailwind CSS\" 2>&1)",
+      "Bash(cd \"/Users/kevin/Desktop/projects 2026/doordash clone\" && node node_modules/next/dist/bin/next build 2>&1 | grep -E \"\\(error|warning|✓|Route|✗\\)\" | head -30)",
+      "Bash(cd \"/Users/kevin/Desktop/projects 2026/doordash clone\" && npm run dev)",
+      "Bash(cd \"/Users/kevin/Desktop/projects 2026/doordash clone\" && npx tsc --noEmit 2>&1)",
+      "Bash(cd \"/Users/kevin/Desktop/projects 2026/doordash clone\" && npm run build 2>&1 | tail -20)",
+      "Bash(cd \"/Users/kevin/Desktop/projects 2026/doordash clone\" && npm install @googlemaps/js-api-loader && npm install --save-dev @types/google.maps 2>&1 | tail -5)",
+      "Bash(sed -i '' \"s|'123 Little Italy Ave, New York, NY 10013'|'701 Columbus Ave, San Francisco, CA 94133'|g\" \"/Users/kevin/Desktop/projects 2026/doordash clone/db/seed.ts\"\nsed -i '' \"s|'456 Cherry Blossom Lane, San Francisco, CA 94107'|'1737 Post St, San Francisco, CA 94115'|g\" \"/Users/kevin/Desktop/projects 2026/doordash clone/db/seed.ts\"\nsed -i '' \"s|'789 Fiesta Street, Los Angeles, CA 90021'|'2889 Mission St, San Francisco, CA 94110'|g\" \"/Users/kevin/Desktop/projects 2026/doordash clone/db/seed.ts\"\nsed -i '' \"s|'321 Curry Lane, Chicago, IL 60601'|'533 OFarrell St, San Francisco, CA 94102'|g\" \"/Users/kevin/Desktop/projects 2026/doordash clone/db/seed.ts\"\nsed -i '' \"s|'888 Dragon Street, San Francisco, CA 94108'|'744 Washington St, San Francisco, CA 94108'|g\" \"/Users/kevin/Desktop/projects 2026/doordash clone/db/seed.ts\"\nsed -i '' \"s|'15 Rue de la Paix, New York, NY 10020'|'345 Powell St, San Francisco, CA 94102'|g\" \"/Users/kevin/Desktop/projects 2026/doordash clone/db/seed.ts\"\nsed -i '' \"s|'567 Aegean Boulevard, Miami, FL 33101'|'2246 Chestnut St, San Francisco, CA 94123'|g\" \"/Users/kevin/Desktop/projects 2026/doordash clone/db/seed.ts\"\nsed -i '' \"s|'234 Gangnam-gu Road, Los Angeles, CA 90010'|'308 5th Ave, San Francisco, CA 94118'|g\" \"/Users/kevin/Desktop/projects 2026/doordash clone/db/seed.ts\"\nsed -i '' \"s|'678 Sukhumvit Court, Houston, TX 77002'|'1234 Irving St, San Francisco, CA 94122'|g\" \"/Users/kevin/Desktop/projects 2026/doordash clone/db/seed.ts\"\nsed -i '' \"s|'100 Main Street, Austin, TX 78701'|'555 Mission St, San Francisco, CA 94105'|g\" \"/Users/kevin/Desktop/projects 2026/doordash clone/db/seed.ts\")"
+    ]
+  }
+}
