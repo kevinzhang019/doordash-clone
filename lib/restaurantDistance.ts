@@ -8,16 +8,25 @@ function lcg(seed: number): () => number {
   };
 }
 
+/** Hash the user's location into a number so changing address re-randomizes positions. */
+function hashCoords(lat: number, lng: number): number {
+  const latI = Math.round(lat * 10000);
+  const lngI = Math.round(lng * 10000);
+  return (((latI * 73856093) ^ (lngI * 19349663)) >>> 0);
+}
+
 /**
- * Returns a deterministic virtual lat/lng for a restaurant relative to the user's location.
- * Position is consistent per restaurantId — distance is 1–24 miles from the user.
+ * Returns a deterministic virtual lat/lng for a restaurant.
+ * Seed combines restaurantId + hashed delivery location, so positions
+ * fully re-randomize when the delivery address changes.
  */
 export function getVirtualRestaurantCoords(
   restaurantId: number,
   userLat: number,
   userLng: number
 ): { lat: number; lng: number } {
-  const rng = lcg(restaurantId * 2654435761);
+  const locationHash = hashCoords(userLat, userLng);
+  const rng = lcg(((restaurantId * 2654435761) ^ locationHash) >>> 0);
   const angleRad = rng() * 2 * Math.PI;
   const distanceMiles = 1 + rng() * 23;
   const latOffset = (distanceMiles / 69) * Math.cos(angleRad);

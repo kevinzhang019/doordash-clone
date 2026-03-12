@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { Restaurant } from '@/lib/types';
 import RestaurantCard from './RestaurantCard';
@@ -14,22 +14,55 @@ type SortOption = 'relevance' | 'rating' | 'distance';
 
 const CUISINES = ['All', 'Italian', 'Japanese', 'Mexican', 'Indian', 'Chinese', 'French', 'Mediterranean', 'Korean', 'Thai', 'American'];
 
-function relevanceScore(
-  rating: number,
-  reviewCount: number,
-  distance: number | null
-): number {
+function relevanceScore(rating: number, reviewCount: number, distance: number | null): number {
   const normDist = distance !== null ? 1 - Math.min(Math.max(distance - 1, 0) / 23, 1) : 0.5;
   const normRating = (rating - 1) / 4;
   const normReviews = Math.log(1 + reviewCount) / Math.log(101);
   return 0.4 * normDist + 0.4 * normRating + 0.2 * normReviews;
 }
 
+function SkeletonCard() {
+  return (
+    <div className="bg-white rounded-xl overflow-hidden shadow-sm border border-gray-100 animate-pulse">
+      <div className="w-full h-48 bg-gray-200" />
+      <div className="p-4 space-y-2.5">
+        <div className="h-4 bg-gray-200 rounded w-3/4" />
+        <div className="h-3 bg-gray-200 rounded w-1/3" />
+        <div className="h-3 bg-gray-200 rounded w-2/3" />
+        <div className="h-3 bg-gray-200 rounded w-1/2" />
+      </div>
+    </div>
+  );
+}
+
 export default function RestaurantGrid({ restaurants }: RestaurantGridProps) {
   const [selectedCuisine, setSelectedCuisine] = useState('All');
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('relevance');
-  const { getRestaurantDeliveryInfo } = useLocation();
+  const [isLoading, setIsLoading] = useState(false);
+  const [visible, setVisible] = useState(false);
+  const { getRestaurantDeliveryInfo, deliveryCoords } = useLocation();
+  const prevCoordsRef = useRef(deliveryCoords);
+
+  // Trigger loading animation whenever delivery coords change
+  useEffect(() => {
+    const prev = prevCoordsRef.current;
+    prevCoordsRef.current = deliveryCoords;
+    // Skip on first mount (no previous coords)
+    if (!prev || !deliveryCoords) {
+      setVisible(true);
+      return;
+    }
+    if (prev.lat === deliveryCoords.lat && prev.lng === deliveryCoords.lng) return;
+    setIsLoading(true);
+    setVisible(false);
+    const showTimer = setTimeout(() => {
+      setIsLoading(false);
+      // Slight delay before fading cards in
+      requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)));
+    }, 550);
+    return () => clearTimeout(showTimer);
+  }, [deliveryCoords]);
 
   const sorted = useMemo(() => {
     const filtered = restaurants.filter((r) => {
@@ -42,20 +75,16 @@ export default function RestaurantGrid({ restaurants }: RestaurantGridProps) {
     });
 
     return [...filtered].sort((a, b) => {
-      if (sortBy === 'rating') {
-        return Number(b.rating) - Number(a.rating);
-      }
+      if (sortBy === 'rating') return Number(b.rating) - Number(a.rating);
       if (sortBy === 'distance') {
         const da = getRestaurantDeliveryInfo(a.id)?.distance ?? Infinity;
         const db = getRestaurantDeliveryInfo(b.id)?.distance ?? Infinity;
         return da - db;
       }
-      // relevance
       const da = getRestaurantDeliveryInfo(a.id)?.distance ?? null;
       const db = getRestaurantDeliveryInfo(b.id)?.distance ?? null;
-      const scoreA = relevanceScore(Number(a.rating), a.review_count, da);
-      const scoreB = relevanceScore(Number(b.rating), b.review_count, db);
-      return scoreB - scoreA;
+      return relevanceScore(Number(b.rating), b.review_count, db) -
+             relevanceScore(Number(a.rating), a.review_count, da);
     });
   }, [restaurants, selectedCuisine, search, sortBy, getRestaurantDeliveryInfo]);
 
@@ -111,7 +140,11 @@ export default function RestaurantGrid({ restaurants }: RestaurantGridProps) {
       </p>
 
       {/* Grid */}
-      {sorted.length === 0 ? (
+      {isLoading ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {Array.from({ length: 8 }).map((_, i) => <SkeletonCard key={i} />)}
+        </div>
+      ) : sorted.length === 0 ? (
         <div className="text-center py-16">
           <p className="text-gray-400 text-lg">No restaurants found</p>
           <button onClick={() => { setSelectedCuisine('All'); setSearch(''); }} className="mt-2 text-[#FF3008] text-sm underline">
@@ -119,7 +152,10 @@ export default function RestaurantGrid({ restaurants }: RestaurantGridProps) {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 transition-opacity duration-400"
+          style={{ opacity: visible ? 1 : 0 }}
+        >
           {sorted.map((restaurant) => (
             <RestaurantCard key={restaurant.id} restaurant={restaurant} />
           ))}
