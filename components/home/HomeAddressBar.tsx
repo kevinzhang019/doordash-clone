@@ -10,7 +10,12 @@ export default function HomeAddressBar() {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
-    if (deliveryAddress) setInputAddress(deliveryAddress);
+    // Only sync typed addresses — leave blank when GPS ("Current Location") is used
+    if (deliveryAddress && deliveryAddress !== 'Current Location') {
+      setInputAddress(deliveryAddress);
+    } else if (deliveryAddress === 'Current Location') {
+      setInputAddress('');
+    }
   }, [deliveryAddress]);
 
   const handleChange = (addr: string, c?: { lat: number; lng: number }) => {

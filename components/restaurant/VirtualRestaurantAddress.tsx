@@ -14,11 +14,12 @@ function initGeocoder() {
 
 interface Props {
   restaurantId: number;
-  fallback: string;
+  /** Shown before the address text — only rendered when an address is available. */
+  prefix?: string;
   className?: string;
 }
 
-export default function VirtualRestaurantAddress({ restaurantId, fallback, className }: Props) {
+export default function VirtualRestaurantAddress({ restaurantId, prefix = '', className }: Props) {
   const { getRestaurantDeliveryInfo } = useLocation();
   const info = getRestaurantDeliveryInfo(restaurantId);
   const [address, setAddress] = useState<string | null>(null);
@@ -26,6 +27,7 @@ export default function VirtualRestaurantAddress({ restaurantId, fallback, class
   useEffect(() => {
     if (!info?.virtualLat || !info?.virtualLng) return;
     let cancelled = false;
+    setAddress(null); // reset when coords change (new delivery location)
     initGeocoder();
     importLibrary('geocoding').then(() => {
       if (cancelled) return;
@@ -45,5 +47,6 @@ export default function VirtualRestaurantAddress({ restaurantId, fallback, class
     return () => { cancelled = true; };
   }, [info?.virtualLat, info?.virtualLng]);
 
-  return <span className={className}>{address || fallback}</span>;
+  if (!address) return null;
+  return <span className={className}>{prefix}{address}</span>;
 }

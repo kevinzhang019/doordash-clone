@@ -120,54 +120,6 @@ function runMigrations(db: Database.Database) {
   if (!cols.includes('lat')) db.exec('ALTER TABLE restaurants ADD COLUMN lat REAL');
   if (!cols.includes('lng')) db.exec('ALTER TABLE restaurants ADD COLUMN lng REAL');
 
-  // Seed lat/lng for the 10 default SF restaurants
-  const sfCoords: Record<number, [number, number]> = {
-    1: [37.7997, -122.4067],
-    2: [37.7853, -122.4330],
-    3: [37.7499, -122.4175],
-    4: [37.7852, -122.4136],
-    5: [37.7951, -122.4060],
-    6: [37.7875, -122.4083],
-    7: [37.7999, -122.4383],
-    8: [37.7832, -122.4640],
-    9: [37.7636, -122.4652],
-    10: [37.7887, -122.3983],
-  };
-  const missingCoords = db.prepare('SELECT id FROM restaurants WHERE id <= 10 AND lat IS NULL').all() as { id: number }[];
-  if (missingCoords.length > 0) {
-    const updateCoords = db.prepare('UPDATE restaurants SET lat = ?, lng = ? WHERE id = ?');
-    const seedCoords = db.transaction(() => {
-      for (const { id } of missingCoords) {
-        if (sfCoords[id]) updateCoords.run(sfCoords[id][0], sfCoords[id][1], id);
-      }
-    });
-    seedCoords();
-  }
-
-  // Migrate existing restaurant addresses to San Francisco
-  const firstRestaurant = db.prepare("SELECT address FROM restaurants WHERE id = 1").get() as { address: string } | undefined;
-  if (firstRestaurant && !firstRestaurant.address.includes('San Francisco')) {
-    const sfAddresses: Record<number, string> = {
-      1: '701 Columbus Ave, San Francisco, CA 94133',
-      2: '1737 Post St, San Francisco, CA 94115',
-      3: '2889 Mission St, San Francisco, CA 94110',
-      4: '533 O\'Farrell St, San Francisco, CA 94102',
-      5: '744 Washington St, San Francisco, CA 94108',
-      6: '345 Powell St, San Francisco, CA 94102',
-      7: '2246 Chestnut St, San Francisco, CA 94123',
-      8: '308 5th Ave, San Francisco, CA 94118',
-      9: '1234 Irving St, San Francisco, CA 94122',
-      10: '555 Mission St, San Francisco, CA 94105',
-    };
-    const updateAddr = db.prepare('UPDATE restaurants SET address = ? WHERE id = ?');
-    const migrateAddresses = db.transaction(() => {
-      for (const [id, address] of Object.entries(sfAddresses)) {
-        updateAddr.run(address, Number(id));
-      }
-    });
-    migrateAddresses();
-  }
-
   // Seed reviews if empty
   const reviewCount = (db.prepare('SELECT COUNT(*) as count FROM reviews').get() as { count: number }).count;
   if (reviewCount === 0) {

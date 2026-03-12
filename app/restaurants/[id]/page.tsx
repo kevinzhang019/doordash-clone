@@ -67,8 +67,8 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
         <div className="absolute bottom-0 left-0 p-6 text-white">
           <h1 className="text-3xl font-bold">{restaurant.name}</h1>
           <p className="text-gray-200 mt-1">
-            {restaurant.cuisine} •{' '}
-            <VirtualRestaurantAddress restaurantId={restaurant.id} fallback={restaurant.address} />
+            {restaurant.cuisine}
+            <VirtualRestaurantAddress restaurantId={restaurant.id} prefix=" • " />
           </p>
         </div>
       </div>
@@ -104,7 +104,7 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
           </svg>
           <div>
             <p className="font-bold text-gray-900 text-sm">
-              <VirtualRestaurantAddress restaurantId={restaurant.id} fallback={restaurant.address} />
+              <VirtualRestaurantAddress restaurantId={restaurant.id} />
             </p>
             <RestaurantDistance restaurantId={restaurant.id} />
           </div>
