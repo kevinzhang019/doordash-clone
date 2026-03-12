@@ -61,9 +61,9 @@ export default function RestaurantGrid({ restaurants }: RestaurantGridProps) {
 
   return (
     <div>
-      {/* Search + Sort Row */}
-      <div className="flex items-center gap-3 mb-6">
-        <div className="relative flex-1 max-w-md">
+      {/* Search Bar */}
+      <div className="mb-4">
+        <div className="relative max-w-md">
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
@@ -75,20 +75,21 @@ export default function RestaurantGrid({ restaurants }: RestaurantGridProps) {
             className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm"
           />
         </div>
+      </div>
+
+      {/* Sort + Cuisine Filter Row */}
+      <div className="flex gap-2 flex-wrap items-center mb-6">
         <select
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value as SortOption)}
-          className="py-2.5 pl-3 pr-8 border border-gray-200 rounded-xl bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm text-gray-700 cursor-pointer appearance-none"
+          className="py-1.5 pl-3 pr-8 border border-gray-200 rounded-full bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm text-gray-700 cursor-pointer appearance-none font-medium"
           style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 8px center', backgroundSize: '16px' }}
         >
           <option value="relevance">Relevance</option>
           <option value="rating">Top Rated</option>
           <option value="distance">Nearest</option>
         </select>
-      </div>
-
-      {/* Cuisine Filter Pills */}
-      <div className="flex gap-2 flex-wrap mb-6">
+        <div className="w-px h-5 bg-gray-200 flex-shrink-0" />
         {CUISINES.map((cuisine) => (
           <button
             key={cuisine}

@@ -9,7 +9,6 @@ export default function HomeAddressBar() {
   const [inputAddress, setInputAddress] = useState('');
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
 
-  // Sync input with current delivery address
   useEffect(() => {
     if (deliveryAddress) setInputAddress(deliveryAddress);
   }, [deliveryAddress]);
@@ -18,7 +17,6 @@ export default function HomeAddressBar() {
     setInputAddress(addr);
     if (c) {
       setCoords(c);
-      // Auto-confirm when a suggestion is selected (coords are present)
       setDeliveryLocation(addr, c.lat, c.lng);
     }
   };
@@ -30,16 +28,17 @@ export default function HomeAddressBar() {
   };
 
   return (
-    <div className="bg-white rounded-xl p-1 flex max-w-lg">
+    <div className="bg-white rounded-xl p-1.5 flex items-center max-w-xl gap-1">
       <AddressAutocomplete
         value={inputAddress}
         onChange={handleChange}
         placeholder="Enter delivery address"
-        className="flex-1 py-2 pr-4 border-0 bg-transparent focus:outline-none focus:ring-0 text-gray-900 text-sm"
+        wrapperClassName="flex-1 min-w-0"
+        className="w-full py-2.5 pr-3 border-0 bg-transparent focus:outline-none focus:ring-0 text-gray-900 text-sm"
       />
       <button
         onClick={handleConfirm}
-        className="bg-[#FF3008] text-white px-4 py-2 rounded-lg font-semibold text-sm hover:bg-red-600 transition-colors cursor-pointer flex-shrink-0"
+        className="bg-[#FF3008] text-white px-5 py-2.5 rounded-lg font-semibold text-sm hover:bg-red-600 transition-colors cursor-pointer flex-shrink-0"
       >
         Find Food
       </button>
