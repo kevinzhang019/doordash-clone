@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Restaurant } from '@/lib/types';
 import RestaurantCard from './RestaurantCard';
 import { useLocation } from '@/components/providers/LocationProvider';
+import { useSearch } from '@/components/providers/SearchProvider';
 
 interface RestaurantGridProps {
   restaurants: (Restaurant & { review_count: number })[];
@@ -15,7 +16,7 @@ type SortOption = 'relevance' | 'rating' | 'distance';
 const CUISINES = ['All', 'Italian', 'Japanese', 'Mexican', 'Indian', 'Chinese', 'French', 'Mediterranean', 'Korean', 'Thai', 'American'];
 
 function relevanceScore(rating: number, reviewCount: number, distance: number | null): number {
-  const normDist = distance !== null ? 1 - Math.min(Math.max(distance - 1, 0) / 23, 1) : 0.5;
+  const normDist = distance !== null ? 1 - Math.min(Math.max(distance - 1, 0) / 9, 1) : 0.5;
   const normRating = (rating - 1) / 4;
   const normReviews = Math.log(1 + reviewCount) / Math.log(101);
   return 0.4 * normDist + 0.4 * normRating + 0.2 * normReviews;
@@ -37,11 +38,11 @@ function SkeletonCard() {
 
 export default function RestaurantGrid({ restaurants }: RestaurantGridProps) {
   const [selectedCuisine, setSelectedCuisine] = useState('All');
-  const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('relevance');
   const [isLoading, setIsLoading] = useState(false);
   const [visible, setVisible] = useState(false);
   const { getRestaurantDeliveryInfo, deliveryCoords } = useLocation();
+  const { search, setSearch } = useSearch();
   const prevCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
 
   // Trigger loading animation whenever delivery coords change
@@ -90,22 +91,6 @@ export default function RestaurantGrid({ restaurants }: RestaurantGridProps) {
 
   return (
     <div>
-      {/* Search Bar */}
-      <div className="mb-4">
-        <div className="relative max-w-md">
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input
-            type="text"
-            placeholder="Search restaurants or cuisines..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm"
-          />
-        </div>
-      </div>
-
       {/* Sort + Cuisine Filter Row */}
       <div className="flex gap-2 flex-wrap items-center mb-6">
         <select

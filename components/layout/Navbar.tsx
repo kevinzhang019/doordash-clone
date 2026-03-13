@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useCart } from '@/components/providers/CartProvider';
 import { useLocation } from '@/components/providers/LocationProvider';
+import { useSearch } from '@/components/providers/SearchProvider';
 import AddressModal from '@/components/layout/AddressModal';
 
 function CartPopup() {
@@ -82,16 +83,24 @@ export default function Navbar() {
   const { user, logout } = useAuth();
   const { cartCount, openSidebar } = useCart();
   const { deliveryAddress } = useLocation();
+  const { search, setSearch } = useSearch();
   const router = useRouter();
   const [addressModalOpen, setAddressModalOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [showAddressDropdown, setShowAddressDropdown] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
+  const searchRef = useRef<HTMLDivElement>(null);
+  const addressDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close profile dropdown on outside click
+  // Close dropdowns on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
         setProfileOpen(false);
+      }
+      if (addressDropdownRef.current && !addressDropdownRef.current.contains(e.target as Node) && 
+          searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setShowAddressDropdown(false);
       }
     }
     document.addEventListener('mousedown', handleClick);
@@ -109,7 +118,7 @@ export default function Navbar() {
     <>
       <nav className="bg-white shadow-md sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 gap-3">
+          <div className="flex items-center h-16 gap-4">
             {/* Logo */}
             <Link href="/" className="flex items-center gap-2 flex-shrink-0">
               <div className="w-8 h-8 bg-[#FF3008] rounded-full flex items-center justify-center">
@@ -118,25 +127,69 @@ export default function Navbar() {
               <span className="text-[#FF3008] font-bold text-xl hidden sm:block">DoorDash</span>
             </Link>
 
-            {/* Address button */}
-            <button
-              onClick={() => setAddressModalOpen(true)}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl border border-gray-200 hover:border-[#FF3008] hover:bg-red-50 transition-colors text-sm cursor-pointer group flex-shrink-0 max-w-[200px] sm:max-w-xs"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#FF3008] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              <span className={`truncate ${deliveryAddress ? 'text-gray-900 font-medium' : 'text-gray-400'}`}>
-                {deliveryAddress ? truncateAddress(deliveryAddress) : 'Add address'}
-              </span>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-gray-400 flex-shrink-0 hidden sm:block" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
+            {/* Search Bar */}
+            <div ref={searchRef} className="flex-1 max-w-2xl mx-4 relative">
+              <div className="relative">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Search restaurants or cuisines..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  onFocus={() => setShowAddressDropdown(true)}
+                  className="w-full pl-10 pr-4 py-2.5 border border-gray-200 rounded-xl bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm"
+                />
+                
+                {/* Address indicator in search bar */}
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                  <span className="text-xs text-gray-500 hidden sm:block">
+                    {deliveryAddress ? 'Delivering to' : 'Set address'}
+                  </span>
+                  <button
+                    onClick={() => {
+                      setShowAddressDropdown(!showAddressDropdown);
+                      setAddressModalOpen(true);
+                    }}
+                    className="text-[#FF3008] hover:text-red-600 transition-colors"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              {/* Address dropdown positioned below right of search bar */}
+              {showAddressDropdown && (
+                <div ref={addressDropdownRef} className="absolute top-full right-0 mt-2 z-50 bg-white rounded-xl border border-gray-200 shadow-lg p-3 min-w-[250px]">
+                  <div className="flex items-center gap-2 mb-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#FF3008] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span className="text-sm font-medium text-gray-900">Delivery Address</span>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-2">
+                    {deliveryAddress || 'No address set'}
+                  </p>
+                  <button
+                    onClick={() => {
+                      setAddressModalOpen(true);
+                      setShowAddressDropdown(false);
+                    }}
+                    className="text-[#FF3008] text-sm font-medium hover:text-red-600 transition-colors"
+                  >
+                    {deliveryAddress ? 'Change address' : 'Add address'}
+                  </button>
+                </div>
+              )}
+            </div>
 
             {/* Right side */}
-            <div className="flex items-center gap-2 ml-auto">
+            <div className="flex items-center gap-2 flex-shrink-0">
               {user ? (
                 <>
                   {/* Role-specific nav link */}

@@ -28,7 +28,7 @@ export function getVirtualRestaurantCoords(
   const locationHash = hashCoords(userLat, userLng);
   const rng = lcg(((restaurantId * 2654435761) ^ locationHash) >>> 0);
   const angleRad = rng() * 2 * Math.PI;
-  const distanceMiles = 1 + rng() * 23;
+  const distanceMiles = 1 + rng() * 9;
   const latOffset = (distanceMiles / 69) * Math.cos(angleRad);
   const lngOffset =
     (distanceMiles / (69 * Math.cos((userLat * Math.PI) / 180))) * Math.sin(angleRad);
