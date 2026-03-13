@@ -1,11 +1,12 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
+import type { UserRole } from '@/lib/types';
 
 const secret = new TextEncoder().encode(
   process.env.JWT_SECRET || 'fallback-secret-change-in-production'
 );
 
-export async function signToken(payload: { userId: number; email: string; name: string }) {
+export async function signToken(payload: { userId: number; email: string; name: string; role: UserRole }) {
   return await new SignJWT(payload)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
@@ -15,7 +16,7 @@ export async function signToken(payload: { userId: number; email: string; name: 
 
 export async function verifyToken(token: string) {
   const { payload } = await jwtVerify(token, secret);
-  return payload as { userId: number; email: string; name: string };
+  return payload as { userId: number; email: string; name: string; role: UserRole };
 }
 
 export async function getSession() {

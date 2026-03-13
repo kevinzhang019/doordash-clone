@@ -22,15 +22,38 @@ function getDb(): Database.Database {
 }
 
 function runMigrations(db: Database.Database) {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS users (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      email TEXT UNIQUE NOT NULL,
-      name TEXT NOT NULL,
-      password_hash TEXT NOT NULL,
-      created_at TEXT DEFAULT (datetime('now'))
-    );
+  // --- Phase 1: Migrate users table to support multi-role (same email, different roles) ---
+  const userIndexes = (db.prepare("PRAGMA index_list(users)").all() as { name: string }[]);
+  const hasEmailRoleIndex = userIndexes.some(idx => idx.name === 'users_email_role');
+  if (!hasEmailRoleIndex) {
+    const userCols = (db.prepare("PRAGMA table_info(users)").all() as { name: string }[]).map(c => c.name);
+    db.exec(`
+      CREATE TABLE users_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        email TEXT NOT NULL,
+        name TEXT NOT NULL,
+        password_hash TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'customer',
+        phone TEXT,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+    `);
+    if (userCols.includes('role')) {
+      const phoneSql = userCols.includes('phone')
+        ? 'SELECT id, email, name, password_hash, role, phone, created_at FROM users'
+        : "SELECT id, email, name, password_hash, role, NULL, created_at FROM users";
+      db.exec(`INSERT INTO users_new ${phoneSql}`);
+    } else {
+      db.exec(`INSERT INTO users_new SELECT id, email, name, password_hash, 'customer', NULL, created_at FROM users`);
+    }
+    db.pragma('foreign_keys = OFF');
+    db.exec(`DROP TABLE users`);
+    db.exec(`ALTER TABLE users_new RENAME TO users`);
+    db.pragma('foreign_keys = ON');
+    db.exec(`CREATE UNIQUE INDEX users_email_role ON users(email, role)`);
+  }
 
+  db.exec(`
     CREATE TABLE IF NOT EXISTS restaurants (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
@@ -108,6 +131,71 @@ function runMigrations(db: Database.Database) {
       created_at TEXT DEFAULT (datetime('now'))
     );
   `);
+
+  // --- New tables for restaurant owners, hours, addons, driver sessions ---
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS restaurant_owners (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      restaurant_id INTEGER NOT NULL REFERENCES restaurants(id),
+      UNIQUE(user_id, restaurant_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS restaurant_hours (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      restaurant_id INTEGER NOT NULL REFERENCES restaurants(id),
+      day_of_week INTEGER NOT NULL CHECK(day_of_week BETWEEN 0 AND 6),
+      open_time TEXT NOT NULL DEFAULT '09:00',
+      close_time TEXT NOT NULL DEFAULT '21:00',
+      is_closed INTEGER NOT NULL DEFAULT 0,
+      UNIQUE(restaurant_id, day_of_week)
+    );
+
+    CREATE TABLE IF NOT EXISTS menu_item_addons (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      menu_item_id INTEGER NOT NULL REFERENCES menu_items(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      price REAL NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS driver_sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      started_at TEXT DEFAULT (datetime('now')),
+      ended_at TEXT,
+      total_earnings REAL NOT NULL DEFAULT 0,
+      deliveries_completed INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS driver_deliveries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      session_id INTEGER NOT NULL REFERENCES driver_sessions(id),
+      order_id INTEGER REFERENCES orders(id),
+      is_simulated INTEGER NOT NULL DEFAULT 1,
+      restaurant_name TEXT NOT NULL,
+      restaurant_address TEXT NOT NULL,
+      delivery_address TEXT NOT NULL,
+      pay_amount REAL NOT NULL DEFAULT 0,
+      tip REAL NOT NULL DEFAULT 0,
+      accepted_at TEXT DEFAULT (datetime('now')),
+      delivered_at TEXT,
+      status TEXT NOT NULL DEFAULT 'accepted'
+    );
+  `);
+
+  // --- Idempotent column additions ---
+  const menuItemCols = (db.prepare("PRAGMA table_info(menu_items)").all() as { name: string }[]).map(c => c.name);
+  if (!menuItemCols.includes('allow_special_requests')) {
+    db.exec('ALTER TABLE menu_items ADD COLUMN allow_special_requests INTEGER NOT NULL DEFAULT 0');
+  }
+
+  const orderCols = (db.prepare("PRAGMA table_info(orders)").all() as { name: string }[]).map(c => c.name);
+  if (!orderCols.includes('driver_user_id')) {
+    db.exec('ALTER TABLE orders ADD COLUMN driver_user_id INTEGER REFERENCES users(id)');
+  }
+  if (!orderCols.includes('tip')) {
+    db.exec('ALTER TABLE orders ADD COLUMN tip REAL NOT NULL DEFAULT 0');
+  }
 
   // Seed restaurants if empty
   const count = (db.prepare('SELECT COUNT(*) as count FROM restaurants').get() as { count: number }).count;

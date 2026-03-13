@@ -6,7 +6,14 @@ export async function GET() {
     if (!session) {
       return Response.json({ user: null });
     }
-    return Response.json({ user: { id: session.userId, email: session.email, name: session.name } });
+    return Response.json({
+      user: {
+        id: session.userId,
+        email: session.email,
+        name: session.name,
+        role: session.role || 'customer',
+      },
+    });
   } catch (error) {
     console.error('Me error:', error);
     return Response.json({ user: null });
