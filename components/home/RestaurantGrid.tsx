@@ -42,7 +42,7 @@ export default function RestaurantGrid({ restaurants }: RestaurantGridProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [visible, setVisible] = useState(false);
   const { getRestaurantDeliveryInfo, deliveryCoords } = useLocation();
-  const prevCoordsRef = useRef(deliveryCoords);
+  const prevCoordsRef = useRef<{ lat: number; lng: number } | null>(null);
 
   // Trigger loading animation whenever delivery coords change
   useEffect(() => {
