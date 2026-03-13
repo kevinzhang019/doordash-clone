@@ -6,8 +6,8 @@ const secret = new TextEncoder().encode(
   process.env.JWT_SECRET || 'fallback-secret-change-in-production'
 );
 
-const protectedRoutes = ['/cart', '/checkout', '/orders', '/restaurant-dashboard', '/driver-dashboard', '/restaurant-setup'];
-const protectedApiRoutes = ['/api/cart', '/api/orders', '/api/reviews', '/api/addresses', '/api/restaurant-dashboard', '/api/driver'];
+const protectedRoutes = ['/cart', '/checkout', '/orders', '/restaurant-dashboard', '/driver-dashboard', '/restaurant-setup', '/settings'];
+const protectedApiRoutes = ['/api/cart', '/api/orders', '/api/reviews', '/api/addresses', '/api/restaurant-dashboard', '/api/driver', '/api/settings'];
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -82,5 +82,7 @@ export const config = {
     '/driver-dashboard/:path*',
     '/api/driver/:path*',
     '/restaurant-setup',
+    '/settings',
+    '/api/settings/:path*',
   ],
 };

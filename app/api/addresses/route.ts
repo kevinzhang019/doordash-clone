@@ -7,13 +7,14 @@ export async function GET(request: NextRequest) {
 
   try {
     const db = getDb();
-    const address = db
-      .prepare(
-        'SELECT * FROM user_addresses WHERE user_id = ? AND is_active = 1 ORDER BY created_at DESC LIMIT 1'
-      )
-      .get(userId) as { id: number; address: string; lat: number; lng: number } | undefined;
+    const addresses = db
+      .prepare('SELECT * FROM user_addresses WHERE user_id = ? AND is_active = 1 ORDER BY created_at DESC')
+      .all(userId) as { id: number; address: string; lat: number; lng: number; created_at: string }[];
 
-    return Response.json({ address: address ?? null });
+    return Response.json({
+      address: addresses[0] ?? null,      // backward compat for triggerAddressLoad
+      addresses,
+    });
   } catch (error) {
     console.error('Get addresses error:', error);
     return Response.json({ error: 'Internal server error' }, { status: 500 });
@@ -31,10 +32,11 @@ export async function POST(request: NextRequest) {
     }
 
     const db = getDb();
-    db.prepare('UPDATE user_addresses SET is_active = 0 WHERE user_id = ?').run(userId);
-    db.prepare(
-      'INSERT INTO user_addresses (user_id, address, lat, lng, is_active) VALUES (?, ?, ?, ?, 1)'
-    ).run(userId, address, lat, lng);
+    // Deduplicate by address text
+    const exists = db.prepare('SELECT id FROM user_addresses WHERE user_id = ? AND address = ?').get(userId, address);
+    if (!exists) {
+      db.prepare('INSERT INTO user_addresses (user_id, address, lat, lng, is_active) VALUES (?, ?, ?, ?, 1)').run(userId, address, lat, lng);
+    }
 
     return Response.json({ success: true });
   } catch (error) {

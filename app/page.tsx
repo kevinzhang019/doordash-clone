@@ -1,7 +1,6 @@
 import getDb from '@/db/database';
 import { Restaurant } from '@/lib/types';
 import RestaurantGrid from '@/components/home/RestaurantGrid';
-import HomeAddressBar from '@/components/home/HomeAddressBar';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,10 +28,9 @@ export default async function HomePage() {
         <h1 className="text-3xl sm:text-4xl font-bold mb-2">
           Delivery, pick-up or DashPass
         </h1>
-        <p className="text-red-100 text-lg mb-6">
+        <p className="text-red-100 text-lg">
           Order from your favorite local restaurants
         </p>
-        <HomeAddressBar />
       </div>
 
       {/* Restaurant Grid with filtering */}
