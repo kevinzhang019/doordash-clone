@@ -10,10 +10,8 @@ export default function HomeAddressBar() {
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   useEffect(() => {
-    if (deliveryAddress && deliveryAddress !== 'Current Location') {
+    if (deliveryAddress) {
       setInputAddress(deliveryAddress);
-    } else if (deliveryAddress === 'Current Location') {
-      setInputAddress('');
     }
   }, [deliveryAddress]);
 
@@ -35,7 +33,10 @@ export default function HomeAddressBar() {
         className="w-full py-2.5 pr-3 border-0 bg-transparent focus:outline-none focus:ring-0 text-gray-900 text-sm"
       />
       <button
-        onClick={requestGPS}
+        onClick={() => requestGPS((address, lat, lng) => {
+          setInputAddress(address);
+          setDeliveryLocation(address, lat, lng);
+        })}
         disabled={gpsStatus === 'requesting'}
         title="Use current location"
         className="bg-[#FF3008] text-white p-2.5 rounded-lg hover:bg-red-600 transition-colors cursor-pointer flex-shrink-0 disabled:opacity-60 flex items-center justify-center"

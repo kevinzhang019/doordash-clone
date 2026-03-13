@@ -84,9 +84,11 @@ function AddressDropdown({ onClose }: { onClose: () => void }) {
   const [inputAddress, setInputAddress] = useState(
     deliveryAddress && deliveryAddress !== 'Current Location' ? deliveryAddress : ''
   );
+  const [resolvedCoords, setResolvedCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   const handleChange = (addr: string, coords?: { lat: number; lng: number }) => {
     setInputAddress(addr);
+    setResolvedCoords(coords ?? null);
     if (coords) {
       setDeliveryLocation(addr, coords.lat, coords.lng);
       onClose();
@@ -94,8 +96,12 @@ function AddressDropdown({ onClose }: { onClose: () => void }) {
   };
 
   const handleGPS = () => {
-    requestGPS();
-    onClose();
+    requestGPS((address, lat, lng) => {
+      // Populate input so user can see & edit the resolved address
+      setInputAddress(address);
+      setResolvedCoords({ lat, lng });
+      setDeliveryLocation(address, lat, lng);
+    });
   };
 
   return (
@@ -103,7 +109,7 @@ function AddressDropdown({ onClose }: { onClose: () => void }) {
       {/* Header */}
       <div className="px-5 pt-5 pb-4 border-b border-gray-100">
         <p className="text-base font-semibold text-gray-900">Deliver to</p>
-        {deliveryAddress && (
+        {deliveryAddress && deliveryAddress !== 'Current Location' && (
           <p className="text-sm text-gray-500 mt-0.5 truncate">{deliveryAddress}</p>
         )}
       </div>
@@ -113,7 +119,7 @@ function AddressDropdown({ onClose }: { onClose: () => void }) {
         <AddressAutocomplete
           value={inputAddress}
           onChange={handleChange}
-          placeholder="Enter a new delivery address"
+          placeholder="Enter a delivery address"
           wrapperClassName="w-full"
           className="w-full py-3 pr-4 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm transition-colors"
         />
@@ -130,17 +136,22 @@ function AddressDropdown({ onClose }: { onClose: () => void }) {
           className="mt-3 w-full flex items-center justify-center gap-2.5 py-3 px-4 rounded-xl border border-gray-200 hover:border-[#FF3008] hover:bg-red-50 transition-colors text-sm font-medium text-gray-700 hover:text-[#FF3008] disabled:opacity-50 cursor-pointer"
         >
           {gpsStatus === 'requesting' ? (
-            <svg className="animate-spin h-4 w-4 text-[#FF3008]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-            </svg>
+            <>
+              <svg className="animate-spin h-4 w-4 text-[#FF3008]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Detecting location…
+            </>
           ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
-              <circle cx="12" cy="9" r="2.5" stroke="currentColor" strokeWidth={2} />
-            </svg>
+            <>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" />
+                <circle cx="12" cy="9" r="2.5" stroke="currentColor" strokeWidth={2} />
+              </svg>
+              Use current location
+            </>
           )}
-          Use current location
         </button>
       </div>
     </div>

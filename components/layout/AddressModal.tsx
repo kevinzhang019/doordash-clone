@@ -19,7 +19,6 @@ export default function AddressModal({ onClose }: AddressModalProps) {
   const { setDeliveryLocation, requestGPS, gpsStatus } = useLocation();
   const [inputAddress, setInputAddress] = useState('');
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
-  const [gpsRequested, setGpsRequested] = useState(false);
 
   useEffect(() => {
     fetch('/api/addresses')
@@ -27,11 +26,6 @@ export default function AddressModal({ onClose }: AddressModalProps) {
       .then(d => { if (d?.addresses) setSavedAddresses(d.addresses); })
       .catch(() => {});
   }, []);
-
-  // Only close when GPS transitions to granted *within this modal session*
-  useEffect(() => {
-    if (gpsRequested && gpsStatus === 'granted') onClose();
-  }, [gpsStatus, gpsRequested, onClose]);
 
   const handleSelect = (addr: string, coords?: { lat: number; lng: number }) => {
     setInputAddress(addr);
@@ -48,7 +42,11 @@ export default function AddressModal({ onClose }: AddressModalProps) {
 
   const handleGPS = () => {
     setGpsRequested(true);
-    requestGPS();
+    requestGPS((address, lat, lng) => {
+      setInputAddress(address);
+      setDeliveryLocation(address, lat, lng);
+      onClose();
+    });
   };
 
   return (

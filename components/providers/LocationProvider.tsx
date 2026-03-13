@@ -29,7 +29,7 @@ interface LocationContextType {
   deliveryAddress: string;
   onboardingComplete: boolean;
   gpsStatus: 'idle' | 'requesting' | 'granted' | 'denied';
-  requestGPS: () => void;
+  requestGPS: (onResolved?: (address: string, lat: number, lng: number) => void) => void;
   setDeliveryLocation: (address: string, lat: number, lng: number) => void;
   getRestaurantDeliveryInfo: (restaurantId: number) => RestaurantDeliveryInfo | null;
 }
@@ -107,16 +107,35 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     }).catch(() => {});
   }, []);
 
-  const requestGPS = useCallback(() => {
+  const requestGPS = useCallback((onResolved?: (address: string, lat: number, lng: number) => void) => {
     if (!navigator.geolocation) {
       setGpsStatus('denied');
       return;
     }
     setGpsStatus('requesting');
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        let address = 'Current Location';
+        try {
+          const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+          const res = await fetch(
+            `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${key}`
+          );
+          const data = await res.json();
+          const result = data.results?.[0];
+          if (result?.formatted_address) {
+            address = result.formatted_address;
+          }
+        } catch {
+          // Fall back to generic label if reverse geocoding fails
+        }
         setGpsStatus('granted');
-        setDeliveryLocation('Current Location', pos.coords.latitude, pos.coords.longitude);
+        if (onResolved) {
+          onResolved(address, lat, lng);
+        } else {
+          setDeliveryLocation(address, lat, lng);
+        }
       },
       () => setGpsStatus('denied'),
       { timeout: 10000 }

@@ -44,7 +44,11 @@ export default function OnboardingModal() {
 
         {/* GPS Button */}
         <button
-          onClick={requestGPS}
+          onClick={() => requestGPS((addr, lat, lng) => {
+            setAddress(addr);
+            setCoords({ lat, lng });
+            setDeliveryLocation(addr, lat, lng);
+          })}
           disabled={gpsStatus === 'requesting'}
           className="w-full flex items-center gap-3 border-2 border-gray-200 hover:border-[#FF3008] rounded-xl px-4 py-3.5 mb-4 transition-colors disabled:opacity-60 cursor-pointer text-left"
         >
