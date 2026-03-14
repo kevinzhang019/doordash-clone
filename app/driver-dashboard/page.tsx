@@ -558,9 +558,12 @@ export default function DriverDashboardPage() {
             {phase === 'active_waiting' && (
               <button
                 onClick={openJobSidebar}
-                className="relative border border-[#2a2a2a] text-gray-400 hover:text-white hover:border-gray-500 px-3 py-1.5 rounded-lg text-sm transition-colors cursor-pointer flex-shrink-0"
+                className="relative w-9 h-9 flex items-center justify-center border border-[#2a2a2a] text-gray-400 hover:text-white hover:border-gray-500 rounded-lg transition-colors cursor-pointer flex-shrink-0"
+                aria-label="Open available jobs"
               >
-                Jobs
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                  <path fillRule="evenodd" d="M2.5 3.5a.5.5 0 0 1 0-1h11a.5.5 0 0 1 0 1h-11zm0 4a.5.5 0 0 1 0-1h11a.5.5 0 0 1 0 1h-11zm0 4a.5.5 0 0 1 0-1h11a.5.5 0 0 1 0 1h-11z"/>
+                </svg>
                 {unreadCount > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 bg-[#FF3008] text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                     {unreadCount > 9 ? '9+' : unreadCount}
@@ -669,47 +672,45 @@ export default function DriverDashboardPage() {
           </div>
         )}
 
-        {/* Jobs sidebar */}
-        {jobSidebarOpen && (
-          <div className="absolute inset-0 z-30 flex">
-            {/* Backdrop */}
-            <div className="absolute inset-0 bg-black/50" onClick={closeJobSidebar} />
-            {/* Sidebar panel */}
-            <div className="relative w-80 max-w-full h-full bg-[#1a1a1a] border-r border-[#2a2a2a] shadow-2xl flex flex-col">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-[#2a2a2a]">
-                <p className="text-white font-semibold text-sm">Available Jobs</p>
-                <button onClick={closeJobSidebar} className="text-gray-400 hover:text-white transition-colors cursor-pointer text-lg leading-none">✕</button>
-              </div>
-              <div className="flex-1 overflow-y-auto p-4">
-                {availableJobs.length === 0 ? (
-                  <p className="text-gray-500 text-sm text-center mt-8">No jobs available right now.</p>
-                ) : (
-                  <div className="space-y-3">
-                    <p className="text-gray-500 text-xs uppercase tracking-wide mb-2">Previously Declined — Still Available</p>
-                    {availableJobs.map(job => (
-                      <div key={job.id} className="bg-[#242424] rounded-xl p-4">
-                        <div className="flex items-start justify-between gap-3 mb-3">
-                          <div className="min-w-0">
-                            <p className="text-white text-sm font-medium truncate">{job.restaurantName || job.restaurantAddress}</p>
-                            <p className="text-gray-400 text-xs mt-0.5">{job.estimatedMinutes} min · {job.totalMiles ? `${job.totalMiles.toFixed(1)} mi` : ''}</p>
-                          </div>
-                          <span className="text-[#22c55e] font-bold text-sm flex-shrink-0">${(job.payAmount + job.tip).toFixed(2)}</span>
+        {/* Jobs sidebar — always rendered, slides in/out */}
+        <div className={`absolute inset-0 z-30 flex transition-opacity duration-300 ${jobSidebarOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+          {/* Backdrop */}
+          <div className="absolute inset-0 bg-black/50" onClick={closeJobSidebar} />
+          {/* Sidebar panel */}
+          <div className={`relative w-80 max-w-full h-full bg-[#1a1a1a] border-r border-[#2a2a2a] shadow-2xl flex flex-col transition-transform duration-300 ease-in-out ${jobSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-[#2a2a2a]">
+              <p className="text-white font-semibold text-sm">Available Jobs</p>
+              <button onClick={closeJobSidebar} className="text-gray-400 hover:text-white transition-colors cursor-pointer text-lg leading-none">✕</button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {availableJobs.length === 0 ? (
+                <p className="text-gray-500 text-sm text-center mt-8">No jobs available right now.</p>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-gray-500 text-xs uppercase tracking-wide mb-2">Previously Declined — Still Available</p>
+                  {availableJobs.map(job => (
+                    <div key={job.id} className="bg-[#242424] rounded-xl p-4">
+                      <div className="flex items-start justify-between gap-3 mb-3">
+                        <div className="min-w-0">
+                          <p className="text-white text-sm font-medium truncate">{job.restaurantName || job.restaurantAddress}</p>
+                          <p className="text-gray-400 text-xs mt-0.5">{job.estimatedMinutes} min · {job.totalMiles ? `${job.totalMiles.toFixed(1)} mi` : ''}</p>
                         </div>
-                        <button
-                          onClick={() => handleAcceptAvailableJob(job)}
-                          disabled={acceptingAvailableId === job.id}
-                          className="w-full bg-[#22c55e] text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-green-600 transition-colors disabled:opacity-50 cursor-pointer"
-                        >
-                          {acceptingAvailableId === job.id ? 'Accepting...' : 'Accept Job'}
-                        </button>
+                        <span className="text-[#22c55e] font-bold text-sm flex-shrink-0">${(job.payAmount + job.tip).toFixed(2)}</span>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                      <button
+                        onClick={() => handleAcceptAvailableJob(job)}
+                        disabled={acceptingAvailableId === job.id}
+                        className="w-full bg-[#22c55e] text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-green-600 transition-colors disabled:opacity-50 cursor-pointer"
+                      >
+                        {acceptingAvailableId === job.id ? 'Accepting...' : 'Accept Job'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-        )}
+        </div>
 
         {/* Route info */}
         {routeInfo && (phase === 'job_accepted_pickup' || phase === 'job_accepted_deliver') && (
