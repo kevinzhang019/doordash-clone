@@ -29,13 +29,22 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
+function detectRoleFromPath(): UserRole {
+  if (typeof window === 'undefined') return 'customer';
+  const path = window.location.pathname;
+  if (path.startsWith('/driver-dashboard')) return 'driver';
+  if (path.startsWith('/restaurant-dashboard') || path.startsWith('/restaurant-setup')) return 'restaurant';
+  return 'customer';
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refreshUser = useCallback(async () => {
     try {
-      const res = await fetch('/api/auth/me');
+      const role = detectRoleFromPath();
+      const res = await fetch(`/api/auth/me?role=${role}`);
       const data = await res.json();
       setUser(data.user || null);
       if (data.user) {
@@ -88,7 +97,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
+    const role = detectRoleFromPath();
+    await fetch('/api/auth/logout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role }),
+    });
     setUser(null);
   };
 

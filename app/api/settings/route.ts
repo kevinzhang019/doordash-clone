@@ -58,7 +58,7 @@ export async function PUT(request: NextRequest) {
 
     // Re-issue JWT with updated name/email
     const token = await signToken({ userId, email: newEmail, name: newName, role: currentUser.role });
-    await setSessionCookie(token);
+    await setSessionCookie(token, currentUser.role);
 
     const updated = db.prepare('SELECT id, email, name, role, phone FROM users WHERE id = ?').get(userId);
     return Response.json({ user: updated });
@@ -186,7 +186,7 @@ export async function DELETE(request: NextRequest) {
       db.prepare('DELETE FROM users WHERE id = ?').run(userId);
     })();
 
-    await clearSessionCookie();
+    await clearSessionCookie(user.role);
     return Response.json({ success: true });
   } catch (error) {
     console.error('Delete account error:', error);

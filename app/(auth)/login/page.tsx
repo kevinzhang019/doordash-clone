@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useCart } from '@/components/providers/CartProvider';
 import type { UserRole } from '@/lib/types';
@@ -17,7 +17,16 @@ export default function LoginPage() {
   const { login } = useAuth();
   const { refreshCart } = useCart();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [role, setRole] = useState<UserRole>('customer');
+
+  useEffect(() => {
+    const roleParam = searchParams.get('role') as UserRole | null;
+    const validRoles: UserRole[] = ['customer', 'restaurant', 'driver'];
+    if (roleParam && validRoles.includes(roleParam)) {
+      setRole(roleParam);
+    }
+  }, [searchParams]);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');

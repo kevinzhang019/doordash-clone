@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     }
 
     const token = await signToken({ userId: user.id, email: user.email, name: user.name, role: user.role });
-    await setSessionCookie(token);
+    await setSessionCookie(token, user.role);
 
     return Response.json({ user: { id: user.id, email: user.email, name: user.name, role: user.role } });
   } catch (error) {

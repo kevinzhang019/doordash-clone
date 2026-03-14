@@ -4,10 +4,11 @@ import { useAuth } from '@/components/providers/AuthProvider';
 import { useCart } from '@/components/providers/CartProvider';
 import { useLocation } from '@/components/providers/LocationProvider';
 import { useSearch } from '@/components/providers/SearchProvider';
+import { useModeContext } from '@/components/providers/ModeProvider';
 import AddressAutocomplete, { AddressAutocompleteHandle } from '@/components/ui/AddressAutocomplete';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
 function CartPopup() {
@@ -289,7 +290,10 @@ export default function Navbar() {
   const { cartCount, openSidebar } = useCart();
   const { deliveryAddress } = useLocation();
   const { search, setSearch } = useSearch();
+  const { openMode } = useModeContext();
   const router = useRouter();
+  const pathname = usePathname();
+  const isCheckout = pathname === '/checkout';
   const [profileOpen, setProfileOpen] = useState(false);
   const [addressOpen, setAddressOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -329,8 +333,23 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center h-16 gap-3">
 
+          {/* Hamburger / mode switcher */}
+          <button
+            onClick={openMode}
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0 cursor-pointer"
+            aria-label="Switch mode"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 flex-shrink-0">
+          <Link
+            href="/"
+            onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}
+            className="flex items-center gap-2 flex-shrink-0"
+          >
             <div className="w-8 h-8 bg-[#FF3008] rounded-full flex items-center justify-center">
               <span className="text-white font-bold text-sm">D</span>
             </div>
@@ -340,34 +359,46 @@ export default function Navbar() {
           {/* Search bar */}
           <div className="flex-1 min-w-0 mx-3">
             <div className="relative">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
               <input
                 type="text"
                 placeholder="Search restaurants or cuisines..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && pathname !== '/') router.push('/');
+                }}
+                className="w-full pl-4 pr-10 py-2.5 border border-gray-200 rounded-xl bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm"
               />
+              <button
+                onClick={() => { if (pathname !== '/') router.push('/'); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#FF3008] transition-colors cursor-pointer"
+                aria-label="Search"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </button>
             </div>
           </div>
 
           {/* Address dropdown button */}
           <div className="relative flex-shrink-0" ref={addressRef}>
             <button
-              onClick={() => setAddressOpen(o => !o)}
-              className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-colors text-sm cursor-pointer ${
-                addressOpen
-                  ? 'border-[#FF3008] bg-red-50 text-[#FF3008]'
-                  : 'border-gray-200 hover:border-[#FF3008] hover:bg-red-50 text-gray-700 hover:text-[#FF3008]'
+              onClick={() => !isCheckout && setAddressOpen(o => !o)}
+              disabled={isCheckout}
+              className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-colors text-sm ${
+                isCheckout
+                  ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                  : addressOpen
+                  ? 'border-[#FF3008] bg-red-50 text-[#FF3008] cursor-pointer'
+                  : 'border-gray-200 hover:border-[#FF3008] hover:bg-red-50 text-gray-700 hover:text-[#FF3008] cursor-pointer'
               }`}
             >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-[#FF3008] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className={`h-4 w-4 flex-shrink-0 ${isCheckout ? 'text-gray-400' : 'text-[#FF3008]'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              <span className={`max-w-[160px] truncate font-medium hidden sm:block ${deliveryAddress ? 'text-gray-900' : 'text-gray-400'}`}>
+              <span className={`max-w-[160px] truncate font-medium hidden sm:block ${isCheckout ? 'text-gray-400' : deliveryAddress ? 'text-gray-900' : 'text-gray-400'}`}>
                 {deliveryAddress ? truncateAddress(deliveryAddress) : 'Add address'}
               </span>
               <svg

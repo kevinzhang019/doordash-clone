@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
 
     const userId = result.lastInsertRowid as number;
     const token = await signToken({ userId, email: email.toLowerCase().trim(), name: name.trim(), role });
-    await setSessionCookie(token);
+    await setSessionCookie(token, role);
 
     return Response.json({
       user: { id: userId, email: email.toLowerCase().trim(), name: name.trim(), role },

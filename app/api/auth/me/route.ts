@@ -1,9 +1,16 @@
+import { NextRequest } from 'next/server';
 import { getSession, clearSessionCookie } from '@/lib/auth';
 import getDb from '@/db/database';
+import type { UserRole } from '@/lib/types';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const session = await getSession();
+    const { searchParams } = new URL(request.url);
+    const roleParam = searchParams.get('role') as UserRole | null;
+    const validRoles: UserRole[] = ['customer', 'restaurant', 'driver'];
+    const role = roleParam && validRoles.includes(roleParam) ? roleParam : undefined;
+
+    const session = await getSession(role);
     if (!session) {
       return Response.json({ user: null });
     }
@@ -13,7 +20,7 @@ export async function GET() {
       | undefined;
 
     if (!dbUser) {
-      await clearSessionCookie();
+      if (session.role) await clearSessionCookie(session.role);
       return Response.json({ user: null });
     }
 
