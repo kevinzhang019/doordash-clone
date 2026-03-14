@@ -44,6 +44,10 @@ export default function DriverDashboardPage() {
   const orderStatusRef = useRef<string | null>(null);
   const [availableJobs, setAvailableJobs] = useState<DriverJob[]>([]);
   const [acceptingAvailableId, setAcceptingAvailableId] = useState<string | null>(null);
+  const [jobSidebarOpen, setJobSidebarOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const seenJobIdsRef = useRef<Set<string>>(new Set());
+  const jobSidebarOpenRef = useRef(false);
   const avatarRef = useRef<HTMLDivElement>(null);
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const orderStatusPollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -91,6 +95,18 @@ export default function DriverDashboardPage() {
   useEffect(() => { phaseRef.current = phase; }, [phase]);
   useEffect(() => { deliveryIdRef.current = deliveryId; }, [deliveryId]);
   useEffect(() => { currentJobRef.current = currentJob; }, [currentJob]);
+  useEffect(() => { jobSidebarOpenRef.current = jobSidebarOpen; }, [jobSidebarOpen]);
+
+  // Track unread jobs when sidebar is closed
+  useEffect(() => {
+    const newJobs = availableJobs.filter(j => !seenJobIdsRef.current.has(j.id));
+    if (newJobs.length > 0) {
+      newJobs.forEach(j => seenJobIdsRef.current.add(j.id));
+      if (!jobSidebarOpenRef.current) {
+        setUnreadCount(c => c + newJobs.length);
+      }
+    }
+  }, [availableJobs]);
 
   // Always start offline — end any session left over from a previous visit
   useEffect(() => {
@@ -199,6 +215,11 @@ export default function DriverDashboardPage() {
   useEffect(() => {
     if (phase === 'job_accepted_pickup' && currentJob?.orderId && !currentJob.isSimulated) {
       setOrderStatus(null);
+      // Fetch immediately so button state is correct without waiting for the first poll tick
+      fetch(`/api/driver/orders/${currentJob.orderId}`)
+        .then(r => r.json())
+        .then(d => { if (d.status) setOrderStatus(d.status); })
+        .catch(() => {});
       pollOrderStatus(currentJob.orderId);
     }
     if (phase !== 'job_accepted_pickup') {
@@ -221,6 +242,13 @@ export default function DriverDashboardPage() {
       setLoadingActive(false);
     }
   }, []);
+
+  const openJobSidebar = () => {
+    setJobSidebarOpen(true);
+    setUnreadCount(0);
+  };
+
+  const closeJobSidebar = () => setJobSidebarOpen(false);
 
   const handleGoOffline = useCallback(async () => {
     stopPolling();
@@ -247,6 +275,9 @@ export default function DriverDashboardPage() {
     setCurrentJob(null);
     setDeliveryId(null);
     setAvailableJobs([]);
+    setJobSidebarOpen(false);
+    setUnreadCount(0);
+    seenJobIdsRef.current = new Set();
     setOrderStatus(null);
     setSessionMinutes(0);
     setPhase('idle');
@@ -352,6 +383,9 @@ export default function DriverDashboardPage() {
       setRouteInfo(null);
       stopPolling();
       setAvailableJobs([]);
+      setJobSidebarOpen(false);
+      setUnreadCount(0);
+      seenJobIdsRef.current = new Set();
       setPhase('job_accepted_pickup');
     } catch { /* ignore */ } finally {
       setAcceptingAvailableId(null);
@@ -557,6 +591,20 @@ export default function DriverDashboardPage() {
               </button>
             )}
 
+            {phase === 'active_waiting' && (
+              <button
+                onClick={openJobSidebar}
+                className="relative border border-[#2a2a2a] text-gray-400 hover:text-white hover:border-gray-500 px-3 py-1.5 rounded-lg text-sm transition-colors cursor-pointer"
+              >
+                Jobs
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-[#FF3008] text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+            )}
+
             <Link
               href="/driver-dashboard/history"
               className="border border-[#2a2a2a] text-gray-400 hover:text-white hover:border-gray-500 px-3 py-1.5 rounded-lg text-sm transition-colors"
@@ -620,27 +668,43 @@ export default function DriverDashboardPage() {
           </div>
         )}
 
-        {/* Available Jobs panel */}
-        {phase === 'active_waiting' && availableJobs.length > 0 && (
-          <div className="absolute top-16 left-4 right-4 z-20 max-w-md mx-auto">
-            <div className="bg-[#1a1a1a]/95 border border-[#2a2a2a] rounded-2xl p-4 shadow-2xl">
-              <p className="text-gray-400 text-xs font-medium mb-3 uppercase tracking-wide">Previously Declined — Still Available</p>
-              <div className="space-y-3">
-                {availableJobs.map(job => (
-                  <div key={job.id} className="flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-white text-sm font-medium truncate">{job.restaurantName || job.restaurantAddress}</p>
-                      <p className="text-gray-400 text-xs">{job.estimatedMinutes} min · ${(job.payAmount + job.tip).toFixed(2)}</p>
-                    </div>
-                    <button
-                      onClick={() => handleAcceptAvailableJob(job)}
-                      disabled={acceptingAvailableId === job.id}
-                      className="bg-[#22c55e] text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-green-600 transition-colors disabled:opacity-50 cursor-pointer flex-shrink-0"
-                    >
-                      {acceptingAvailableId === job.id ? '...' : 'Accept'}
-                    </button>
+        {/* Jobs sidebar */}
+        {jobSidebarOpen && (
+          <div className="absolute inset-0 z-30 flex">
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-black/50" onClick={closeJobSidebar} />
+            {/* Sidebar panel */}
+            <div className="relative w-80 max-w-full h-full bg-[#1a1a1a] border-r border-[#2a2a2a] shadow-2xl flex flex-col">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-[#2a2a2a]">
+                <p className="text-white font-semibold text-sm">Available Jobs</p>
+                <button onClick={closeJobSidebar} className="text-gray-400 hover:text-white transition-colors cursor-pointer text-lg leading-none">✕</button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4">
+                {availableJobs.length === 0 ? (
+                  <p className="text-gray-500 text-sm text-center mt-8">No jobs available right now.</p>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-gray-500 text-xs uppercase tracking-wide mb-2">Previously Declined — Still Available</p>
+                    {availableJobs.map(job => (
+                      <div key={job.id} className="bg-[#242424] rounded-xl p-4">
+                        <div className="flex items-start justify-between gap-3 mb-3">
+                          <div className="min-w-0">
+                            <p className="text-white text-sm font-medium truncate">{job.restaurantName || job.restaurantAddress}</p>
+                            <p className="text-gray-400 text-xs mt-0.5">{job.estimatedMinutes} min · {job.totalMiles ? `${job.totalMiles.toFixed(1)} mi` : ''}</p>
+                          </div>
+                          <span className="text-[#22c55e] font-bold text-sm flex-shrink-0">${(job.payAmount + job.tip).toFixed(2)}</span>
+                        </div>
+                        <button
+                          onClick={() => handleAcceptAvailableJob(job)}
+                          disabled={acceptingAvailableId === job.id}
+                          className="w-full bg-[#22c55e] text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-green-600 transition-colors disabled:opacity-50 cursor-pointer"
+                        >
+                          {acceptingAvailableId === job.id ? 'Accepting...' : 'Accept Job'}
+                        </button>
+                      </div>
+                    ))}
                   </div>
-                ))}
+                )}
               </div>
             </div>
           </div>
