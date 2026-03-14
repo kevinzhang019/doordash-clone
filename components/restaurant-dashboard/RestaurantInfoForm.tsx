@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { Restaurant } from '@/lib/types';
+import AddressAutocomplete from '@/components/ui/AddressAutocomplete';
 
 const CUISINE_OPTIONS = [
   'American', 'Chinese', 'French', 'Indian', 'Italian',
@@ -17,20 +18,51 @@ interface RestaurantInfoFormProps {
 export default function RestaurantInfoForm({ restaurant, onSaved }: RestaurantInfoFormProps) {
   const [name, setName] = useState(restaurant.name);
   const [cuisine, setCuisine] = useState(restaurant.cuisine);
-  const [description, setDescription] = useState(restaurant.description);
   const [imageUrl, setImageUrl] = useState(restaurant.image_url);
-  const [deliveryFee, setDeliveryFee] = useState(restaurant.delivery_fee.toString());
-  const [deliveryMin, setDeliveryMin] = useState(restaurant.delivery_min.toString());
-  const [deliveryMax, setDeliveryMax] = useState(restaurant.delivery_max.toString());
   const [address, setAddress] = useState(restaurant.address);
+  const [addressCoords, setAddressCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
+    setError('');
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      const res = await fetch('/api/restaurant-dashboard/image-upload', {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || 'Upload failed');
+      } else {
+        const data = await res.json();
+        setImageUrl(data.imageUrl);
+      }
+    } catch {
+      setError('Upload failed. Please try again.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setSaved(false);
+
+    const addressChanged = address.trim() !== restaurant.address.trim();
+    if (addressChanged && !addressCoords) {
+      setError('Please select the new address from the dropdown suggestions');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -40,12 +72,9 @@ export default function RestaurantInfoForm({ restaurant, onSaved }: RestaurantIn
         body: JSON.stringify({
           name: name.trim(),
           cuisine,
-          description: description.trim(),
           image_url: imageUrl.trim(),
-          delivery_fee: parseFloat(deliveryFee),
-          delivery_min: parseInt(deliveryMin),
-          delivery_max: parseInt(deliveryMax),
           address: address.trim(),
+          ...(addressCoords ? { lat: addressCoords.lat, lng: addressCoords.lng } : {}),
         }),
       });
 
@@ -87,7 +116,7 @@ export default function RestaurantInfoForm({ restaurant, onSaved }: RestaurantIn
           />
         </div>
 
-        <div>
+        <div className="sm:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Cuisine</label>
           <select
             value={cuisine}
@@ -98,88 +127,47 @@ export default function RestaurantInfoForm({ restaurant, onSaved }: RestaurantIn
           </select>
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Delivery fee ($)</label>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            value={deliveryFee}
-            onChange={e => setDeliveryFee(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent"
-          />
-        </div>
-
-        <div className="sm:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Description</label>
-          <textarea
-            required
-            value={description}
-            onChange={e => setDescription(e.target.value)}
-            rows={3}
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent resize-none"
-          />
-        </div>
-
         <div className="sm:col-span-2">
           <label className="block text-sm font-medium text-gray-700 mb-1.5">Address</label>
-          <input
-            type="text"
+          <AddressAutocomplete
             value={address}
-            onChange={e => setAddress(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent"
+            onChange={(addr, coords) => {
+              setAddress(addr);
+              setAddressCoords(coords ?? null);
+            }}
+            placeholder="Start typing the restaurant address..."
+            wrapperClassName="w-full"
+            className="w-full py-3 pr-4 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent"
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Delivery time (min)</label>
-          <div className="flex gap-2 items-center">
-            <input
-              type="number"
-              min="5"
-              value={deliveryMin}
-              onChange={e => setDeliveryMin(e.target.value)}
-              className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent"
-            />
-            <span className="text-gray-400">–</span>
-            <input
-              type="number"
-              min="10"
-              value={deliveryMax}
-              onChange={e => setDeliveryMax(e.target.value)}
-              className="flex-1 px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent"
-            />
-            <span className="text-gray-500 text-sm">min</span>
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Image URL</label>
+        <div className="sm:col-span-2">
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">Restaurant image</label>
           <input
-            type="url"
-            value={imageUrl}
-            onChange={e => setImageUrl(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={handleImageUpload}
+            disabled={uploadingImage}
+            className="w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#FF3008] file:text-white hover:file:bg-red-600 file:cursor-pointer border border-gray-200 rounded-xl px-3 py-2 focus:outline-none disabled:opacity-50"
           />
+          {uploadingImage && <p className="text-xs text-gray-400 mt-1">Uploading...</p>}
+          {imageUrl && !uploadingImage && (
+            <div className="mt-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={imageUrl}
+                alt="preview"
+                className="w-full h-40 object-cover rounded-xl border border-gray-200"
+                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+            </div>
+          )}
         </div>
-
-        {imageUrl && (
-          <div className="sm:col-span-2">
-            <p className="text-sm font-medium text-gray-700 mb-2">Image preview</p>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={imageUrl}
-              alt="preview"
-              className="w-full h-40 object-cover rounded-xl border border-gray-200"
-              onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-            />
-          </div>
-        )}
       </div>
 
       <button
         type="submit"
-        disabled={loading}
+        disabled={loading || uploadingImage}
         className="bg-[#FF3008] text-white font-semibold px-8 py-3 rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? 'Saving...' : 'Save Changes'}

@@ -30,7 +30,7 @@ export async function PUT(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { name, cuisine, description, image_url, delivery_fee, delivery_min, delivery_max, address, lat, lng, is_accepting_orders } = body;
+    const { name, cuisine, image_url, address, lat, lng, is_accepting_orders } = body;
 
     const db = getDb();
 
@@ -44,19 +44,15 @@ export async function PUT(request: NextRequest) {
     if (typeof lat === 'number' && typeof lng === 'number') {
       db.prepare(`
         UPDATE restaurants
-        SET name = ?, cuisine = ?, description = ?, image_url = ?, delivery_fee = ?, delivery_min = ?, delivery_max = ?, address = ?, lat = ?, lng = ?,
-            is_accepting_orders = COALESCE(?, is_accepting_orders)
+        SET name = ?, cuisine = ?, image_url = ?, address = ?, lat = ?, lng = ?
         WHERE id = ?
-      `).run(name, cuisine, description, image_url, delivery_fee, delivery_min, delivery_max, address, lat, lng,
-             is_accepting_orders !== undefined ? (is_accepting_orders ? 1 : 0) : null, restaurantId);
+      `).run(name, cuisine, image_url, address, lat, lng, restaurantId);
     } else {
       db.prepare(`
         UPDATE restaurants
-        SET name = ?, cuisine = ?, description = ?, image_url = ?, delivery_fee = ?, delivery_min = ?, delivery_max = ?,
-            address = ?, is_accepting_orders = COALESCE(?, is_accepting_orders)
+        SET name = ?, cuisine = ?, image_url = ?, address = ?
         WHERE id = ?
-      `).run(name, cuisine, description, image_url, delivery_fee, delivery_min, delivery_max, address,
-             is_accepting_orders !== undefined ? (is_accepting_orders ? 1 : 0) : null, restaurantId);
+      `).run(name, cuisine, image_url, address, restaurantId);
     }
 
     const restaurant = db.prepare('SELECT * FROM restaurants WHERE id = ?').get(restaurantId);

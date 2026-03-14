@@ -23,13 +23,8 @@ export default function RestaurantSetupPage() {
 
   const [name, setName] = useState('');
   const [cuisine, setCuisine] = useState('American');
-  const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState('');
-  const [imageTab, setImageTab] = useState<'url' | 'upload'>('url');
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [deliveryFee, setDeliveryFee] = useState('2.99');
-  const [deliveryMin, setDeliveryMin] = useState('20');
-  const [deliveryMax, setDeliveryMax] = useState('40');
   const [address, setAddress] = useState('');
   const [addressCoords, setAddressCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [error, setError] = useState('');
@@ -72,18 +67,13 @@ export default function RestaurantSetupPage() {
 
     setLoading(true);
     try {
-      // Create restaurant
       const createRes = await fetch('/api/restaurants', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: name.trim(),
           cuisine,
-          description: description.trim(),
-          image_url: imageUrl.trim() || undefined,
-          delivery_fee: parseFloat(deliveryFee),
-          delivery_min: parseInt(deliveryMin),
-          delivery_max: parseInt(deliveryMax),
+          image_url: imageUrl || undefined,
           address: address.trim(),
           lat: addressCoords.lat,
           lng: addressCoords.lng,
@@ -99,7 +89,6 @@ export default function RestaurantSetupPage() {
 
       const { restaurantId } = await createRes.json();
 
-      // Claim restaurant for this owner
       const claimRes = await fetch('/api/restaurant-dashboard/claim', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -142,169 +131,79 @@ export default function RestaurantSetupPage() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Restaurant name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm"
-                  placeholder="e.g. Mama's Kitchen"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Cuisine type
-                </label>
-                <select
-                  value={cuisine}
-                  onChange={(e) => setCuisine(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm bg-white"
-                >
-                  {CUISINE_OPTIONS.map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Restaurant Image (optional)
-                </label>
-                <div className="flex gap-1 bg-gray-100 p-1 rounded-lg mb-2 w-fit">
-                  <button
-                    type="button"
-                    onClick={() => setImageTab('url')}
-                    className={`px-3 py-1 rounded text-xs font-medium transition-colors cursor-pointer ${imageTab === 'url' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
-                  >
-                    Paste URL
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setImageTab('upload')}
-                    className={`px-3 py-1 rounded text-xs font-medium transition-colors cursor-pointer ${imageTab === 'upload' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
-                  >
-                    Upload File
-                  </button>
-                </div>
-                {imageTab === 'url' ? (
-                  <input
-                    type="url"
-                    value={imageUrl}
-                    onChange={(e) => setImageUrl(e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm"
-                    placeholder="https://..."
-                  />
-                ) : (
-                  <div>
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      onChange={handleImageUpload}
-                      disabled={uploadingImage}
-                      className="w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#FF3008] file:text-white hover:file:bg-red-600 file:cursor-pointer border border-gray-200 rounded-xl px-3 py-2 focus:outline-none disabled:opacity-50"
-                    />
-                    {uploadingImage && <p className="text-xs text-gray-400 mt-1">Uploading...</p>}
-                    {imageUrl && !uploadingImage && <p className="text-xs text-green-600 mt-1">Image uploaded successfully</p>}
-                  </div>
-                )}
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Description
-                </label>
-                <textarea
-                  required
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={3}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm resize-none"
-                  placeholder="Tell customers what makes your restaurant special..."
-                />
-              </div>
-
-              <div className="sm:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Address
-                </label>
-                <AddressAutocomplete
-                  value={address}
-                  onChange={(addr, coords) => {
-                    setAddress(addr);
-                    setAddressCoords(coords ?? null);
-                  }}
-                  placeholder="Start typing your restaurant's address..."
-                  wrapperClassName="w-full"
-                  className="w-full py-3 pr-4 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Delivery fee ($)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  required
-                  value={deliveryFee}
-                  onChange={(e) => setDeliveryFee(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Delivery time (min)
-                </label>
-                <div className="flex gap-2 items-center">
-                  <input
-                    type="number"
-                    min="5"
-                    required
-                    value={deliveryMin}
-                    onChange={(e) => setDeliveryMin(e.target.value)}
-                    className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm"
-                    placeholder="Min"
-                  />
-                  <span className="text-gray-400 text-sm">–</span>
-                  <input
-                    type="number"
-                    min="10"
-                    required
-                    value={deliveryMax}
-                    onChange={(e) => setDeliveryMax(e.target.value)}
-                    className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm"
-                    placeholder="Max"
-                  />
-                  <span className="text-gray-500 text-sm">min</span>
-                </div>
-              </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Restaurant name
+              </label>
+              <input
+                type="text"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm"
+                placeholder="e.g. Mama's Kitchen"
+              />
             </div>
 
-            {imageUrl && (
-              <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">Image preview</p>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={imageUrl}
-                  alt="Restaurant preview"
-                  className="w-full h-40 object-cover rounded-xl border border-gray-200"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                />
-              </div>
-            )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Cuisine type
+              </label>
+              <select
+                value={cuisine}
+                onChange={(e) => setCuisine(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm bg-white"
+              >
+                {CUISINE_OPTIONS.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Address
+              </label>
+              <AddressAutocomplete
+                value={address}
+                onChange={(addr, coords) => {
+                  setAddress(addr);
+                  setAddressCoords(coords ?? null);
+                }}
+                placeholder="Start typing your restaurant's address..."
+                wrapperClassName="w-full"
+                className="w-full py-3 pr-4 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Restaurant image (optional)
+              </label>
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleImageUpload}
+                disabled={uploadingImage}
+                className="w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#FF3008] file:text-white hover:file:bg-red-600 file:cursor-pointer border border-gray-200 rounded-xl px-3 py-2 focus:outline-none disabled:opacity-50"
+              />
+              {uploadingImage && <p className="text-xs text-gray-400 mt-1">Uploading...</p>}
+              {imageUrl && !uploadingImage && (
+                <div className="mt-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={imageUrl}
+                    alt="Restaurant preview"
+                    className="w-full h-40 object-cover rounded-xl border border-gray-200"
+                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  />
+                </div>
+              )}
+            </div>
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || uploadingImage}
               className="w-full bg-[#FF3008] text-white font-semibold py-3 rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Creating restaurant...' : 'Create Restaurant & Continue'}
