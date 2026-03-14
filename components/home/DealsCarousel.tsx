@@ -155,7 +155,7 @@ export default function DealsCarousel({ allRestaurants }: { allRestaurants: Rest
                     </span>
                   </span>
                   {deal.extraDealsCount > 0 && (
-                    <span className="bg-white/90 text-[#FF3008] font-bold text-xs px-2 py-1 rounded-full leading-none shadow-sm">
+                    <span className="bg-[#FF3008] text-white font-bold text-xs px-2 py-1 rounded-full leading-none shadow-sm">
                       +{deal.extraDealsCount}
                     </span>
                   )}
