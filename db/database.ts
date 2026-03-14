@@ -104,7 +104,7 @@ function runMigrations(db: Database.Database) {
       restaurant_id INTEGER NOT NULL REFERENCES restaurants(id),
       menu_item_id INTEGER NOT NULL REFERENCES menu_items(id),
       quantity INTEGER NOT NULL DEFAULT 1,
-      UNIQUE(user_id, menu_item_id)
+      special_requests TEXT
     );
 
     CREATE TABLE IF NOT EXISTS orders (
@@ -334,6 +334,42 @@ const restCols = (db.prepare("PRAGMA table_info(restaurants)").all() as { name: 
   const optionGroupCount = (db.prepare('SELECT COUNT(*) as count FROM menu_item_option_groups').get() as { count: number }).count;
   if (optionGroupCount === 0) {
     seedMenuItemOptions(db);
+  }
+
+  // --- Deals table ---
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS deals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      restaurant_id INTEGER NOT NULL REFERENCES restaurants(id),
+      menu_item_id INTEGER NOT NULL REFERENCES menu_items(id),
+      deal_type TEXT NOT NULL CHECK(deal_type IN ('percentage_off', 'bogo')),
+      discount_value REAL,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+  `);
+
+  // Seed demo deals if none exist
+  const dealCount = (db.prepare('SELECT COUNT(*) as count FROM deals').get() as { count: number }).count;
+  if (dealCount === 0) {
+    const insertDeal = db.prepare('INSERT INTO deals (restaurant_id, menu_item_id, deal_type, discount_value) VALUES (?, ?, ?, ?)');
+    const getItem = (restaurantName: string, itemName: string) =>
+      db.prepare(`SELECT m.id, m.restaurant_id FROM menu_items m JOIN restaurants r ON r.id = m.restaurant_id WHERE m.name = ? AND r.name = ?`).get(itemName, restaurantName) as { id: number; restaurant_id: number } | undefined;
+
+    const items: Array<[string, string, 'percentage_off' | 'bogo', number | null]> = [
+      ['Bella Napoli', 'Margherita DOP', 'percentage_off', 20],
+      ['Bella Napoli', 'Bruschetta al Pomodoro', 'bogo', null],
+      ['Bella Napoli', 'Tiramisù Classico', 'percentage_off', 30],
+      ['Sakura Garden', 'Karaage Chicken', 'percentage_off', 15],
+      ['Casa Fuego', 'Tacos al Pastor (3)', 'bogo', null],
+      ['Spice Route', 'Butter Chicken', 'percentage_off', 25],
+      ['Golden Dragon', 'Kung Pao Chicken', 'percentage_off', 20],
+      ['Seoul Kitchen', 'Bibimbap', 'bogo', null],
+    ];
+    for (const [restaurantName, itemName, dealType, discountValue] of items) {
+      const item = getItem(restaurantName, itemName);
+      if (item) insertDeal.run(item.restaurant_id, item.id, dealType, discountValue);
+    }
   }
 }
 
