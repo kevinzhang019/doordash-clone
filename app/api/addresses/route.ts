@@ -32,9 +32,11 @@ export async function POST(request: NextRequest) {
     }
 
     const db = getDb();
-    // Deduplicate by address text
-    const exists = db.prepare('SELECT id FROM user_addresses WHERE user_id = ? AND address = ?').get(userId, address);
-    if (!exists) {
+    // Reactivate if soft-deleted, otherwise insert
+    const existing = db.prepare('SELECT id, is_active FROM user_addresses WHERE user_id = ? AND address = ?').get(userId, address) as { id: number; is_active: number } | undefined;
+    if (existing && !existing.is_active) {
+      db.prepare('UPDATE user_addresses SET is_active = 1, lat = ?, lng = ? WHERE id = ?').run(lat, lng, existing.id);
+    } else if (!existing) {
       db.prepare('INSERT INTO user_addresses (user_id, address, lat, lng, is_active) VALUES (?, ?, ?, ?, 1)').run(userId, address, lat, lng);
     }
 

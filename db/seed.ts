@@ -406,14 +406,14 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Add Grilled Peaches', price: 2.00 },
     ]);
 
-    addGroup('Calamari Fritti', 'Bella Napoli', 'Dipping Sauce', false, 1, 1, [
+    addGroup('Calamari Fritti', 'Bella Napoli', 'Dipping Sauce', true, 1, 1, [
       { name: 'Marinara', price: 0.00 },
       { name: 'Garlic Aioli', price: 0.00 },
       { name: 'Spicy Arrabbiata', price: 0.00 },
     ]);
 
     for (const pizza of ['Margherita DOP', 'Diavola', 'Quattro Stagioni', 'Tartufo Bianco']) {
-      addGroup(pizza, 'Bella Napoli', 'Size', false, 1, 1, [
+      addGroup(pizza, 'Bella Napoli', 'Size', true, 1, 1, [
         { name: 'Personal (10")', price: 0.00 },
         { name: 'Large (14")', price: 6.00 },
       ]);
@@ -424,9 +424,9 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Add Mushrooms', price: 2.00 },
       { name: 'Add Fresh Chili', price: 0.00 },
     ]);
-    addGroup('Diavola', 'Bella Napoli', 'Heat Level', false, 1, 2, [
+    addGroup('Diavola', 'Bella Napoli', 'Heat Level', true, 1, 2, [
       { name: 'Mild', price: 0.00 },
-      { name: 'Medium (as made)', price: 0.00 },
+      { name: 'Medium', price: 0.00 },
       { name: 'Extra Hot', price: 0.00 },
     ]);
     addGroup('Diavola', 'Bella Napoli', 'Extra Toppings', false, null, 3, [
@@ -438,8 +438,8 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Extra Wild Mushrooms', price: 2.00 },
     ]);
 
-    addGroup('Spaghetti alla Carbonara', 'Bella Napoli', 'Pasta Shape', false, 1, 1, [
-      { name: 'Spaghetti (as made)', price: 0.00 },
+    addGroup('Spaghetti alla Carbonara', 'Bella Napoli', 'Pasta Shape', true, 1, 1, [
+      { name: 'Spaghetti', price: 0.00 },
       { name: 'Rigatoni', price: 0.00 },
       { name: 'Fettuccine', price: 0.00 },
     ]);
@@ -451,7 +451,7 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Extra Parmigiano-Reggiano', price: 1.00 },
       { name: 'Add Burrata', price: 3.00 },
     ]);
-    addGroup('Rigatoni all\'Amatriciana', 'Bella Napoli', 'Heat Level', false, 1, 1, [
+    addGroup('Rigatoni all\'Amatriciana', 'Bella Napoli', 'Heat Level', true, 1, 1, [
       { name: 'Regular', price: 0.00 },
       { name: 'Extra Spicy', price: 0.00 },
     ]);
@@ -460,8 +460,8 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Extra Pecorino Romano', price: 1.00 },
     ]);
 
-    addGroup('Panna Cotta', 'Bella Napoli', 'Sauce', false, 1, 1, [
-      { name: 'Berry Coulis (as made)', price: 0.00 },
+    addGroup('Panna Cotta', 'Bella Napoli', 'Sauce', true, 1, 1, [
+      { name: 'Berry Coulis', price: 0.00 },
       { name: 'Caramel', price: 0.00 },
       { name: 'Dark Chocolate', price: 0.00 },
     ]);
@@ -475,14 +475,14 @@ export function seedMenuItemOptions(db: Database.Database) {
     ]);
 
     // ===== 2. SAKURA GARDEN =====
-    addGroup('Edamame', 'Sakura Garden', 'Seasoning', false, 1, 1, [
-      { name: 'Sea Salt (as made)', price: 0.00 },
+    addGroup('Edamame', 'Sakura Garden', 'Seasoning', true, 1, 1, [
+      { name: 'Sea Salt', price: 0.00 },
       { name: 'Garlic Butter', price: 0.00 },
       { name: 'Spicy Sesame', price: 0.00 },
     ]);
 
-    addGroup('Gyoza (6 pcs)', 'Sakura Garden', 'Cooking Style', false, 1, 1, [
-      { name: 'Pan-fried (as made)', price: 0.00 },
+    addGroup('Gyoza (6 pcs)', 'Sakura Garden', 'Cooking Style', true, 1, 1, [
+      { name: 'Pan-fried', price: 0.00 },
       { name: 'Steamed', price: 0.00 },
     ]);
     addGroup('Gyoza (6 pcs)', 'Sakura Garden', 'Quantity', false, 1, 2, [
@@ -493,18 +493,18 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Add Chili Oil', price: 0.00 },
     ]);
 
-    addGroup('Karaage Chicken', 'Sakura Garden', 'Sauce', false, 1, 1, [
-      { name: 'Kewpie Mayo (as made)', price: 0.00 },
+    addGroup('Karaage Chicken', 'Sakura Garden', 'Sauce', true, 1, 1, [
+      { name: 'Kewpie Mayo', price: 0.00 },
       { name: 'Spicy Mayo', price: 0.00 },
       { name: 'Ponzu', price: 0.00 },
     ]);
-    addGroup('Karaage Chicken', 'Sakura Garden', 'Make it a Meal', false, 1, 2, [
-      { name: 'Karaage only (as made)', price: 0.00 },
+    addGroup('Karaage Chicken', 'Sakura Garden', 'Make it a Meal', true, 1, 2, [
+      { name: 'Karaage only', price: 0.00 },
       { name: 'Add Steamed Rice + Miso Soup', price: 5.00 },
     ]);
 
-    addGroup('Dragon Roll (8 pcs)', 'Sakura Garden', 'Sauce', false, 1, 1, [
-      { name: 'Unagi Sauce (as made)', price: 0.00 },
+    addGroup('Dragon Roll (8 pcs)', 'Sakura Garden', 'Sauce', true, 1, 1, [
+      { name: 'Unagi Sauce', price: 0.00 },
       { name: 'Spicy Mayo', price: 0.00 },
       { name: 'Both', price: 0.00 },
     ]);
@@ -519,9 +519,9 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: '6 pieces', price: 13.00 },
     ]);
 
-    addGroup('Spicy Tuna Roll (8 pcs)', 'Sakura Garden', 'Heat Level', false, 1, 1, [
+    addGroup('Spicy Tuna Roll (8 pcs)', 'Sakura Garden', 'Heat Level', true, 1, 1, [
       { name: 'Mild', price: 0.00 },
-      { name: 'Medium (as made)', price: 0.00 },
+      { name: 'Medium', price: 0.00 },
       { name: 'Extra Spicy', price: 0.00 },
     ]);
     addGroup('Spicy Tuna Roll (8 pcs)', 'Sakura Garden', 'Add-ons', false, null, 2, [
@@ -533,17 +533,17 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Extra Avocado', price: 2.00 },
     ]);
 
-    addGroup('Tonkotsu Ramen', 'Sakura Garden', 'Broth Richness', false, 1, 1, [
-      { name: 'Regular (as made)', price: 0.00 },
+    addGroup('Tonkotsu Ramen', 'Sakura Garden', 'Broth Richness', true, 1, 1, [
+      { name: 'Regular', price: 0.00 },
       { name: 'Rich (kotteri)', price: 0.00 },
       { name: 'Light (assari)', price: 0.00 },
     ]);
-    addGroup('Tonkotsu Ramen', 'Sakura Garden', 'Noodle Firmness', false, 1, 2, [
-      { name: 'Regular (as made)', price: 0.00 },
+    addGroup('Tonkotsu Ramen', 'Sakura Garden', 'Noodle Firmness', true, 1, 2, [
+      { name: 'Regular', price: 0.00 },
       { name: 'Firm (kata)', price: 0.00 },
       { name: 'Extra Firm (harigane)', price: 0.00 },
     ]);
-    addGroup('Tonkotsu Ramen', 'Sakura Garden', 'Spice', false, 1, 3, [
+    addGroup('Tonkotsu Ramen', 'Sakura Garden', 'Spice', true, 1, 3, [
       { name: 'No spice', price: 0.00 },
       { name: 'Mild', price: 0.00 },
       { name: 'Medium', price: 0.00 },
@@ -556,8 +556,8 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Extra Bamboo Shoots', price: 1.00 },
     ]);
 
-    addGroup('Chicken Katsu Curry', 'Sakura Garden', 'Spice Level', false, 1, 1, [
-      { name: 'Mild (as made)', price: 0.00 },
+    addGroup('Chicken Katsu Curry', 'Sakura Garden', 'Spice Level', true, 1, 1, [
+      { name: 'Mild', price: 0.00 },
       { name: 'Medium', price: 0.00 },
       { name: 'Hot', price: 0.00 },
     ]);
@@ -566,8 +566,8 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Extra Steamed Rice', price: 2.00 },
     ]);
 
-    addGroup('Beef Teriyaki', 'Sakura Garden', 'Protein', false, 1, 1, [
-      { name: 'Beef (as made)', price: 0.00 },
+    addGroup('Beef Teriyaki', 'Sakura Garden', 'Protein', true, 1, 1, [
+      { name: 'Beef', price: 0.00 },
       { name: 'Chicken', price: 0.00 },
       { name: 'Salmon', price: 3.00 },
     ]);
@@ -593,9 +593,9 @@ export function seedMenuItemOptions(db: Database.Database) {
     ]);
 
     // ===== 3. CASA FUEGO =====
-    addGroup('Guacamole & Chips', 'Casa Fuego', 'Heat Level', false, 1, 1, [
+    addGroup('Guacamole & Chips', 'Casa Fuego', 'Heat Level', true, 1, 1, [
       { name: 'Mild', price: 0.00 },
-      { name: 'Regular (as made)', price: 0.00 },
+      { name: 'Regular', price: 0.00 },
       { name: 'Extra Spicy', price: 0.00 },
     ]);
     addGroup('Guacamole & Chips', 'Casa Fuego', 'Add-ons', false, null, 2, [
@@ -613,9 +613,9 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Extra Flour Tortillas', price: 2.00 },
     ]);
 
-    addGroup('Elote en Vaso', 'Casa Fuego', 'Heat Level', false, 1, 1, [
+    addGroup('Elote en Vaso', 'Casa Fuego', 'Heat Level', true, 1, 1, [
       { name: 'Mild', price: 0.00 },
-      { name: 'Regular (as made)', price: 0.00 },
+      { name: 'Regular', price: 0.00 },
       { name: 'Extra Spicy', price: 0.00 },
     ]);
     addGroup('Elote en Vaso', 'Casa Fuego', 'Add-ons', false, null, 2, [
@@ -624,8 +624,8 @@ export function seedMenuItemOptions(db: Database.Database) {
     ]);
 
     for (const taco of ['Tacos al Pastor (3)', 'Tacos de Carnitas (3)', 'Fish Tacos (3)']) {
-      addGroup(taco, 'Casa Fuego', 'Salsa', false, 1, 1, [
-        { name: 'Salsa Verde (as made)', price: 0.00 },
+      addGroup(taco, 'Casa Fuego', 'Salsa', true, 1, 1, [
+        { name: 'Salsa Verde', price: 0.00 },
         { name: 'Salsa Roja', price: 0.00 },
         { name: 'Both', price: 0.00 },
       ]);
@@ -637,8 +637,8 @@ export function seedMenuItemOptions(db: Database.Database) {
         { name: 'Add Guacamole', price: 2.00 },
       ]);
     }
-    addGroup('Fish Tacos (3)', 'Casa Fuego', 'Heat Level', false, 1, 4, [
-      { name: 'Regular Chipotle Crema (as made)', price: 0.00 },
+    addGroup('Fish Tacos (3)', 'Casa Fuego', 'Heat Level', true, 1, 4, [
+      { name: 'Regular Chipotle Crema', price: 0.00 },
       { name: 'Extra Spicy Crema', price: 0.00 },
     ]);
     addGroup('Tacos de Birria (3)', 'Casa Fuego', 'Upgrade to 6 Tacos', false, 1, 1, [
@@ -651,8 +651,8 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Add Guacamole', price: 2.00 },
     ]);
 
-    addGroup('Burrito Supremo', 'Casa Fuego', 'Protein', false, 1, 1, [
-      { name: 'Carne Asada (as made)', price: 0.00 },
+    addGroup('Burrito Supremo', 'Casa Fuego', 'Protein', true, 1, 1, [
+      { name: 'Carne Asada', price: 0.00 },
       { name: 'Pollo Asado', price: 0.00 },
       { name: 'Carnitas', price: 0.00 },
       { name: 'Veggie', price: -2.00 },
@@ -667,8 +667,8 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Extra Sour Cream', price: 1.00 },
     ]);
 
-    addGroup('Pollo Bowl', 'Casa Fuego', 'Protein', false, 1, 1, [
-      { name: 'Grilled Chicken (as made)', price: 0.00 },
+    addGroup('Pollo Bowl', 'Casa Fuego', 'Protein', true, 1, 1, [
+      { name: 'Grilled Chicken', price: 0.00 },
       { name: 'Carne Asada', price: 2.00 },
       { name: 'Carnitas', price: 1.00 },
       { name: 'Tofu', price: -1.00 },
@@ -679,8 +679,8 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Extra Cheese', price: 1.00 },
     ]);
 
-    addGroup('Veggie Burrito', 'Casa Fuego', 'Tortilla', false, 1, 1, [
-      { name: 'Spinach Tortilla (as made)', price: 0.00 },
+    addGroup('Veggie Burrito', 'Casa Fuego', 'Tortilla', true, 1, 1, [
+      { name: 'Spinach Tortilla', price: 0.00 },
       { name: 'Flour Tortilla', price: 0.00 },
       { name: 'Whole Wheat Tortilla', price: 0.00 },
     ]);
@@ -690,8 +690,8 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Add Guacamole', price: 2.00 },
     ]);
 
-    addGroup('Churros con Chocolate', 'Casa Fuego', 'Dipping Sauce', false, 1, 1, [
-      { name: 'Mexican Chocolate (as made)', price: 0.00 },
+    addGroup('Churros con Chocolate', 'Casa Fuego', 'Dipping Sauce', true, 1, 1, [
+      { name: 'Mexican Chocolate', price: 0.00 },
       { name: 'Caramel', price: 0.00 },
       { name: 'Both', price: 0.00 },
     ]);
@@ -706,9 +706,9 @@ export function seedMenuItemOptions(db: Database.Database) {
     ]);
 
     // ===== 4. SPICE ROUTE =====
-    addGroup('Samosa Chaat (4 pcs)', 'Spice Route', 'Spice Level', false, 1, 1, [
+    addGroup('Samosa Chaat (4 pcs)', 'Spice Route', 'Spice Level', true, 1, 1, [
       { name: 'Mild', price: 0.00 },
-      { name: 'Medium (as made)', price: 0.00 },
+      { name: 'Medium', price: 0.00 },
       { name: 'Hot', price: 0.00 },
     ]);
     addGroup('Samosa Chaat (4 pcs)', 'Spice Route', 'Add-ons', false, null, 2, [
@@ -717,14 +717,14 @@ export function seedMenuItemOptions(db: Database.Database) {
     ]);
 
     for (const tikka of ['Chicken Tikka (6 pcs)', 'Paneer Tikka (6 pcs)']) {
-      addGroup(tikka, 'Spice Route', 'Spice Level', false, 1, 1, [
+      addGroup(tikka, 'Spice Route', 'Spice Level', true, 1, 1, [
         { name: 'Mild', price: 0.00 },
-        { name: 'Medium (as made)', price: 0.00 },
+        { name: 'Medium', price: 0.00 },
         { name: 'Hot', price: 0.00 },
         { name: 'Extra Hot', price: 0.00 },
       ]);
-      addGroup(tikka, 'Spice Route', 'Make it a Meal', false, 1, 2, [
-        { name: 'Tikka only (as made)', price: 0.00 },
+      addGroup(tikka, 'Spice Route', 'Make it a Meal', true, 1, 2, [
+        { name: 'Tikka only', price: 0.00 },
         { name: 'Add Garlic Naan + Raita', price: 6.00 },
       ]);
       addGroup(tikka, 'Spice Route', 'Add-ons', false, null, 3, [
@@ -734,14 +734,14 @@ export function seedMenuItemOptions(db: Database.Database) {
     }
 
     for (const curry of ['Butter Chicken', 'Lamb Rogan Josh', 'Palak Paneer', 'Prawn Masala']) {
-      addGroup(curry, 'Spice Route', 'Spice Level', false, 1, 1, [
+      addGroup(curry, 'Spice Route', 'Spice Level', true, 1, 1, [
         { name: 'Mild', price: 0.00 },
-        { name: 'Medium (as made)', price: 0.00 },
+        { name: 'Medium', price: 0.00 },
         { name: 'Hot', price: 0.00 },
         { name: 'Extra Hot', price: 0.00 },
       ]);
-      addGroup(curry, 'Spice Route', 'Accompaniment', false, 1, 2, [
-        { name: 'Curry only (as made)', price: 0.00 },
+      addGroup(curry, 'Spice Route', 'Accompaniment', true, 1, 2, [
+        { name: 'Curry only', price: 0.00 },
         { name: 'Add Steamed Basmati Rice', price: 3.00 },
         { name: 'Add Garlic Naan', price: 3.00 },
         { name: 'Rice + Garlic Naan', price: 5.00 },
@@ -752,8 +752,8 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Extra Paneer', price: 3.00 },
     ]);
 
-    addGroup('Chicken Biryani', 'Spice Route', 'Protein', false, 1, 1, [
-      { name: 'Chicken (as made)', price: 0.00 },
+    addGroup('Chicken Biryani', 'Spice Route', 'Protein', true, 1, 1, [
+      { name: 'Chicken', price: 0.00 },
       { name: 'Lamb', price: 3.00 },
       { name: 'Vegetable', price: -2.00 },
     ]);
@@ -762,8 +762,8 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Add Shorba (Broth)', price: 2.00 },
     ]);
 
-    addGroup('Garlic Naan', 'Spice Route', 'Flavor', false, 1, 1, [
-      { name: 'Garlic (as made)', price: 0.00 },
+    addGroup('Garlic Naan', 'Spice Route', 'Flavor', true, 1, 1, [
+      { name: 'Garlic', price: 0.00 },
       { name: 'Plain', price: -1.00 },
       { name: 'Garlic Cheese', price: 2.00 },
       { name: 'Garlic Chili', price: 0.00 },
@@ -787,8 +787,8 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Add Vanilla Ice Cream', price: 3.00 },
     ]);
 
-    addGroup('Kulfi Falooda', 'Spice Route', 'Kulfi Flavor', false, 1, 1, [
-      { name: 'Pistachio (as made)', price: 0.00 },
+    addGroup('Kulfi Falooda', 'Spice Route', 'Kulfi Flavor', true, 1, 1, [
+      { name: 'Pistachio', price: 0.00 },
       { name: 'Mango', price: 0.00 },
       { name: 'Rose', price: 0.00 },
     ]);
@@ -804,8 +804,8 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Add Fish Roe Topping', price: 2.00 },
     ]);
 
-    addGroup('BBQ Pork Bao (3 pcs)', 'Golden Dragon', 'Style', false, 1, 1, [
-      { name: 'Steamed (as made)', price: 0.00 },
+    addGroup('BBQ Pork Bao (3 pcs)', 'Golden Dragon', 'Style', true, 1, 1, [
+      { name: 'Steamed', price: 0.00 },
       { name: 'Baked', price: 0.00 },
     ]);
     addGroup('BBQ Pork Bao (3 pcs)', 'Golden Dragon', 'Quantity', false, 1, 2, [
@@ -817,22 +817,22 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Regular (as made)', price: 0.00 },
       { name: 'Large', price: 3.00 },
     ]);
-    addGroup('Hot & Sour Soup', 'Golden Dragon', 'Spice Level', false, 1, 2, [
+    addGroup('Hot & Sour Soup', 'Golden Dragon', 'Spice Level', true, 1, 2, [
       { name: 'Mild', price: 0.00 },
-      { name: 'Regular (as made)', price: 0.00 },
+      { name: 'Regular', price: 0.00 },
       { name: 'Extra Spicy', price: 0.00 },
     ]);
     addGroup('Hot & Sour Soup', 'Golden Dragon', 'Add-ons', false, null, 3, [
       { name: 'Add Wontons', price: 3.00 },
     ]);
 
-    addGroup('Spring Rolls (4 pcs)', 'Golden Dragon', 'Filling', false, 1, 1, [
-      { name: 'Pork & Cabbage (as made)', price: 0.00 },
+    addGroup('Spring Rolls (4 pcs)', 'Golden Dragon', 'Filling', true, 1, 1, [
+      { name: 'Pork & Cabbage', price: 0.00 },
       { name: 'Vegetable', price: 0.00 },
       { name: 'Shrimp', price: 2.00 },
     ]);
-    addGroup('Spring Rolls (4 pcs)', 'Golden Dragon', 'Dipping Sauce', false, 1, 2, [
-      { name: 'Sweet Chili (as made)', price: 0.00 },
+    addGroup('Spring Rolls (4 pcs)', 'Golden Dragon', 'Dipping Sauce', true, 1, 2, [
+      { name: 'Sweet Chili', price: 0.00 },
       { name: 'Plum Sauce', price: 0.00 },
       { name: 'Both', price: 0.00 },
     ]);
@@ -850,18 +850,18 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Add Noodles', price: 2.00 },
     ]);
 
-    addGroup('Kung Pao Chicken', 'Golden Dragon', 'Protein', false, 1, 1, [
-      { name: 'Chicken (as made)', price: 0.00 },
+    addGroup('Kung Pao Chicken', 'Golden Dragon', 'Protein', true, 1, 1, [
+      { name: 'Chicken', price: 0.00 },
       { name: 'Shrimp', price: 3.00 },
       { name: 'Tofu', price: -1.00 },
     ]);
-    addGroup('Kung Pao Chicken', 'Golden Dragon', 'Spice Level', false, 1, 2, [
+    addGroup('Kung Pao Chicken', 'Golden Dragon', 'Spice Level', true, 1, 2, [
       { name: 'Mild', price: 0.00 },
-      { name: 'Medium (as made)', price: 0.00 },
+      { name: 'Medium', price: 0.00 },
       { name: 'Hot', price: 0.00 },
       { name: 'Extra Hot', price: 0.00 },
     ]);
-    addGroup('Kung Pao Chicken', 'Golden Dragon', 'Add Rice', false, 1, 3, [
+    addGroup('Kung Pao Chicken', 'Golden Dragon', 'Add Rice', true, 1, 3, [
       { name: 'No rice', price: 0.00 },
       { name: 'Steamed Rice', price: 2.00 },
       { name: 'Fried Rice', price: 3.00 },
@@ -873,28 +873,28 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Add Steamed Buns', price: 4.00 },
     ]);
 
-    addGroup('Mapo Tofu', 'Golden Dragon', 'Spice Level', false, 1, 1, [
+    addGroup('Mapo Tofu', 'Golden Dragon', 'Spice Level', true, 1, 1, [
       { name: 'Mild', price: 0.00 },
-      { name: 'Medium (as made)', price: 0.00 },
+      { name: 'Medium', price: 0.00 },
       { name: 'Hot', price: 0.00 },
       { name: 'Extra Numbing Hot', price: 0.00 },
     ]);
-    addGroup('Mapo Tofu', 'Golden Dragon', 'Protein', false, 1, 2, [
-      { name: 'Ground Pork (as made)', price: 0.00 },
+    addGroup('Mapo Tofu', 'Golden Dragon', 'Protein', true, 1, 2, [
+      { name: 'Ground Pork', price: 0.00 },
       { name: 'Ground Beef', price: 1.00 },
       { name: 'Vegetarian (no meat)', price: -1.00 },
     ]);
-    addGroup('Mapo Tofu', 'Golden Dragon', 'Add Rice', false, 1, 3, [
+    addGroup('Mapo Tofu', 'Golden Dragon', 'Add Rice', true, 1, 3, [
       { name: 'No rice', price: 0.00 },
       { name: 'Steamed Rice', price: 2.00 },
     ]);
 
-    addGroup('Beef with Broccoli', 'Golden Dragon', 'Protein', false, 1, 1, [
-      { name: 'Beef (as made)', price: 0.00 },
+    addGroup('Beef with Broccoli', 'Golden Dragon', 'Protein', true, 1, 1, [
+      { name: 'Beef', price: 0.00 },
       { name: 'Chicken', price: -1.00 },
       { name: 'Shrimp', price: 2.00 },
     ]);
-    addGroup('Beef with Broccoli', 'Golden Dragon', 'Add Rice', false, 1, 2, [
+    addGroup('Beef with Broccoli', 'Golden Dragon', 'Add Rice', true, 1, 2, [
       { name: 'No rice', price: 0.00 },
       { name: 'Steamed Rice', price: 2.00 },
       { name: 'Fried Rice', price: 3.00 },
@@ -904,15 +904,15 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Regular (as made)', price: 0.00 },
       { name: 'Large', price: 3.00 },
     ]);
-    addGroup('Yang Chow Fried Rice', 'Golden Dragon', 'Protein', false, 1, 2, [
-      { name: 'Mixed (as made)', price: 0.00 },
+    addGroup('Yang Chow Fried Rice', 'Golden Dragon', 'Protein', true, 1, 2, [
+      { name: 'Mixed', price: 0.00 },
       { name: 'Extra Shrimp', price: 3.00 },
       { name: 'Vegetable', price: -1.00 },
     ]);
 
-    addGroup('Dan Dan Noodles', 'Golden Dragon', 'Spice Level', false, 1, 1, [
+    addGroup('Dan Dan Noodles', 'Golden Dragon', 'Spice Level', true, 1, 1, [
       { name: 'Mild', price: 0.00 },
-      { name: 'Medium (as made)', price: 0.00 },
+      { name: 'Medium', price: 0.00 },
       { name: 'Hot', price: 0.00 },
       { name: 'Extra Spicy', price: 0.00 },
     ]);
@@ -921,13 +921,13 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Extra Ground Pork', price: 2.00 },
     ]);
 
-    addGroup('Beef Chow Fun', 'Golden Dragon', 'Protein', false, 1, 1, [
-      { name: 'Beef (as made)', price: 0.00 },
+    addGroup('Beef Chow Fun', 'Golden Dragon', 'Protein', true, 1, 1, [
+      { name: 'Beef', price: 0.00 },
       { name: 'Chicken', price: -1.00 },
       { name: 'Shrimp', price: 2.00 },
     ]);
-    addGroup('Beef Chow Fun', 'Golden Dragon', 'Style', false, 1, 2, [
-      { name: 'Wet (soy sauce, as made)', price: 0.00 },
+    addGroup('Beef Chow Fun', 'Golden Dragon', 'Style', true, 1, 2, [
+      { name: 'Wet (soy sauce)', price: 0.00 },
       { name: 'Dry-tossed', price: 0.00 },
     ]);
 
@@ -950,13 +950,13 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Extra Garlic Herb Butter', price: 1.00 },
     ]);
 
-    addGroup('Salade Niçoise', 'Le Petit Bistro', 'Protein', false, 1, 1, [
-      { name: 'Tuna (as made)', price: 0.00 },
+    addGroup('Salade Niçoise', 'Le Petit Bistro', 'Protein', true, 1, 1, [
+      { name: 'Tuna', price: 0.00 },
       { name: 'Seared Salmon', price: 4.00 },
       { name: 'Vegetarian (no fish)', price: -2.00 },
     ]);
-    addGroup('Salade Niçoise', 'Le Petit Bistro', 'Dressing', false, 1, 2, [
-      { name: 'Dijon Vinaigrette (as made)', price: 0.00 },
+    addGroup('Salade Niçoise', 'Le Petit Bistro', 'Dressing', true, 1, 2, [
+      { name: 'Dijon Vinaigrette', price: 0.00 },
       { name: 'Lemon Herb', price: 0.00 },
     ]);
 
@@ -967,14 +967,14 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Medium Well', price: 0.00 },
       { name: 'Well Done', price: 0.00 },
     ]);
-    addGroup('Steak Frites', 'Le Petit Bistro', 'Sauce', false, 1, 2, [
-      { name: 'Béarnaise (as made)', price: 0.00 },
+    addGroup('Steak Frites', 'Le Petit Bistro', 'Sauce', true, 1, 2, [
+      { name: 'Béarnaise', price: 0.00 },
       { name: 'Au Poivre', price: 0.00 },
       { name: 'Red Wine Jus', price: 0.00 },
       { name: 'Garlic Butter', price: 0.00 },
     ]);
-    addGroup('Steak Frites', 'Le Petit Bistro', 'Side', false, 1, 3, [
-      { name: 'Frites (as made)', price: 0.00 },
+    addGroup('Steak Frites', 'Le Petit Bistro', 'Side', true, 1, 3, [
+      { name: 'Frites', price: 0.00 },
       { name: 'Salade Verte', price: 0.00 },
       { name: 'Haricots Verts', price: 2.00 },
     ]);
@@ -984,8 +984,8 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Extra Crusty Bread', price: 2.00 },
     ]);
 
-    addGroup('Boeuf Bourguignon', 'Le Petit Bistro', 'Side', false, 1, 1, [
-      { name: 'Mashed Potato (as made)', price: 0.00 },
+    addGroup('Boeuf Bourguignon', 'Le Petit Bistro', 'Side', true, 1, 1, [
+      { name: 'Mashed Potato', price: 0.00 },
       { name: 'Egg Noodles', price: 0.00 },
       { name: 'Crusty Bread', price: 0.00 },
     ]);
@@ -993,8 +993,8 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Extra Braising Sauce', price: 2.00 },
     ]);
 
-    addGroup('Sole Meunière', 'Le Petit Bistro', 'Side', false, 1, 1, [
-      { name: 'Haricots Verts (as made)', price: 0.00 },
+    addGroup('Sole Meunière', 'Le Petit Bistro', 'Side', true, 1, 1, [
+      { name: 'Haricots Verts', price: 0.00 },
       { name: 'Pommes Vapeur', price: 0.00 },
       { name: 'Salade Verte', price: 0.00 },
     ]);
@@ -1012,8 +1012,8 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Extra Artisan Crackers', price: 1.00 },
     ]);
 
-    addGroup('Crème Brûlée', 'Le Petit Bistro', 'Flavor', false, 1, 1, [
-      { name: 'Classic Vanilla (as made)', price: 0.00 },
+    addGroup('Crème Brûlée', 'Le Petit Bistro', 'Flavor', true, 1, 1, [
+      { name: 'Classic Vanilla', price: 0.00 },
       { name: 'Lavender', price: 0.00 },
       { name: 'Earl Grey', price: 0.00 },
     ]);
@@ -1022,25 +1022,25 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Add Fresh Berries', price: 2.00 },
     ]);
 
-    addGroup('Tarte Tatin', 'Le Petit Bistro', 'Accompaniment', false, 1, 1, [
-      { name: 'Crème Fraîche (as made)', price: 0.00 },
+    addGroup('Tarte Tatin', 'Le Petit Bistro', 'Accompaniment', true, 1, 1, [
+      { name: 'Crème Fraîche', price: 0.00 },
       { name: 'Vanilla Ice Cream', price: 0.00 },
       { name: 'Both', price: 1.00 },
     ]);
 
-    addGroup('Chocolate Fondant', 'Le Petit Bistro', 'Chocolate', false, 1, 1, [
-      { name: '70% Dark (as made)', price: 0.00 },
+    addGroup('Chocolate Fondant', 'Le Petit Bistro', 'Chocolate', true, 1, 1, [
+      { name: '70% Dark', price: 0.00 },
       { name: 'Milk Chocolate', price: 0.00 },
     ]);
-    addGroup('Chocolate Fondant', 'Le Petit Bistro', 'Accompaniment', false, 1, 2, [
-      { name: 'Vanilla Bean Ice Cream (as made)', price: 0.00 },
+    addGroup('Chocolate Fondant', 'Le Petit Bistro', 'Accompaniment', true, 1, 2, [
+      { name: 'Vanilla Bean Ice Cream', price: 0.00 },
       { name: 'Crème Anglaise', price: 0.00 },
       { name: 'Fresh Berries', price: 2.00 },
     ]);
 
     // ===== 7. OLIVE & SEA =====
-    addGroup('Hummus & Pita', 'Olive & Sea', 'Style', false, 1, 1, [
-      { name: 'Classic (as made)', price: 0.00 },
+    addGroup('Hummus & Pita', 'Olive & Sea', 'Style', true, 1, 1, [
+      { name: 'Classic', price: 0.00 },
       { name: 'With Spiced Paprika & Extra Olive Oil', price: 0.00 },
       { name: 'With Toasted Pine Nuts', price: 1.00 },
     ]);
@@ -1071,14 +1071,14 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: '4 pieces (as made)', price: 0.00 },
       { name: '8 pieces', price: 10.00 },
     ]);
-    addGroup('Kibbeh (4 pcs)', 'Olive & Sea', 'Dipping Sauce', false, 1, 2, [
-      { name: 'Yogurt Dip (as made)', price: 0.00 },
+    addGroup('Kibbeh (4 pcs)', 'Olive & Sea', 'Dipping Sauce', true, 1, 2, [
+      { name: 'Yogurt Dip', price: 0.00 },
       { name: 'Tahini', price: 0.00 },
       { name: 'Both', price: 0.00 },
     ]);
 
-    addGroup('Grilled Whole Branzino', 'Olive & Sea', 'Side', false, 1, 1, [
-      { name: 'Roasted Vegetables (as made)', price: 0.00 },
+    addGroup('Grilled Whole Branzino', 'Olive & Sea', 'Side', true, 1, 1, [
+      { name: 'Roasted Vegetables', price: 0.00 },
       { name: 'Add Saffron Rice', price: 3.00 },
       { name: 'Add Greek Salad', price: 3.00 },
     ]);
@@ -1086,8 +1086,8 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Add Lemon Butter Sauce', price: 2.00 },
     ]);
 
-    addGroup('Shrimp Saganaki', 'Olive & Sea', 'Heat Level', false, 1, 1, [
-      { name: 'Regular (as made)', price: 0.00 },
+    addGroup('Shrimp Saganaki', 'Olive & Sea', 'Heat Level', true, 1, 1, [
+      { name: 'Regular', price: 0.00 },
       { name: 'Extra Spicy', price: 0.00 },
     ]);
     addGroup('Shrimp Saganaki', 'Olive & Sea', 'Add-ons', false, null, 2, [
@@ -1095,14 +1095,14 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Add Pita Bread', price: 2.00 },
     ]);
 
-    addGroup('Calamari Grillé', 'Olive & Sea', 'Sauce', false, 1, 1, [
-      { name: 'Herb Chimichurri (as made)', price: 0.00 },
+    addGroup('Calamari Grillé', 'Olive & Sea', 'Sauce', true, 1, 1, [
+      { name: 'Herb Chimichurri', price: 0.00 },
       { name: 'Tzatziki', price: 0.00 },
       { name: 'Harissa', price: 0.00 },
     ]);
 
-    addGroup('Lamb Souvlaki', 'Olive & Sea', 'Protein', false, 1, 1, [
-      { name: 'Lamb (as made)', price: 0.00 },
+    addGroup('Lamb Souvlaki', 'Olive & Sea', 'Protein', true, 1, 1, [
+      { name: 'Lamb', price: 0.00 },
       { name: 'Chicken', price: -2.00 },
       { name: 'Mixed Lamb & Chicken', price: 0.00 },
     ]);
@@ -1111,8 +1111,8 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Add Fries', price: 3.00 },
     ]);
 
-    addGroup('Mixed Grill Platter', 'Olive & Sea', 'Side', false, 1, 1, [
-      { name: 'Rice Pilaf (as made)', price: 0.00 },
+    addGroup('Mixed Grill Platter', 'Olive & Sea', 'Side', true, 1, 1, [
+      { name: 'Rice Pilaf', price: 0.00 },
       { name: 'Fries', price: 0.00 },
       { name: 'Rice Pilaf + Fries', price: 2.00 },
     ]);
@@ -1126,8 +1126,8 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Add Grilled Chicken', price: 4.00 },
       { name: 'Add Grilled Lamb', price: 5.00 },
     ]);
-    addGroup('Falafel Bowl', 'Olive & Sea', 'Heat Level', false, 1, 2, [
-      { name: 'Regular (as made)', price: 0.00 },
+    addGroup('Falafel Bowl', 'Olive & Sea', 'Heat Level', true, 1, 2, [
+      { name: 'Regular', price: 0.00 },
       { name: 'Add Harissa', price: 0.00 },
     ]);
     addGroup('Falafel Bowl', 'Olive & Sea', 'Add-ons', false, null, 3, [
@@ -1139,8 +1139,8 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: '4 pieces (as made)', price: 0.00 },
       { name: '8 pieces', price: 8.00 },
     ]);
-    addGroup('Baklava (4 pcs)', 'Olive & Sea', 'Nut Filling', false, 1, 2, [
-      { name: 'Pistachio & Walnut (as made)', price: 0.00 },
+    addGroup('Baklava (4 pcs)', 'Olive & Sea', 'Nut Filling', true, 1, 2, [
+      { name: 'Pistachio & Walnut', price: 0.00 },
       { name: 'All Pistachio', price: 0.00 },
       { name: 'All Walnut', price: 0.00 },
     ]);
@@ -1152,14 +1152,14 @@ export function seedMenuItemOptions(db: Database.Database) {
     ]);
 
     // ===== 8. SEOUL KITCHEN =====
-    addGroup('Pajeon (Korean Scallion Pancake)', 'Seoul Kitchen', 'Filling', false, 1, 1, [
-      { name: 'Mixed Seafood (as made)', price: 0.00 },
+    addGroup('Pajeon (Korean Scallion Pancake)', 'Seoul Kitchen', 'Filling', true, 1, 1, [
+      { name: 'Mixed Seafood', price: 0.00 },
       { name: 'Kimchi', price: 0.00 },
       { name: 'Plain Scallion', price: -1.00 },
     ]);
 
-    addGroup('Japchae', 'Seoul Kitchen', 'Protein', false, 1, 1, [
-      { name: 'Beef (as made)', price: 0.00 },
+    addGroup('Japchae', 'Seoul Kitchen', 'Protein', true, 1, 1, [
+      { name: 'Beef', price: 0.00 },
       { name: 'Shrimp', price: 2.00 },
       { name: 'Tofu', price: -1.00 },
     ]);
@@ -1167,9 +1167,9 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Extra Glass Noodles', price: 2.00 },
     ]);
 
-    addGroup('Tteokbokki', 'Seoul Kitchen', 'Spice Level', false, 1, 1, [
+    addGroup('Tteokbokki', 'Seoul Kitchen', 'Spice Level', true, 1, 1, [
       { name: 'Mild', price: 0.00 },
-      { name: 'Regular (as made)', price: 0.00 },
+      { name: 'Regular', price: 0.00 },
       { name: 'Extra Spicy', price: 0.00 },
     ]);
     addGroup('Tteokbokki', 'Seoul Kitchen', 'Add-ons', false, null, 2, [
@@ -1178,8 +1178,8 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Extra Fish Cake', price: 1.00 },
     ]);
 
-    addGroup('Bulgogi', 'Seoul Kitchen', 'Make it a Meal', false, 1, 1, [
-      { name: 'Bulgogi only (as made)', price: 0.00 },
+    addGroup('Bulgogi', 'Seoul Kitchen', 'Make it a Meal', true, 1, 1, [
+      { name: 'Bulgogi only', price: 0.00 },
       { name: 'Add Steamed Rice + Banchan', price: 4.00 },
     ]);
     addGroup('Bulgogi', 'Seoul Kitchen', 'Add-ons', false, null, 2, [
@@ -1187,8 +1187,8 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Add Kimchi', price: 2.00 },
     ]);
 
-    addGroup('Galbi (Short Ribs)', 'Seoul Kitchen', 'Make it a Meal', false, 1, 1, [
-      { name: 'Galbi only (as made)', price: 0.00 },
+    addGroup('Galbi (Short Ribs)', 'Seoul Kitchen', 'Make it a Meal', true, 1, 1, [
+      { name: 'Galbi only', price: 0.00 },
       { name: 'Add Steamed Rice + Banchan', price: 5.00 },
     ]);
     addGroup('Galbi (Short Ribs)', 'Seoul Kitchen', 'Add-ons', false, null, 2, [
@@ -1196,8 +1196,8 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Extra Soy Glaze', price: 0.00 },
     ]);
 
-    addGroup('Samgyeopsal (Pork Belly)', 'Seoul Kitchen', 'Make it a Meal', false, 1, 1, [
-      { name: 'Pork Belly only (as made)', price: 0.00 },
+    addGroup('Samgyeopsal (Pork Belly)', 'Seoul Kitchen', 'Make it a Meal', true, 1, 1, [
+      { name: 'Pork Belly only', price: 0.00 },
       { name: 'Add Steamed Rice + Doenjang Jjigae', price: 6.00 },
     ]);
     addGroup('Samgyeopsal (Pork Belly)', 'Seoul Kitchen', 'Add-ons', false, null, 2, [
@@ -1207,7 +1207,7 @@ export function seedMenuItemOptions(db: Database.Database) {
     ]);
 
     addGroup('Bibimbap', 'Seoul Kitchen', 'Protein', true, 1, 1, [
-      { name: 'Bulgogi Beef (as made)', price: 0.00 },
+      { name: 'Bulgogi Beef', price: 0.00 },
       { name: 'Grilled Chicken', price: 0.00 },
       { name: 'Tofu', price: -1.00 },
       { name: 'No Protein', price: -2.00 },
@@ -1218,14 +1218,14 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Regular', price: 0.00 },
       { name: 'Extra Spicy', price: 0.00 },
     ]);
-    addGroup('Bibimbap', 'Seoul Kitchen', 'Egg', false, 1, 3, [
-      { name: 'Fried Egg (as made)', price: 0.00 },
+    addGroup('Bibimbap', 'Seoul Kitchen', 'Egg', true, 1, 3, [
+      { name: 'Fried Egg', price: 0.00 },
       { name: 'No Egg', price: 0.00 },
     ]);
 
-    addGroup('Budae Jjigae (Army Stew)', 'Seoul Kitchen', 'Spice Level', false, 1, 1, [
+    addGroup('Budae Jjigae (Army Stew)', 'Seoul Kitchen', 'Spice Level', true, 1, 1, [
       { name: 'Mild', price: 0.00 },
-      { name: 'Regular (as made)', price: 0.00 },
+      { name: 'Regular', price: 0.00 },
       { name: 'Extra Spicy', price: 0.00 },
     ]);
     addGroup('Budae Jjigae (Army Stew)', 'Seoul Kitchen', 'Add-ons', false, null, 2, [
@@ -1252,8 +1252,8 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Add Ice Cream Scoop', price: 2.00 },
     ]);
 
-    addGroup('Hotteok (Sweet Pancake)', 'Seoul Kitchen', 'Filling', false, 1, 1, [
-      { name: 'Brown Sugar & Cinnamon (as made)', price: 0.00 },
+    addGroup('Hotteok (Sweet Pancake)', 'Seoul Kitchen', 'Filling', true, 1, 1, [
+      { name: 'Brown Sugar & Cinnamon', price: 0.00 },
       { name: 'Nutella & Banana', price: 0.00 },
       { name: 'Red Bean', price: 0.00 },
     ]);
@@ -1263,8 +1263,8 @@ export function seedMenuItemOptions(db: Database.Database) {
     ]);
 
     // ===== 9. THAI ORCHID =====
-    addGroup('Satay Chicken (6 skewers)', 'Thai Orchid', 'Protein', false, 1, 1, [
-      { name: 'Chicken (as made)', price: 0.00 },
+    addGroup('Satay Chicken (6 skewers)', 'Thai Orchid', 'Protein', true, 1, 1, [
+      { name: 'Chicken', price: 0.00 },
       { name: 'Pork', price: 1.00 },
       { name: 'Beef', price: 2.00 },
     ]);
@@ -1272,13 +1272,13 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: '6 skewers (as made)', price: 0.00 },
       { name: '12 skewers', price: 10.00 },
     ]);
-    addGroup('Satay Chicken (6 skewers)', 'Thai Orchid', 'Peanut Sauce', false, 1, 3, [
-      { name: 'Regular Peanut Sauce (as made)', price: 0.00 },
+    addGroup('Satay Chicken (6 skewers)', 'Thai Orchid', 'Peanut Sauce', true, 1, 3, [
+      { name: 'Regular Peanut Sauce', price: 0.00 },
       { name: 'Spicy Peanut Sauce', price: 0.00 },
     ]);
 
-    addGroup('Spring Rolls Tod (4 pcs)', 'Thai Orchid', 'Filling', false, 1, 1, [
-      { name: 'Vegetable (as made)', price: 0.00 },
+    addGroup('Spring Rolls Tod (4 pcs)', 'Thai Orchid', 'Filling', true, 1, 1, [
+      { name: 'Vegetable', price: 0.00 },
       { name: 'Shrimp', price: 2.00 },
       { name: 'Mixed Veggie & Shrimp', price: 1.00 },
     ]);
@@ -1287,9 +1287,9 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: '8 pieces', price: 8.00 },
     ]);
 
-    addGroup('Tom Yum Goong', 'Thai Orchid', 'Spice Level', false, 1, 1, [
+    addGroup('Tom Yum Goong', 'Thai Orchid', 'Spice Level', true, 1, 1, [
       { name: 'Mild', price: 0.00 },
-      { name: 'Medium (as made)', price: 0.00 },
+      { name: 'Medium', price: 0.00 },
       { name: 'Hot', price: 0.00 },
       { name: 'Extra Hot', price: 0.00 },
     ]);
@@ -1301,13 +1301,13 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Extra Tiger Prawns', price: 5.00 },
     ]);
 
-    addGroup('Tom Kha Gai', 'Thai Orchid', 'Spice Level', false, 1, 1, [
+    addGroup('Tom Kha Gai', 'Thai Orchid', 'Spice Level', true, 1, 1, [
       { name: 'Mild', price: 0.00 },
-      { name: 'Regular (as made)', price: 0.00 },
+      { name: 'Regular', price: 0.00 },
       { name: 'Hot', price: 0.00 },
     ]);
-    addGroup('Tom Kha Gai', 'Thai Orchid', 'Protein', false, 1, 2, [
-      { name: 'Chicken (as made)', price: 0.00 },
+    addGroup('Tom Kha Gai', 'Thai Orchid', 'Protein', true, 1, 2, [
+      { name: 'Chicken', price: 0.00 },
       { name: 'Shrimp', price: 3.00 },
       { name: 'Tofu', price: -1.00 },
     ]);
@@ -1326,14 +1326,14 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Extra Peanuts', price: 1.00 },
     ]);
 
-    addGroup('Green Curry with Chicken', 'Thai Orchid', 'Protein', false, 1, 1, [
-      { name: 'Chicken (as made)', price: 0.00 },
+    addGroup('Green Curry with Chicken', 'Thai Orchid', 'Protein', true, 1, 1, [
+      { name: 'Chicken', price: 0.00 },
       { name: 'Shrimp', price: 3.00 },
       { name: 'Tofu', price: -1.00 },
     ]);
-    addGroup('Green Curry with Chicken', 'Thai Orchid', 'Spice Level', false, 1, 2, [
+    addGroup('Green Curry with Chicken', 'Thai Orchid', 'Spice Level', true, 1, 2, [
       { name: 'Mild', price: 0.00 },
-      { name: 'Medium (as made)', price: 0.00 },
+      { name: 'Medium', price: 0.00 },
       { name: 'Hot', price: 0.00 },
       { name: 'Extra Hot', price: 0.00 },
     ]);
@@ -1341,13 +1341,13 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Extra Jasmine Rice', price: 2.00 },
     ]);
 
-    addGroup('Massaman Beef Curry', 'Thai Orchid', 'Protein', false, 1, 1, [
-      { name: 'Beef (as made)', price: 0.00 },
+    addGroup('Massaman Beef Curry', 'Thai Orchid', 'Protein', true, 1, 1, [
+      { name: 'Beef', price: 0.00 },
       { name: 'Chicken', price: -1.00 },
       { name: 'Tofu', price: -2.00 },
     ]);
-    addGroup('Massaman Beef Curry', 'Thai Orchid', 'Spice Level', false, 1, 2, [
-      { name: 'Mild (as made)', price: 0.00 },
+    addGroup('Massaman Beef Curry', 'Thai Orchid', 'Spice Level', true, 1, 2, [
+      { name: 'Mild', price: 0.00 },
       { name: 'Medium', price: 0.00 },
       { name: 'Hot', price: 0.00 },
     ]);
@@ -1355,15 +1355,15 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Extra Jasmine Rice', price: 2.00 },
     ]);
 
-    addGroup('Pad Thai with Shrimp', 'Thai Orchid', 'Protein', false, 1, 1, [
-      { name: 'Shrimp (as made)', price: 0.00 },
+    addGroup('Pad Thai with Shrimp', 'Thai Orchid', 'Protein', true, 1, 1, [
+      { name: 'Shrimp', price: 0.00 },
       { name: 'Chicken', price: -1.00 },
       { name: 'Tofu', price: -1.00 },
       { name: 'Mixed Shrimp & Chicken', price: 2.00 },
     ]);
-    addGroup('Pad Thai with Shrimp', 'Thai Orchid', 'Spice Level', false, 1, 2, [
+    addGroup('Pad Thai with Shrimp', 'Thai Orchid', 'Spice Level', true, 1, 2, [
       { name: 'Mild', price: 0.00 },
-      { name: 'Medium (as made)', price: 0.00 },
+      { name: 'Medium', price: 0.00 },
       { name: 'Hot', price: 0.00 },
       { name: 'Extra Hot', price: 0.00 },
     ]);
@@ -1373,20 +1373,20 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Extra Lime', price: 0.00 },
     ]);
 
-    addGroup('Basil Stir-Fry (Pad Kra Pao)', 'Thai Orchid', 'Protein', false, 1, 1, [
-      { name: 'Pork (as made)', price: 0.00 },
+    addGroup('Basil Stir-Fry (Pad Kra Pao)', 'Thai Orchid', 'Protein', true, 1, 1, [
+      { name: 'Pork', price: 0.00 },
       { name: 'Chicken', price: 0.00 },
       { name: 'Beef', price: 2.00 },
       { name: 'Tofu', price: -1.00 },
     ]);
-    addGroup('Basil Stir-Fry (Pad Kra Pao)', 'Thai Orchid', 'Spice Level', false, 1, 2, [
+    addGroup('Basil Stir-Fry (Pad Kra Pao)', 'Thai Orchid', 'Spice Level', true, 1, 2, [
       { name: 'Mild', price: 0.00 },
       { name: 'Medium', price: 0.00 },
-      { name: 'Hot (as made)', price: 0.00 },
+      { name: 'Hot', price: 0.00 },
       { name: 'Extra Hot', price: 0.00 },
     ]);
-    addGroup('Basil Stir-Fry (Pad Kra Pao)', 'Thai Orchid', 'Egg', false, 1, 3, [
-      { name: 'Crispy Fried Egg (as made)', price: 0.00 },
+    addGroup('Basil Stir-Fry (Pad Kra Pao)', 'Thai Orchid', 'Egg', true, 1, 3, [
+      { name: 'Crispy Fried Egg', price: 0.00 },
       { name: 'No Egg', price: 0.00 },
       { name: 'Extra Egg', price: 1.00 },
     ]);
@@ -1412,9 +1412,9 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Lemon Pepper', price: 0.00 },
       { name: 'Dry Rub Only', price: 0.00 },
     ]);
-    addGroup('Buffalo Wings (10 pcs)', 'The American Grill', 'Heat Level', false, 1, 2, [
+    addGroup('Buffalo Wings (10 pcs)', 'The American Grill', 'Heat Level', true, 1, 2, [
       { name: 'Mild', price: 0.00 },
-      { name: 'Medium (as made)', price: 0.00 },
+      { name: 'Medium', price: 0.00 },
       { name: 'Hot', price: 0.00 },
       { name: 'Extra Hot', price: 0.00 },
     ]);
@@ -1423,8 +1423,8 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: '20 pieces', price: 13.00 },
       { name: '30 pieces', price: 25.00 },
     ]);
-    addGroup('Buffalo Wings (10 pcs)', 'The American Grill', 'Dipping Sauce', false, 1, 4, [
-      { name: 'Blue Cheese (as made)', price: 0.00 },
+    addGroup('Buffalo Wings (10 pcs)', 'The American Grill', 'Dipping Sauce', true, 1, 4, [
+      { name: 'Blue Cheese', price: 0.00 },
       { name: 'Ranch', price: 0.00 },
       { name: 'Both', price: 0.00 },
     ]);
@@ -1439,8 +1439,8 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Regular (as made)', price: 0.00 },
       { name: 'Large', price: 3.00 },
     ]);
-    addGroup('Onion Rings', 'The American Grill', 'Dipping Sauce', false, 1, 2, [
-      { name: 'Chipotle Ranch (as made)', price: 0.00 },
+    addGroup('Onion Rings', 'The American Grill', 'Dipping Sauce', true, 1, 2, [
+      { name: 'Chipotle Ranch', price: 0.00 },
       { name: 'BBQ Sauce', price: 0.00 },
       { name: 'Ranch', price: 0.00 },
     ]);
@@ -1449,28 +1449,28 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: '8 pieces (as made)', price: 0.00 },
       { name: '16 pieces', price: 10.00 },
     ]);
-    addGroup('Mac & Cheese Bites (8 pcs)', 'The American Grill', 'Dipping Sauce', false, 1, 2, [
-      { name: 'Chipotle Ranch (as made)', price: 0.00 },
+    addGroup('Mac & Cheese Bites (8 pcs)', 'The American Grill', 'Dipping Sauce', true, 1, 2, [
+      { name: 'Chipotle Ranch', price: 0.00 },
       { name: 'BBQ Sauce', price: 0.00 },
       { name: 'Marinara', price: 0.00 },
     ]);
 
     for (const sandwich of ['Classic Smash Burger', 'BBQ Bacon Burger', 'Crispy Chicken Sandwich', 'Philly Cheesesteak']) {
-      addGroup(sandwich, 'The American Grill', 'Make it a Meal', false, 1, 1, [
-        { name: 'Sandwich only (as made)', price: 0.00 },
+      addGroup(sandwich, 'The American Grill', 'Make it a Meal', true, 1, 1, [
+        { name: 'Sandwich only', price: 0.00 },
         { name: 'Add Fries', price: 3.00 },
         { name: 'Add Fries + Fountain Drink', price: 6.00 },
       ]);
     }
 
-    addGroup('Classic Smash Burger', 'The American Grill', 'Cheese', false, 1, 2, [
-      { name: 'American (as made)', price: 0.00 },
+    addGroup('Classic Smash Burger', 'The American Grill', 'Cheese', true, 1, 2, [
+      { name: 'American', price: 0.00 },
       { name: 'Cheddar', price: 0.00 },
       { name: 'Swiss', price: 0.00 },
       { name: 'No Cheese', price: 0.00 },
     ]);
-    addGroup('Classic Smash Burger', 'The American Grill', 'Bun', false, 1, 3, [
-      { name: 'Brioche (as made)', price: 0.00 },
+    addGroup('Classic Smash Burger', 'The American Grill', 'Bun', true, 1, 3, [
+      { name: 'Brioche', price: 0.00 },
       { name: 'Gluten-Free Bun', price: 2.00 },
       { name: 'Lettuce Wrap', price: 0.00 },
     ]);
@@ -1481,8 +1481,8 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Add Fried Egg', price: 1.00 },
     ]);
 
-    addGroup('BBQ Bacon Burger', 'The American Grill', 'Doneness', false, 1, 2, [
-      { name: 'Medium (as made)', price: 0.00 },
+    addGroup('BBQ Bacon Burger', 'The American Grill', 'Doneness', true, 1, 2, [
+      { name: 'Medium', price: 0.00 },
       { name: 'Medium Rare', price: 0.00 },
       { name: 'Medium Well', price: 0.00 },
       { name: 'Well Done', price: 0.00 },
@@ -1494,9 +1494,9 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Add Avocado', price: 1.50 },
     ]);
 
-    addGroup('Crispy Chicken Sandwich', 'The American Grill', 'Heat Level', false, 1, 2, [
+    addGroup('Crispy Chicken Sandwich', 'The American Grill', 'Heat Level', true, 1, 2, [
       { name: 'No Heat', price: 0.00 },
-      { name: 'Regular Hot Honey (as made)', price: 0.00 },
+      { name: 'Regular Hot Honey', price: 0.00 },
       { name: 'Extra Spicy', price: 0.00 },
     ]);
     addGroup('Crispy Chicken Sandwich', 'The American Grill', 'Add-ons', false, null, 3, [
@@ -1506,7 +1506,7 @@ export function seedMenuItemOptions(db: Database.Database) {
     ]);
 
     addGroup('Philly Cheesesteak', 'The American Grill', 'Cheese', true, 1, 2, [
-      { name: 'Provolone (as made)', price: 0.00 },
+      { name: 'Provolone', price: 0.00 },
       { name: 'American', price: 0.00 },
       { name: 'Cheez Whiz', price: 0.00 },
     ]);
@@ -1516,8 +1516,8 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Add Mushrooms', price: 0.00 },
     ]);
 
-    addGroup('BBQ Baby Back Ribs (Half Rack)', 'The American Grill', 'BBQ Sauce', false, 1, 1, [
-      { name: 'Tangy BBQ (as made)', price: 0.00 },
+    addGroup('BBQ Baby Back Ribs (Half Rack)', 'The American Grill', 'BBQ Sauce', true, 1, 1, [
+      { name: 'Tangy BBQ', price: 0.00 },
       { name: 'Sweet BBQ', price: 0.00 },
       { name: 'Spicy BBQ', price: 0.00 },
       { name: 'Dry Rub Only', price: 0.00 },
@@ -1538,21 +1538,21 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Medium Well', price: 0.00 },
       { name: 'Well Done', price: 0.00 },
     ]);
-    addGroup('NY Strip Steak (12oz)', 'The American Grill', 'Sauce', false, 1, 2, [
-      { name: 'Au Jus (as made)', price: 0.00 },
+    addGroup('NY Strip Steak (12oz)', 'The American Grill', 'Sauce', true, 1, 2, [
+      { name: 'Au Jus', price: 0.00 },
       { name: 'Peppercorn', price: 0.00 },
       { name: 'Chimichurri', price: 0.00 },
       { name: 'Garlic Butter', price: 0.00 },
     ]);
-    addGroup('NY Strip Steak (12oz)', 'The American Grill', 'Side', false, 1, 3, [
-      { name: 'Mashed Potatoes + Seasonal Veg (as made)', price: 0.00 },
+    addGroup('NY Strip Steak (12oz)', 'The American Grill', 'Side', true, 1, 3, [
+      { name: 'Mashed Potatoes + Seasonal Veg', price: 0.00 },
       { name: 'Fries', price: 0.00 },
       { name: 'Mac & Cheese', price: 3.00 },
       { name: 'Loaded Mashed Potatoes', price: 2.00 },
     ]);
 
-    addGroup('Chicken & Waffles', 'The American Grill', 'Sauce', false, 1, 1, [
-      { name: 'Maple Syrup + Hot Sauce (as made)', price: 0.00 },
+    addGroup('Chicken & Waffles', 'The American Grill', 'Sauce', true, 1, 1, [
+      { name: 'Maple Syrup + Hot Sauce', price: 0.00 },
       { name: 'Extra Maple Syrup', price: 0.00 },
       { name: 'Honey Butter', price: 0.00 },
     ]);
@@ -1562,8 +1562,8 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Add Fried Egg', price: 1.00 },
     ]);
 
-    addGroup('New York Cheesecake', 'The American Grill', 'Topping', false, 1, 1, [
-      { name: 'Fresh Berry Compote (as made)', price: 0.00 },
+    addGroup('New York Cheesecake', 'The American Grill', 'Topping', true, 1, 1, [
+      { name: 'Fresh Berry Compote', price: 0.00 },
       { name: 'Caramel Sauce', price: 0.00 },
       { name: 'Hot Fudge', price: 0.00 },
       { name: 'Plain', price: 0.00 },
@@ -1578,14 +1578,882 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Add Whipped Cream', price: 1.00 },
     ]);
 
-    addGroup('Apple Pie à la Mode', 'The American Grill', 'Topping', false, 1, 1, [
-      { name: 'Vanilla Ice Cream (as made)', price: 0.00 },
+    addGroup('Apple Pie à la Mode', 'The American Grill', 'Topping', true, 1, 1, [
+      { name: 'Vanilla Ice Cream', price: 0.00 },
       { name: 'Add Caramel Drizzle', price: 0.50 },
       { name: 'Whipped Cream', price: 0.00 },
     ]);
-    addGroup('Apple Pie à la Mode', 'The American Grill', 'Temperature', false, 1, 2, [
-      { name: 'Warm (as made)', price: 0.00 },
+    addGroup('Apple Pie à la Mode', 'The American Grill', 'Temperature', true, 1, 2, [
+      { name: 'Warm', price: 0.00 },
       { name: 'Cold', price: 0.00 },
+    ]);
+
+    // ===== 11. TRATTORIA ROMA =====
+    addGroup('Supplì al Telefono', 'Trattoria Roma', 'Add-ons', false, null, 1, [
+      { name: 'Extra Supplì (2 pcs)', price: 4.00 },
+      { name: 'Extra Tomato Sauce', price: 0.50 },
+    ]);
+
+    addGroup('Fiori di Zucca Fritti', 'Trattoria Roma', 'Add-ons', false, null, 1, [
+      { name: 'Extra Anchovy', price: 1.00 },
+      { name: 'Add Lemon Aioli', price: 1.00 },
+    ]);
+
+    addGroup('Bruschetta con Fegatini', 'Trattoria Roma', 'Add-ons', false, null, 1, [
+      { name: 'Extra Bread', price: 1.50 },
+      { name: 'Extra Pâté', price: 2.00 },
+    ]);
+
+    addGroup('Risotto alla Milanese', 'Trattoria Roma', 'Add-ons', false, null, 1, [
+      { name: 'Extra Bone Marrow', price: 4.00 },
+      { name: 'Extra Parmigiano-Reggiano', price: 1.00 },
+    ]);
+
+    addGroup('Risotto ai Funghi Porcini', 'Trattoria Roma', 'Add-ons', false, null, 1, [
+      { name: 'Extra Porcini', price: 3.00 },
+      { name: 'Add Truffle Shaving', price: 6.00 },
+    ]);
+
+    addGroup('Cacio e Pepe', 'Trattoria Roma', 'Pasta Shape', true, 1, 1, [
+      { name: 'Tonnarelli', price: 0.00 },
+      { name: 'Spaghetti', price: 0.00 },
+      { name: 'Rigatoni', price: 0.00 },
+    ]);
+    addGroup('Cacio e Pepe', 'Trattoria Roma', 'Add-ons', false, null, 2, [
+      { name: 'Extra Pecorino Romano', price: 1.00 },
+      { name: 'Extra Black Pepper', price: 0.00 },
+    ]);
+
+    addGroup('Bucatini all\'Amatriciana', 'Trattoria Roma', 'Heat Level', true, 1, 1, [
+      { name: 'Regular', price: 0.00 },
+      { name: 'Extra Spicy', price: 0.00 },
+    ]);
+    addGroup('Bucatini all\'Amatriciana', 'Trattoria Roma', 'Add-ons', false, null, 2, [
+      { name: 'Extra Guanciale', price: 2.00 },
+      { name: 'Extra Pecorino Romano', price: 1.00 },
+    ]);
+
+    addGroup('Gnocchi alla Romana', 'Trattoria Roma', 'Add-ons', false, null, 1, [
+      { name: 'Extra Parmigiano Crust', price: 1.00 },
+      { name: 'Add Truffle Butter', price: 4.00 },
+    ]);
+
+    addGroup('Crostata di Ricotta', 'Trattoria Roma', 'Add-ons', false, null, 1, [
+      { name: 'Add Whipped Cream', price: 1.00 },
+      { name: 'Add Espresso', price: 2.50 },
+    ]);
+
+    addGroup('Semifreddo al Torroncino', 'Trattoria Roma', 'Add-ons', false, null, 1, [
+      { name: 'Extra Caramel Drizzle', price: 1.00 },
+      { name: 'Add Fresh Berries', price: 2.00 },
+    ]);
+
+    // ===== 12. RAMEN KAZU =====
+    addGroup('Gyoza (6 pcs)', 'Ramen Kazu', 'Cooking Style', true, 1, 1, [
+      { name: 'Pan-fried', price: 0.00 },
+      { name: 'Steamed', price: 0.00 },
+    ]);
+    addGroup('Gyoza (6 pcs)', 'Ramen Kazu', 'Quantity', false, 1, 2, [
+      { name: '6 pieces', price: 0.00 },
+      { name: '12 pieces', price: 8.00 },
+    ]);
+    addGroup('Gyoza (6 pcs)', 'Ramen Kazu', 'Add-ons', false, null, 3, [
+      { name: 'Add Chili Oil', price: 0.00 },
+      { name: 'Extra Yuzu Ponzu', price: 0.50 },
+    ]);
+
+    addGroup('Karaage Chicken', 'Ramen Kazu', 'Sauce', true, 1, 1, [
+      { name: 'Kewpie Mayo', price: 0.00 },
+      { name: 'Spicy Mayo', price: 0.00 },
+      { name: 'Ponzu', price: 0.00 },
+    ]);
+    addGroup('Karaage Chicken', 'Ramen Kazu', 'Make it a Meal', true, 1, 2, [
+      { name: 'Karaage only', price: 0.00 },
+      { name: 'Add Steamed Rice + Miso Soup', price: 5.00 },
+    ]);
+
+    addGroup('Takoyaki (6 pcs)', 'Ramen Kazu', 'Sauce', true, 1, 1, [
+      { name: 'Classic (mayo + bonito + okonomiyaki sauce)', price: 0.00 },
+      { name: 'Spicy Mayo', price: 0.00 },
+    ]);
+    addGroup('Takoyaki (6 pcs)', 'Ramen Kazu', 'Quantity', false, 1, 2, [
+      { name: '6 pieces', price: 0.00 },
+      { name: '12 pieces', price: 9.00 },
+    ]);
+
+    addGroup('Tonkotsu Ramen', 'Ramen Kazu', 'Broth Richness', true, 1, 1, [
+      { name: 'Regular', price: 0.00 },
+      { name: 'Rich (kotteri)', price: 0.00 },
+      { name: 'Light (assari)', price: 0.00 },
+    ]);
+    addGroup('Tonkotsu Ramen', 'Ramen Kazu', 'Noodle Firmness', true, 1, 2, [
+      { name: 'Regular', price: 0.00 },
+      { name: 'Firm (kata)', price: 0.00 },
+      { name: 'Extra Firm (harigane)', price: 0.00 },
+    ]);
+    addGroup('Tonkotsu Ramen', 'Ramen Kazu', 'Spice', true, 1, 3, [
+      { name: 'No spice', price: 0.00 },
+      { name: 'Mild', price: 0.00 },
+      { name: 'Medium', price: 0.00 },
+      { name: 'Spicy', price: 0.00 },
+    ]);
+    addGroup('Tonkotsu Ramen', 'Ramen Kazu', 'Extra Toppings', false, null, 4, [
+      { name: 'Extra Chashu Pork', price: 4.00 },
+      { name: 'Extra Soft-Boiled Egg', price: 2.00 },
+      { name: 'Extra Nori', price: 1.00 },
+      { name: 'Extra Bamboo Shoots', price: 1.00 },
+    ]);
+
+    addGroup('Spicy Miso Ramen', 'Ramen Kazu', 'Spice Level', true, 1, 1, [
+      { name: 'Mild', price: 0.00 },
+      { name: 'Medium', price: 0.00 },
+      { name: 'Hot', price: 0.00 },
+      { name: 'Extra Hot', price: 0.00 },
+    ]);
+    addGroup('Spicy Miso Ramen', 'Ramen Kazu', 'Noodle Firmness', true, 1, 2, [
+      { name: 'Regular', price: 0.00 },
+      { name: 'Firm', price: 0.00 },
+      { name: 'Extra Firm', price: 0.00 },
+    ]);
+    addGroup('Spicy Miso Ramen', 'Ramen Kazu', 'Extra Toppings', false, null, 3, [
+      { name: 'Extra Ground Pork', price: 3.00 },
+      { name: 'Extra Soft-Boiled Egg', price: 2.00 },
+      { name: 'Extra Corn', price: 0.00 },
+    ]);
+
+    addGroup('Shoyu Ramen', 'Ramen Kazu', 'Noodle Firmness', true, 1, 1, [
+      { name: 'Regular', price: 0.00 },
+      { name: 'Firm', price: 0.00 },
+      { name: 'Extra Firm', price: 0.00 },
+    ]);
+    addGroup('Shoyu Ramen', 'Ramen Kazu', 'Extra Toppings', false, null, 2, [
+      { name: 'Extra Chicken Chashu', price: 4.00 },
+      { name: 'Add Soft-Boiled Egg', price: 2.00 },
+      { name: 'Extra Nori', price: 1.00 },
+    ]);
+
+    addGroup('Vegan Shio Ramen', 'Ramen Kazu', 'Extra Toppings', false, null, 1, [
+      { name: 'Extra Tofu', price: 2.00 },
+      { name: 'Add Nori', price: 1.00 },
+      { name: 'Extra Roasted Vegetables', price: 2.00 },
+    ]);
+
+    addGroup('Chashu Don', 'Ramen Kazu', 'Make it a Set', true, 1, 1, [
+      { name: 'Bowl only', price: 0.00 },
+      { name: 'Add Miso Soup', price: 2.00 },
+    ]);
+    addGroup('Chashu Don', 'Ramen Kazu', 'Add-ons', false, null, 2, [
+      { name: 'Extra Chashu Pork', price: 4.00 },
+      { name: 'Add Soft-Boiled Egg', price: 2.00 },
+    ]);
+
+    addGroup('Salmon Ikura Don', 'Ramen Kazu', 'Add-ons', false, null, 1, [
+      { name: 'Extra Salmon Roe', price: 3.00 },
+      { name: 'Add Miso Soup', price: 2.00 },
+    ]);
+
+    // ===== 13. EL TAQUERO =====
+    addGroup('Queso Fundido', 'El Taquero', 'Chorizo', true, 1, 1, [
+      { name: 'With Chorizo', price: 0.00 },
+      { name: 'Extra Chorizo', price: 2.00 },
+      { name: 'Without Chorizo', price: 0.00 },
+    ]);
+    addGroup('Queso Fundido', 'El Taquero', 'Add-ons', false, null, 2, [
+      { name: 'Extra Flour Tortillas', price: 2.00 },
+      { name: 'Add Jalapeños', price: 0.00 },
+    ]);
+
+    addGroup('Tostadas de Tinga', 'El Taquero', 'Heat Level', true, 1, 1, [
+      { name: 'Mild', price: 0.00 },
+      { name: 'Regular', price: 0.00 },
+      { name: 'Extra Spicy', price: 0.00 },
+    ]);
+    addGroup('Tostadas de Tinga', 'El Taquero', 'Add-ons', false, null, 2, [
+      { name: 'Extra Avocado', price: 1.50 },
+      { name: 'Extra Queso Fresco', price: 1.00 },
+    ]);
+
+    addGroup('Sopa de Lima', 'El Taquero', 'Add-ons', false, null, 1, [
+      { name: 'Extra Tortilla Strips', price: 0.50 },
+      { name: 'Add Extra Lime', price: 0.00 },
+    ]);
+
+    for (const taco of ['Taco de Birria', 'Taco de Lengua', 'Taco de Barbacoa', 'Taco de Nopal']) {
+      addGroup(taco, 'El Taquero', 'Quantity', true, 1, 1, [
+        { name: '1 taco', price: 0.00 },
+        { name: '3 tacos', price: (taco === 'Taco de Birria' ? 11.00 : taco === 'Taco de Lengua' ? 9.50 : taco === 'Taco de Barbacoa' ? 10.50 : 8.50) },
+      ]);
+    }
+    addGroup('Taco de Birria', 'El Taquero', 'Add-ons', false, null, 2, [
+      { name: 'Extra Consommé', price: 1.00 },
+      { name: 'Add Guacamole', price: 1.50 },
+    ]);
+    addGroup('Taco de Lengua', 'El Taquero', 'Salsa', true, 1, 2, [
+      { name: 'Salsa Verde', price: 0.00 },
+      { name: 'Salsa Roja', price: 0.00 },
+      { name: 'Both', price: 0.00 },
+    ]);
+    addGroup('Taco de Lengua', 'El Taquero', 'Add-ons', false, null, 3, [
+      { name: 'Add Guacamole', price: 1.50 },
+    ]);
+    addGroup('Taco de Barbacoa', 'El Taquero', 'Add-ons', false, null, 2, [
+      { name: 'Extra Avocado Salsa', price: 1.00 },
+      { name: 'Add Pickled Red Onion', price: 0.00 },
+    ]);
+    addGroup('Taco de Nopal', 'El Taquero', 'Add-ons', false, null, 2, [
+      { name: 'Extra Black Beans', price: 1.00 },
+      { name: 'Add Guacamole', price: 1.50 },
+    ]);
+
+    addGroup('Enchiladas Verdes', 'El Taquero', 'Protein', true, 1, 1, [
+      { name: 'Chicken', price: 0.00 },
+      { name: 'Beef', price: 2.00 },
+      { name: 'Bean & Cheese (vegetarian)', price: -1.00 },
+    ]);
+    addGroup('Enchiladas Verdes', 'El Taquero', 'Heat Level', true, 1, 2, [
+      { name: 'Regular', price: 0.00 },
+      { name: 'Extra Spicy', price: 0.00 },
+    ]);
+    addGroup('Enchiladas Verdes', 'El Taquero', 'Add-ons', false, null, 3, [
+      { name: 'Extra Salsa Verde', price: 1.00 },
+      { name: 'Extra Crema', price: 0.50 },
+    ]);
+
+    addGroup('Mole Negro con Pollo', 'El Taquero', 'Add-ons', false, null, 1, [
+      { name: 'Extra Tortillas', price: 1.00 },
+      { name: 'Extra Sesame Seeds', price: 0.00 },
+    ]);
+
+    addGroup('Flan de Cajeta', 'El Taquero', 'Add-ons', false, null, 1, [
+      { name: 'Extra Cajeta Caramel', price: 1.00 },
+      { name: 'Add Whipped Cream', price: 1.00 },
+    ]);
+
+    // ===== 14. MASALA HOUSE =====
+    addGroup('Aloo Tikki Chaat', 'Masala House', 'Spice Level', true, 1, 1, [
+      { name: 'Mild', price: 0.00 },
+      { name: 'Medium', price: 0.00 },
+      { name: 'Hot', price: 0.00 },
+    ]);
+    addGroup('Aloo Tikki Chaat', 'Masala House', 'Add-ons', false, null, 2, [
+      { name: 'Extra Tamarind Chutney', price: 1.00 },
+      { name: 'Extra Yogurt', price: 0.50 },
+    ]);
+
+    addGroup('Seekh Kebab', 'Masala House', 'Spice Level', true, 1, 1, [
+      { name: 'Mild', price: 0.00 },
+      { name: 'Medium', price: 0.00 },
+      { name: 'Hot', price: 0.00 },
+    ]);
+    addGroup('Seekh Kebab', 'Masala House', 'Make it a Meal', true, 1, 2, [
+      { name: 'Kebabs only', price: 0.00 },
+      { name: 'Add Naan + Raita', price: 5.00 },
+    ]);
+    addGroup('Seekh Kebab', 'Masala House', 'Add-ons', false, null, 3, [
+      { name: 'Extra Mint Chutney', price: 1.00 },
+    ]);
+
+    addGroup('Dahi Puri', 'Masala House', 'Spice Level', true, 1, 1, [
+      { name: 'Mild', price: 0.00 },
+      { name: 'Medium', price: 0.00 },
+      { name: 'Hot', price: 0.00 },
+    ]);
+
+    addGroup('Tandoori Jhinga', 'Masala House', 'Spice Level', true, 1, 1, [
+      { name: 'Mild', price: 0.00 },
+      { name: 'Medium', price: 0.00 },
+      { name: 'Hot', price: 0.00 },
+    ]);
+    addGroup('Tandoori Jhinga', 'Masala House', 'Make it a Meal', true, 1, 2, [
+      { name: 'Prawns only', price: 0.00 },
+      { name: 'Add Naan + Raita', price: 5.00 },
+    ]);
+    addGroup('Tandoori Jhinga', 'Masala House', 'Add-ons', false, null, 3, [
+      { name: 'Extra Mint Chutney', price: 1.00 },
+    ]);
+
+    addGroup('Murgh Malai Tikka', 'Masala House', 'Make it a Meal', true, 1, 1, [
+      { name: 'Tikka only', price: 0.00 },
+      { name: 'Add Naan + Raita', price: 5.00 },
+    ]);
+    addGroup('Murgh Malai Tikka', 'Masala House', 'Add-ons', false, null, 2, [
+      { name: 'Extra Tikka', price: 6.00 },
+    ]);
+
+    addGroup('Kerala Fish Curry', 'Masala House', 'Spice Level', true, 1, 1, [
+      { name: 'Mild', price: 0.00 },
+      { name: 'Medium', price: 0.00 },
+      { name: 'Hot', price: 0.00 },
+    ]);
+    addGroup('Kerala Fish Curry', 'Masala House', 'Accompaniment', true, 1, 2, [
+      { name: 'Curry only', price: 0.00 },
+      { name: 'Add Steamed Basmati Rice', price: 3.00 },
+      { name: 'Add Appam (rice pancake)', price: 3.00 },
+      { name: 'Rice + Appam', price: 5.00 },
+    ]);
+
+    addGroup('Dal Makhani', 'Masala House', 'Accompaniment', true, 1, 1, [
+      { name: 'Dal only', price: 0.00 },
+      { name: 'Add Steamed Basmati Rice', price: 3.00 },
+      { name: 'Add Garlic Naan', price: 3.00 },
+      { name: 'Rice + Garlic Naan', price: 5.00 },
+    ]);
+    addGroup('Dal Makhani', 'Masala House', 'Add-ons', false, null, 2, [
+      { name: 'Extra Cream', price: 0.50 },
+      { name: 'Add Papadum', price: 1.00 },
+    ]);
+
+    addGroup('Lamb Nihari', 'Masala House', 'Spice Level', true, 1, 1, [
+      { name: 'Mild', price: 0.00 },
+      { name: 'Medium', price: 0.00 },
+      { name: 'Hot', price: 0.00 },
+    ]);
+    addGroup('Lamb Nihari', 'Masala House', 'Accompaniment', true, 1, 2, [
+      { name: 'Nihari only', price: 0.00 },
+      { name: 'Add Naan', price: 3.00 },
+      { name: 'Add Steamed Basmati Rice', price: 3.00 },
+    ]);
+    addGroup('Lamb Nihari', 'Masala House', 'Add-ons', false, null, 3, [
+      { name: 'Extra Ginger Julienne', price: 0.00 },
+      { name: 'Extra Fried Onions', price: 0.50 },
+    ]);
+
+    addGroup('Lamb Biryani', 'Masala House', 'Accompaniment', true, 1, 1, [
+      { name: 'Biryani only', price: 0.00 },
+      { name: 'Add Raita', price: 2.00 },
+      { name: 'Add Shorba (Broth)', price: 2.00 },
+      { name: 'Raita + Shorba', price: 3.00 },
+    ]);
+
+    addGroup('Garlic Kulcha', 'Masala House', 'Flavor', true, 1, 1, [
+      { name: 'Garlic Herb', price: 0.00 },
+      { name: 'Plain', price: -1.00 },
+      { name: 'Garlic Cheese', price: 2.00 },
+    ]);
+    addGroup('Garlic Kulcha', 'Masala House', 'Quantity', false, 1, 2, [
+      { name: '1 piece', price: 0.00 },
+      { name: '2 pieces', price: 4.00 },
+    ]);
+
+    // ===== 15. DRAGON PALACE =====
+    addGroup('Char Siu Bao (3 pcs)', 'Dragon Palace', 'Style', true, 1, 1, [
+      { name: 'Steamed', price: 0.00 },
+      { name: 'Baked', price: 0.00 },
+    ]);
+    addGroup('Char Siu Bao (3 pcs)', 'Dragon Palace', 'Quantity', false, 1, 2, [
+      { name: '3 pieces', price: 0.00 },
+      { name: '6 pieces', price: 7.00 },
+    ]);
+
+    addGroup('Cheung Fun (Shrimp)', 'Dragon Palace', 'Add-ons', false, null, 1, [
+      { name: 'Add Chili Oil', price: 0.00 },
+      { name: 'Extra Sweet Soy Sauce', price: 0.00 },
+    ]);
+
+    addGroup('Egg Tarts (3 pcs)', 'Dragon Palace', 'Quantity', false, 1, 1, [
+      { name: '3 pieces', price: 0.00 },
+      { name: '6 pieces', price: 6.00 },
+    ]);
+
+    addGroup('West Lake Beef Soup', 'Dragon Palace', 'Size', false, 1, 1, [
+      { name: 'Regular', price: 0.00 },
+      { name: 'Large', price: 3.00 },
+    ]);
+    addGroup('West Lake Beef Soup', 'Dragon Palace', 'Add-ons', false, null, 2, [
+      { name: 'Extra Tofu', price: 1.50 },
+      { name: 'Add Wontons', price: 3.00 },
+    ]);
+
+    addGroup('Buddha Jumps Over the Wall', 'Dragon Palace', 'Add-ons', false, null, 1, [
+      { name: 'Extra Mushrooms', price: 4.00 },
+    ]);
+
+    addGroup('Whole Steamed Sea Bass', 'Dragon Palace', 'Add-ons', false, null, 1, [
+      { name: 'Extra Ginger & Scallion', price: 1.00 },
+      { name: 'Add Steamed Rice', price: 2.00 },
+    ]);
+
+    addGroup('Salt & Pepper Crab', 'Dragon Palace', 'Add-ons', false, null, 1, [
+      { name: 'Add Steamed Buns (for sauce)', price: 3.00 },
+      { name: 'Extra Chili & Garlic', price: 0.00 },
+    ]);
+
+    addGroup('Mapo Tofu', 'Dragon Palace', 'Spice Level', true, 1, 1, [
+      { name: 'Mild', price: 0.00 },
+      { name: 'Medium', price: 0.00 },
+      { name: 'Hot', price: 0.00 },
+      { name: 'Extra Numbing Hot', price: 0.00 },
+    ]);
+    addGroup('Mapo Tofu', 'Dragon Palace', 'Protein', true, 1, 2, [
+      { name: 'Ground Pork', price: 0.00 },
+      { name: 'Ground Beef', price: 1.00 },
+      { name: 'Vegetarian (no meat)', price: -1.00 },
+    ]);
+    addGroup('Mapo Tofu', 'Dragon Palace', 'Add Rice', true, 1, 3, [
+      { name: 'No rice', price: 0.00 },
+      { name: 'Steamed Rice', price: 2.00 },
+    ]);
+
+    addGroup('Beef Ho Fun', 'Dragon Palace', 'Protein', true, 1, 1, [
+      { name: 'Beef', price: 0.00 },
+      { name: 'Chicken', price: -1.00 },
+      { name: 'Shrimp', price: 2.00 },
+    ]);
+    addGroup('Beef Ho Fun', 'Dragon Palace', 'Style', true, 1, 2, [
+      { name: 'Wet (soy sauce)', price: 0.00 },
+      { name: 'Dry-tossed', price: 0.00 },
+    ]);
+
+    addGroup('Yangzhou Fried Rice', 'Dragon Palace', 'Protein', true, 1, 1, [
+      { name: 'Classic Mix (shrimp + char siu)', price: 0.00 },
+      { name: 'Shrimp Only', price: 2.00 },
+      { name: 'Vegetable', price: -1.00 },
+    ]);
+    addGroup('Yangzhou Fried Rice', 'Dragon Palace', 'Size', false, 1, 2, [
+      { name: 'Regular', price: 0.00 },
+      { name: 'Large', price: 3.00 },
+    ]);
+
+    // ===== 16. BISTRO LÉON =====
+    addGroup('Salade Lyonnaise', 'Bistro Léon', 'Egg', true, 1, 1, [
+      { name: 'Poached Egg', price: 0.00 },
+      { name: 'No Egg', price: -1.00 },
+    ]);
+    addGroup('Salade Lyonnaise', 'Bistro Léon', 'Add-ons', false, null, 2, [
+      { name: 'Extra Lardons', price: 2.00 },
+      { name: 'Extra Croutons', price: 1.00 },
+    ]);
+
+    addGroup('Quenelles de Brochet', 'Bistro Léon', 'Add-ons', false, null, 1, [
+      { name: 'Extra Nantua Sauce', price: 3.00 },
+      { name: 'Extra Baguette', price: 2.00 },
+    ]);
+
+    addGroup('Andouillette Grillée', 'Bistro Léon', 'Add-ons', false, null, 1, [
+      { name: 'Extra Dijon Mustard', price: 0.00 },
+      { name: 'Extra Cornichons', price: 0.00 },
+    ]);
+
+    addGroup('Steak Frites', 'Bistro Léon', 'Doneness', true, 1, 1, [
+      { name: 'Rare', price: 0.00 },
+      { name: 'Medium Rare', price: 0.00 },
+      { name: 'Medium', price: 0.00 },
+      { name: 'Medium Well', price: 0.00 },
+      { name: 'Well Done', price: 0.00 },
+    ]);
+    addGroup('Steak Frites', 'Bistro Léon', 'Sauce', true, 1, 2, [
+      { name: 'Shallot & Red Wine Jus', price: 0.00 },
+      { name: 'Béarnaise', price: 0.00 },
+      { name: 'Au Poivre', price: 0.00 },
+      { name: 'Garlic Butter', price: 0.00 },
+    ]);
+    addGroup('Steak Frites', 'Bistro Léon', 'Add-ons', false, null, 3, [
+      { name: 'Extra Frites', price: 3.00 },
+    ]);
+
+    addGroup('Gratin Dauphinois', 'Bistro Léon', 'Size', false, 1, 1, [
+      { name: 'Regular', price: 0.00 },
+      { name: 'Large', price: 4.00 },
+    ]);
+    addGroup('Gratin Dauphinois', 'Bistro Léon', 'Add-ons', false, null, 2, [
+      { name: 'Extra Gruyère', price: 2.00 },
+    ]);
+
+    addGroup('Poulet Rôti aux Herbes', 'Bistro Léon', 'Side', true, 1, 1, [
+      { name: 'Seasonal Vegetables', price: 0.00 },
+      { name: 'Gratin Dauphinois', price: 4.00 },
+      { name: 'Salade Verte', price: 0.00 },
+    ]);
+    addGroup('Poulet Rôti aux Herbes', 'Bistro Léon', 'Add-ons', false, null, 2, [
+      { name: 'Extra Pan Jus', price: 1.00 },
+    ]);
+
+    addGroup('Sole Meunière', 'Bistro Léon', 'Side', true, 1, 1, [
+      { name: 'Haricots Verts', price: 0.00 },
+      { name: 'Pommes Vapeur', price: 0.00 },
+      { name: 'Salade Verte', price: 0.00 },
+    ]);
+    addGroup('Sole Meunière', 'Bistro Léon', 'Add-ons', false, null, 2, [
+      { name: 'Extra Lemon Caper Butter', price: 2.00 },
+    ]);
+
+    addGroup('Tarte Tatin', 'Bistro Léon', 'Accompaniment', true, 1, 1, [
+      { name: 'Crème Fraîche', price: 0.00 },
+      { name: 'Vanilla Ice Cream', price: 0.00 },
+      { name: 'Both', price: 1.00 },
+    ]);
+
+    addGroup('Profiteroles au Chocolat', 'Bistro Léon', 'Chocolate Sauce', true, 1, 1, [
+      { name: 'Valrhona Dark', price: 0.00 },
+      { name: 'Milk Chocolate', price: 0.00 },
+    ]);
+    addGroup('Profiteroles au Chocolat', 'Bistro Léon', 'Add-ons', false, null, 2, [
+      { name: 'Extra Chocolate Sauce', price: 2.00 },
+      { name: 'Add Whipped Cream', price: 1.00 },
+    ]);
+
+    // ===== 17. AEGEAN TABLE =====
+    addGroup('Htipiti', 'Aegean Table', 'Heat Level', true, 1, 1, [
+      { name: 'Regular', price: 0.00 },
+      { name: 'Extra Spicy', price: 0.00 },
+    ]);
+    addGroup('Htipiti', 'Aegean Table', 'Add-ons', false, null, 2, [
+      { name: 'Extra Pita Chips', price: 1.00 },
+      { name: 'Extra Walnuts', price: 1.00 },
+    ]);
+
+    addGroup('Taramosalata', 'Aegean Table', 'Add-ons', false, null, 1, [
+      { name: 'Extra Pita', price: 1.00 },
+    ]);
+
+    addGroup('Fattoush', 'Aegean Table', 'Add-ons', false, null, 1, [
+      { name: 'Add Grilled Chicken', price: 4.00 },
+      { name: 'Add Halloumi', price: 3.00 },
+    ]);
+
+    addGroup('Spanakopita', 'Aegean Table', 'Quantity', false, 1, 1, [
+      { name: '3 pieces', price: 0.00 },
+      { name: '6 pieces', price: 9.00 },
+    ]);
+    addGroup('Spanakopita', 'Aegean Table', 'Add-ons', false, null, 2, [
+      { name: 'Add Tzatziki', price: 2.00 },
+    ]);
+
+    addGroup('Keftedes', 'Aegean Table', 'Heat Level', true, 1, 1, [
+      { name: 'Regular', price: 0.00 },
+      { name: 'Extra Spicy', price: 0.00 },
+    ]);
+    addGroup('Keftedes', 'Aegean Table', 'Add-ons', false, null, 2, [
+      { name: 'Extra Tomato Sauce', price: 1.00 },
+      { name: 'Add Pita', price: 1.00 },
+    ]);
+
+    addGroup('Halloumi Saganaki', 'Aegean Table', 'Add-ons', false, null, 1, [
+      { name: 'Extra Lemon', price: 0.00 },
+      { name: 'Add Pita', price: 1.00 },
+    ]);
+
+    addGroup('Moussaka', 'Aegean Table', 'Side', true, 1, 1, [
+      { name: 'Greek Salad', price: 0.00 },
+      { name: 'Crusty Bread', price: 0.00 },
+      { name: 'No Side', price: -2.00 },
+    ]);
+    addGroup('Moussaka', 'Aegean Table', 'Add-ons', false, null, 2, [
+      { name: 'Extra Béchamel', price: 1.00 },
+    ]);
+
+    addGroup('Lahmacun', 'Aegean Table', 'Heat Level', true, 1, 1, [
+      { name: 'Regular', price: 0.00 },
+      { name: 'Extra Spicy', price: 0.00 },
+    ]);
+    addGroup('Lahmacun', 'Aegean Table', 'Quantity', false, 1, 2, [
+      { name: '1 piece', price: 0.00 },
+      { name: '2 pieces', price: 13.00 },
+    ]);
+    addGroup('Lahmacun', 'Aegean Table', 'Add-ons', false, null, 3, [
+      { name: 'Add Tzatziki', price: 2.00 },
+      { name: 'Extra Parsley & Lemon', price: 0.00 },
+    ]);
+
+    addGroup('Whole Grilled Octopus', 'Aegean Table', 'Accompaniment', true, 1, 1, [
+      { name: 'Fava Purée & Lemon Oil', price: 0.00 },
+      { name: 'Add Greek Salad', price: 5.00 },
+    ]);
+    addGroup('Whole Grilled Octopus', 'Aegean Table', 'Add-ons', false, null, 2, [
+      { name: 'Extra Lemon Oil', price: 1.00 },
+      { name: 'Extra Capers', price: 0.00 },
+    ]);
+
+    addGroup('Galaktoboureko', 'Aegean Table', 'Add-ons', false, null, 1, [
+      { name: 'Add Vanilla Ice Cream', price: 3.00 },
+      { name: 'Extra Orange Blossom Syrup', price: 0.00 },
+    ]);
+
+    // ===== 18. HANGANG BBQ =====
+    addGroup('Sundubu Jjigae', 'Hangang BBQ', 'Spice Level', true, 1, 1, [
+      { name: 'Mild', price: 0.00 },
+      { name: 'Regular', price: 0.00 },
+      { name: 'Hot', price: 0.00 },
+      { name: 'Extra Hot', price: 0.00 },
+    ]);
+    addGroup('Sundubu Jjigae', 'Hangang BBQ', 'Protein', true, 1, 2, [
+      { name: 'Clams + Pork', price: 0.00 },
+      { name: 'Seafood Mix', price: 3.00 },
+      { name: 'Tofu Only', price: -2.00 },
+    ]);
+    addGroup('Sundubu Jjigae', 'Hangang BBQ', 'Add-ons', false, null, 3, [
+      { name: 'Extra Tofu', price: 1.50 },
+      { name: 'Add Kimchi', price: 1.50 },
+    ]);
+
+    addGroup('Pajeon', 'Hangang BBQ', 'Filling', true, 1, 1, [
+      { name: 'Mixed Seafood', price: 0.00 },
+      { name: 'Kimchi', price: 0.00 },
+      { name: 'Plain Scallion', price: -1.00 },
+    ]);
+
+    addGroup('Banchan Platter', 'Hangang BBQ', 'Add-ons', false, null, 1, [
+      { name: 'Extra Kimchi', price: 2.00 },
+      { name: 'Extra Pickled Radish', price: 1.00 },
+    ]);
+
+    addGroup('Hangang Premium Set (2 ppl)', 'Hangang BBQ', 'Add-ons', false, null, 1, [
+      { name: 'Extra Galbi (2 pcs)', price: 12.00 },
+      { name: 'Extra Pork Belly', price: 7.00 },
+    ]);
+
+    addGroup('Wagyu Short Rib', 'Hangang BBQ', 'Make it a Meal', true, 1, 1, [
+      { name: 'Wagyu only', price: 0.00 },
+      { name: 'Add Steamed Rice + Banchan', price: 6.00 },
+    ]);
+    addGroup('Wagyu Short Rib', 'Hangang BBQ', 'Add-ons', false, null, 2, [
+      { name: 'Extra Wagyu (2 pcs)', price: 15.00 },
+    ]);
+
+    addGroup('Spicy Pork Bulgogi', 'Hangang BBQ', 'Spice Level', true, 1, 1, [
+      { name: 'Regular', price: 0.00 },
+      { name: 'Extra Spicy', price: 0.00 },
+    ]);
+    addGroup('Spicy Pork Bulgogi', 'Hangang BBQ', 'Make it a Meal', true, 1, 2, [
+      { name: 'Pork Bulgogi only', price: 0.00 },
+      { name: 'Add Steamed Rice + Banchan', price: 4.00 },
+    ]);
+    addGroup('Spicy Pork Bulgogi', 'Hangang BBQ', 'Add-ons', false, null, 3, [
+      { name: 'Add Kimchi', price: 2.00 },
+      { name: 'Extra Gochujang', price: 0.00 },
+    ]);
+
+    addGroup('Doenjang Jjigae', 'Hangang BBQ', 'Protein', true, 1, 1, [
+      { name: 'Tofu + Mushrooms', price: 0.00 },
+      { name: 'Add Beef', price: 3.00 },
+      { name: 'Add Clams', price: 4.00 },
+    ]);
+
+    addGroup('Mul Naengmyeon', 'Hangang BBQ', 'Add-ons', false, null, 1, [
+      { name: 'Extra Beef Slices', price: 4.00 },
+      { name: 'Add Gochugaru (spicy)', price: 0.00 },
+      { name: 'Extra Mustard', price: 0.00 },
+    ]);
+
+    addGroup('Bingsu (Mango)', 'Hangang BBQ', 'Flavor', true, 1, 1, [
+      { name: 'Mango', price: 0.00 },
+      { name: 'Strawberry', price: 0.00 },
+      { name: 'Matcha', price: 0.00 },
+      { name: 'Injeolmi (Roasted Soybean)', price: 0.00 },
+    ]);
+    addGroup('Bingsu (Mango)', 'Hangang BBQ', 'Add-ons', false, null, 2, [
+      { name: 'Extra Mochi', price: 1.00 },
+      { name: 'Add Ice Cream Scoop', price: 2.00 },
+    ]);
+
+    // ===== 19. SIAM STREET =====
+    addGroup('Miang Kham', 'Siam Street', 'Heat Level', true, 1, 1, [
+      { name: 'Regular', price: 0.00 },
+      { name: 'Extra Spicy', price: 0.00 },
+    ]);
+    addGroup('Miang Kham', 'Siam Street', 'Add-ons', false, null, 2, [
+      { name: 'Extra Dried Shrimp', price: 1.00 },
+      { name: 'Extra Peanuts', price: 0.50 },
+    ]);
+
+    addGroup('Sai Oua', 'Siam Street', 'Quantity', false, 1, 1, [
+      { name: 'Regular', price: 0.00 },
+      { name: 'Double Portion', price: 11.00 },
+    ]);
+    addGroup('Sai Oua', 'Siam Street', 'Add-ons', false, null, 2, [
+      { name: 'Add Sticky Rice', price: 2.00 },
+      { name: 'Add Nam Prik Noom (green chili dip)', price: 1.00 },
+    ]);
+
+    addGroup('Tod Mun Pla', 'Siam Street', 'Heat Level', true, 1, 1, [
+      { name: 'Regular', price: 0.00 },
+      { name: 'Extra Spicy', price: 0.00 },
+    ]);
+    addGroup('Tod Mun Pla', 'Siam Street', 'Add-ons', false, null, 2, [
+      { name: 'Extra Cucumber Relish', price: 1.00 },
+    ]);
+
+    addGroup('Tom Kha Gai', 'Siam Street', 'Spice Level', true, 1, 1, [
+      { name: 'Mild', price: 0.00 },
+      { name: 'Regular', price: 0.00 },
+      { name: 'Hot', price: 0.00 },
+    ]);
+    addGroup('Tom Kha Gai', 'Siam Street', 'Protein', true, 1, 2, [
+      { name: 'Chicken', price: 0.00 },
+      { name: 'Shrimp', price: 3.00 },
+      { name: 'Tofu', price: -1.00 },
+    ]);
+    addGroup('Tom Kha Gai', 'Siam Street', 'Add-ons', false, null, 3, [
+      { name: 'Extra Coconut Milk', price: 1.00 },
+    ]);
+
+    addGroup('Som Tum Isaan', 'Siam Street', 'Spice Level', true, 1, 1, [
+      { name: 'Medium', price: 0.00 },
+      { name: 'Hot', price: 0.00 },
+      { name: 'Extra Hot (Isaan style)', price: 0.00 },
+    ]);
+    addGroup('Som Tum Isaan', 'Siam Street', 'Add-ons', false, null, 2, [
+      { name: 'Extra Fermented Crab', price: 2.00 },
+      { name: 'Extra Peanuts', price: 1.00 },
+    ]);
+
+    addGroup('Gaeng Tai Pla', 'Siam Street', 'Spice Level', true, 1, 1, [
+      { name: 'Medium', price: 0.00 },
+      { name: 'Hot', price: 0.00 },
+      { name: 'Extra Hot', price: 0.00 },
+    ]);
+    addGroup('Gaeng Tai Pla', 'Siam Street', 'Accompaniment', true, 1, 2, [
+      { name: 'Curry only', price: 0.00 },
+      { name: 'Add Steamed Jasmine Rice', price: 3.00 },
+    ]);
+
+    addGroup('Khao Soi', 'Siam Street', 'Protein', true, 1, 1, [
+      { name: 'Braised Chicken', price: 0.00 },
+      { name: 'Braised Beef', price: 2.00 },
+      { name: 'Tofu', price: -1.00 },
+    ]);
+    addGroup('Khao Soi', 'Siam Street', 'Spice Level', true, 1, 2, [
+      { name: 'Mild', price: 0.00 },
+      { name: 'Medium', price: 0.00 },
+      { name: 'Hot', price: 0.00 },
+    ]);
+    addGroup('Khao Soi', 'Siam Street', 'Add-ons', false, null, 3, [
+      { name: 'Extra Crispy Noodles', price: 1.00 },
+      { name: 'Extra Coconut Curry Broth', price: 2.00 },
+    ]);
+
+    addGroup('Phat Kraphao Moo Saap', 'Siam Street', 'Protein', true, 1, 1, [
+      { name: 'Pork', price: 0.00 },
+      { name: 'Chicken', price: 0.00 },
+      { name: 'Beef', price: 2.00 },
+      { name: 'Tofu', price: -1.00 },
+    ]);
+    addGroup('Phat Kraphao Moo Saap', 'Siam Street', 'Spice Level', true, 1, 2, [
+      { name: 'Medium', price: 0.00 },
+      { name: 'Hot', price: 0.00 },
+      { name: 'Extra Hot (Thai hot)', price: 0.00 },
+    ]);
+    addGroup('Phat Kraphao Moo Saap', 'Siam Street', 'Egg', true, 1, 3, [
+      { name: 'Crispy Fried Egg', price: 0.00 },
+      { name: 'No Egg', price: 0.00 },
+    ]);
+    addGroup('Phat Kraphao Moo Saap', 'Siam Street', 'Add-ons', false, null, 4, [
+      { name: 'Add Jasmine Rice', price: 2.00 },
+    ]);
+
+    addGroup('Bua Loi', 'Siam Street', 'Add-ons', false, null, 1, [
+      { name: 'Extra Coconut Milk', price: 0.50 },
+      { name: 'Add Pandan Jelly', price: 1.00 },
+    ]);
+
+    addGroup('Khanom Krok', 'Siam Street', 'Quantity', false, 1, 1, [
+      { name: 'Regular', price: 0.00 },
+      { name: 'Double Portion', price: 6.00 },
+    ]);
+
+    // ===== 20. PIT STOP BBQ =====
+    addGroup('Burnt End Bites', 'Pit Stop BBQ', 'Sauce', true, 1, 1, [
+      { name: 'House BBQ Sauce', price: 0.00 },
+      { name: 'Spicy BBQ Sauce', price: 0.00 },
+      { name: 'No Sauce (dry)', price: 0.00 },
+    ]);
+    addGroup('Burnt End Bites', 'Pit Stop BBQ', 'Add-ons', false, null, 2, [
+      { name: 'Extra Sauce', price: 0.00 },
+    ]);
+
+    addGroup('Smoked Wings (8 pcs)', 'Pit Stop BBQ', 'Sauce', true, 1, 1, [
+      { name: 'Alabama White Sauce', price: 0.00 },
+      { name: 'Classic BBQ', price: 0.00 },
+      { name: 'Spicy BBQ', price: 0.00 },
+      { name: 'Dry Rub Only', price: 0.00 },
+    ]);
+    addGroup('Smoked Wings (8 pcs)', 'Pit Stop BBQ', 'Heat Level', true, 1, 2, [
+      { name: 'Mild', price: 0.00 },
+      { name: 'Regular', price: 0.00 },
+      { name: 'Hot', price: 0.00 },
+    ]);
+    addGroup('Smoked Wings (8 pcs)', 'Pit Stop BBQ', 'Quantity', false, 1, 3, [
+      { name: '8 pieces', price: 0.00 },
+      { name: '16 pieces', price: 13.00 },
+    ]);
+
+    addGroup('Pimento Cheese Dip', 'Pit Stop BBQ', 'Heat Level', true, 1, 1, [
+      { name: 'Regular', price: 0.00 },
+      { name: 'Spicy (extra jalapeño)', price: 0.00 },
+    ]);
+    addGroup('Pimento Cheese Dip', 'Pit Stop BBQ', 'Add-ons', false, null, 2, [
+      { name: 'Extra Smoked Crackers', price: 1.50 },
+      { name: 'Add Pulled Pork', price: 4.00 },
+    ]);
+
+    addGroup('Brisket Plate', 'Pit Stop BBQ', 'Brisket Cut', true, 1, 1, [
+      { name: 'Lean', price: 0.00 },
+      { name: 'Fatty', price: 0.00 },
+      { name: 'Mixed', price: 0.00 },
+    ]);
+    addGroup('Brisket Plate', 'Pit Stop BBQ', 'Sides (choose 2)', true, 2, 2, [
+      { name: 'Smoked Mac & Cheese', price: 0.00 },
+      { name: 'Coleslaw', price: 0.00 },
+      { name: 'Baked Beans', price: 0.00 },
+      { name: 'Jalapeño Cornbread', price: 0.00 },
+      { name: 'Potato Salad', price: 0.00 },
+    ]);
+    addGroup('Brisket Plate', 'Pit Stop BBQ', 'Add-ons', false, null, 3, [
+      { name: 'Extra Pickles', price: 0.00 },
+      { name: 'Extra BBQ Sauce', price: 0.00 },
+    ]);
+
+    addGroup('St. Louis Ribs (Full Rack)', 'Pit Stop BBQ', 'BBQ Sauce', true, 1, 1, [
+      { name: 'Tangy BBQ', price: 0.00 },
+      { name: 'Sweet BBQ', price: 0.00 },
+      { name: 'Spicy BBQ', price: 0.00 },
+      { name: 'Dry Rub Only', price: 0.00 },
+    ]);
+    addGroup('St. Louis Ribs (Full Rack)', 'Pit Stop BBQ', 'Add-ons', false, null, 2, [
+      { name: 'Extra BBQ Sauce', price: 0.00 },
+      { name: 'Add Jalapeño Cornbread', price: 3.00 },
+    ]);
+
+    addGroup('Pulled Pork Sandwich', 'Pit Stop BBQ', 'Make it a Meal', true, 1, 1, [
+      { name: 'Sandwich only', price: 0.00 },
+      { name: 'Add One Side', price: 4.00 },
+      { name: 'Add Two Sides', price: 7.00 },
+    ]);
+    addGroup('Pulled Pork Sandwich', 'Pit Stop BBQ', 'Heat Level', true, 1, 2, [
+      { name: 'Regular (vinegar slaw)', price: 0.00 },
+      { name: 'Add Hot Sauce', price: 0.00 },
+    ]);
+    addGroup('Pulled Pork Sandwich', 'Pit Stop BBQ', 'Add-ons', false, null, 3, [
+      { name: 'Extra Pulled Pork', price: 5.00 },
+      { name: 'Extra Coleslaw', price: 0.00 },
+    ]);
+
+    addGroup('Pitmaster\'s Platter (2 ppl)', 'Pit Stop BBQ', 'Add-ons', false, null, 1, [
+      { name: 'Extra Cornbread', price: 2.00 },
+      { name: 'Extra BBQ Sauce', price: 0.00 },
+    ]);
+
+    addGroup('Smoked Mac & Cheese', 'Pit Stop BBQ', 'Size', false, 1, 1, [
+      { name: 'Regular', price: 0.00 },
+      { name: 'Large', price: 4.00 },
+    ]);
+    addGroup('Smoked Mac & Cheese', 'Pit Stop BBQ', 'Add-ons', false, null, 2, [
+      { name: 'Add Pulled Pork', price: 4.00 },
+      { name: 'Add Jalapeños', price: 0.00 },
+    ]);
+
+    addGroup('Jalapeño Cornbread', 'Pit Stop BBQ', 'Add-ons', false, null, 1, [
+      { name: 'Extra Honey Butter', price: 0.00 },
+    ]);
+
+    addGroup('Banana Pudding', 'Pit Stop BBQ', 'Add-ons', false, null, 1, [
+      { name: 'Extra Toasted Meringue', price: 0.00 },
+      { name: 'Add Whipped Cream', price: 1.00 },
+    ]);
+
+    addGroup('Peach Cobbler', 'Pit Stop BBQ', 'Add-ons', false, null, 1, [
+      { name: 'Extra Vanilla Ice Cream', price: 2.00 },
+      { name: 'Extra Peach Filling', price: 2.00 },
     ]);
 
   });

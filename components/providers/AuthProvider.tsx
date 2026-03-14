@@ -9,6 +9,7 @@ interface AuthUser {
   email: string;
   name: string;
   role: UserRole;
+  avatar_url?: string | null;
 }
 
 interface LoginResult {

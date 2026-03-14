@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
     const db = getDb();
     const cartItems = db.prepare(`
       SELECT
-        ci.id, ci.user_id, ci.restaurant_id, ci.menu_item_id, ci.quantity,
+        ci.id, ci.user_id, ci.restaurant_id, ci.menu_item_id, ci.quantity, ci.special_requests,
         mi.name, mi.description, mi.price, mi.image_url,
         r.name as restaurant_name
       FROM cart_items ci

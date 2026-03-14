@@ -12,6 +12,7 @@ export default function MenuPage() {
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [deleting, setDeleting] = useState<number | null>(null);
+  const [togglingAvailable, setTogglingAvailable] = useState<number | null>(null);
 
   const load = async () => {
     const res = await fetch('/api/restaurant-dashboard/menu');
@@ -33,6 +34,18 @@ export default function MenuPage() {
     await fetch(`/api/restaurant-dashboard/menu/${id}`, { method: 'DELETE' });
     await load();
     setDeleting(null);
+  };
+
+  const handleToggleAvailable = async (item: MenuItem) => {
+    setTogglingAvailable(item.id);
+    const newVal = !item.is_available;
+    setItems(prev => prev.map(i => i.id === item.id ? { ...i, is_available: newVal ? 1 : 0 } : i));
+    await fetch(`/api/restaurant-dashboard/menu/${item.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_available: newVal }),
+    });
+    setTogglingAvailable(null);
   };
 
   const handleSave = async () => {
@@ -94,7 +107,7 @@ export default function MenuPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {filtered.map(item => (
-            <div key={item.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm flex">
+            <div key={item.id} className={`bg-white rounded-2xl border overflow-hidden shadow-sm flex transition-opacity ${item.is_available ? 'border-gray-100 opacity-100' : 'border-gray-100 opacity-50'}`}>
               <div className="relative w-24 flex-shrink-0">
                 <Image
                   src={item.image_url || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80'}
@@ -103,11 +116,6 @@ export default function MenuPage() {
                   className="object-cover"
                   unoptimized
                 />
-                {!item.is_available && (
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                    <span className="text-white text-xs font-medium">Unavailable</span>
-                  </div>
-                )}
               </div>
               <div className="flex-1 p-4 min-w-0">
                 <div className="flex items-start justify-between gap-2">
@@ -117,6 +125,21 @@ export default function MenuPage() {
                     <p className="text-sm font-semibold text-[#FF3008] mt-1">${item.price.toFixed(2)}</p>
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
+                    {/* Availability toggle */}
+                    <button
+                      onClick={() => handleToggleAvailable(item)}
+                      disabled={togglingAvailable === item.id}
+                      title={item.is_available ? 'Mark unavailable' : 'Mark available'}
+                      className={`p-2 rounded-lg transition-colors cursor-pointer disabled:opacity-50 ${
+                        item.is_available
+                          ? 'text-[#FF3008] hover:text-red-600 hover:bg-red-50'
+                          : 'text-gray-300 hover:text-[#FF3008] hover:bg-red-50'
+                      }`}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </button>
                     <button
                       onClick={() => { setEditingItem(item); setEditorOpen(true); }}
                       className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors cursor-pointer"

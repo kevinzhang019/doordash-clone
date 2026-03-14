@@ -44,6 +44,27 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 }
 
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ itemId: string }> }) {
+  const userId = parseInt(request.headers.get('x-user-id') ?? '');
+  const role = request.headers.get('x-user-role');
+  if (!userId || role !== 'restaurant') return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const restaurantId = getRestaurantId(userId);
+  if (!restaurantId) return Response.json({ error: 'No restaurant found' }, { status: 404 });
+
+  const { itemId } = await params;
+  const db = getDb();
+
+  const existing = db.prepare('SELECT id FROM menu_items WHERE id = ? AND restaurant_id = ?').get(parseInt(itemId), restaurantId);
+  if (!existing) return Response.json({ error: 'Item not found' }, { status: 404 });
+
+  const { is_available } = await request.json();
+  db.prepare('UPDATE menu_items SET is_available = ? WHERE id = ? AND restaurant_id = ?')
+    .run(is_available ? 1 : 0, parseInt(itemId), restaurantId);
+
+  return Response.json({ success: true });
+}
+
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ itemId: string }> }) {
   const userId = parseInt(request.headers.get('x-user-id') ?? '');
   const role = request.headers.get('x-user-role');

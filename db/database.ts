@@ -228,6 +228,16 @@ function runMigrations(db: Database.Database) {
   if (!orderCols.includes('tip')) {
     db.exec('ALTER TABLE orders ADD COLUMN tip REAL NOT NULL DEFAULT 0');
   }
+  if (!orderCols.includes('dispatched_to')) {
+    db.exec('ALTER TABLE orders ADD COLUMN dispatched_to INTEGER REFERENCES users(id)');
+  }
+  if (!orderCols.includes('dispatch_expires_at')) {
+    db.exec('ALTER TABLE orders ADD COLUMN dispatch_expires_at TEXT');
+  }
+  if (!orderCols.includes('declined_count')) {
+    db.exec('ALTER TABLE orders ADD COLUMN declined_count INTEGER NOT NULL DEFAULT 0');
+  }
+
 const restCols = (db.prepare("PRAGMA table_info(restaurants)").all() as { name: string }[]).map(c => c.name);
   if (!restCols.includes('is_accepting_orders')) {
     db.exec('ALTER TABLE restaurants ADD COLUMN is_accepting_orders INTEGER NOT NULL DEFAULT 1');
@@ -347,6 +357,35 @@ const restCols = (db.prepare("PRAGMA table_info(restaurants)").all() as { name: 
       is_active INTEGER NOT NULL DEFAULT 1,
       created_at TEXT DEFAULT (datetime('now'))
     );
+  `);
+
+  // --- New tables for dispatch queue, available jobs, and messaging ---
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS driver_job_declines (
+      driver_user_id INTEGER NOT NULL REFERENCES users(id),
+      order_id       INTEGER NOT NULL REFERENCES orders(id),
+      declined_at    TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (driver_user_id, order_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS driver_available_jobs (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      driver_user_id INTEGER NOT NULL REFERENCES users(id),
+      order_id       INTEGER NOT NULL REFERENCES orders(id),
+      added_at       TEXT DEFAULT (datetime('now')),
+      UNIQUE(driver_user_id, order_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS messages (
+      id             INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_id       INTEGER NOT NULL REFERENCES orders(id),
+      sender_user_id INTEGER NOT NULL REFERENCES users(id),
+      sender_role    TEXT NOT NULL CHECK(sender_role IN ('customer','driver')),
+      content        TEXT NOT NULL,
+      sent_at        TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_messages_order_id ON messages(order_id);
   `);
 
   // Seed demo deals if none exist

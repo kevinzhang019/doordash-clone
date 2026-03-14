@@ -102,13 +102,16 @@ export interface CartItem {
   restaurant_name?: string;
   selections?: CartItemSelection[];
   effective_price?: number;
+  special_requests?: string | null;
 }
+
+export type OrderStatus = 'placed' | 'preparing' | 'ready' | 'picked_up' | 'delivered';
 
 export interface Order {
   id: number;
   user_id: number;
   restaurant_id: number;
-  status: string;
+  status: OrderStatus | string;
   delivery_address: string;
   subtotal: number;
   delivery_fee: number;
@@ -116,7 +119,21 @@ export interface Order {
   total: number;
   placed_at: string;
   driver_user_id?: number | null;
+  dispatched_to?: number | null;
   restaurant_name?: string;
+  driver_name?: string;
+  delivery_min?: number;
+  delivery_max?: number;
+}
+
+export interface Message {
+  id: number;
+  order_id: number;
+  sender_user_id: number;
+  sender_role: 'customer' | 'driver';
+  content: string;
+  sent_at: string;
+  sender_name?: string;
 }
 
 export interface Review {
@@ -177,4 +194,19 @@ export interface DriverSession {
   ended_at: string | null;
   total_earnings: number;
   deliveries_completed: number;
+}
+
+export interface Deal {
+  id: number;
+  restaurant_id: number;
+  menu_item_id: number;
+  deal_type: 'percentage_off' | 'bogo';
+  discount_value: number | null;
+  is_active: number;
+  created_at: string;
+  // Joined fields
+  restaurant_name?: string;
+  restaurant_image_url?: string;
+  menu_item_name?: string;
+  menu_item_price?: number;
 }

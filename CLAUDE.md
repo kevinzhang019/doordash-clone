@@ -103,8 +103,7 @@ All DB queries use better-sqlite3 prepared statements with `?` placeholders — 
 
 Bella Napoli (Italian), Sakura Garden (Japanese), Casa Fuego (Mexican), Spice Route (Indian), Golden Dragon (Chinese), Le Petit Bistro (French), Olive & Sea (Mediterranean), Seoul Kitchen (Korean), Thai Orchid (Thai), The American Grill (American).
 
-## Notes
+## Workflow Preferences
 
-Always use context7 when I need code generation, setup or configuration steps, or library/API documentation. This means you should automatically use the Context7 MCP tools to resolve library id and get library docs without me having to explicitly ask.
-
-Make clean commit messsages, constantly save them locally and then occasionally push them to Github, so that we always have a saved version of the project and it's easier for us to revert back in case we make any changes. Set up a GitHub repository, configure everything and use Git and Github for this project.
+- Always use Context7 MCP tools to resolve library IDs and get library docs for code generation, setup, configuration, or API documentation — without needing to be explicitly asked.
+- Make clean commit messages. Commit frequently and push to GitHub periodically so we always have a saved version and can revert easily.

@@ -9,23 +9,34 @@ const secret = new TextEncoder().encode(
 const protectedRoutes = ['/cart', '/checkout', '/orders', '/restaurant-dashboard', '/driver-dashboard', '/restaurant-setup', '/settings'];
 const protectedApiRoutes = ['/api/cart', '/api/orders', '/api/reviews', '/api/addresses', '/api/restaurant-dashboard', '/api/driver', '/api/settings'];
 
+// Pages that restaurant/driver roles should never see
+const CUSTOMER_ONLY_PAGES = ['/', '/cart', '/checkout', '/orders'];
+
+function dashboardFor(role: UserRole): string {
+  if (role === 'restaurant') return '/restaurant-dashboard';
+  if (role === 'driver') return '/driver-dashboard';
+  return '/';
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isProtectedPage = protectedRoutes.some(route => pathname.startsWith(route));
   const isProtectedApi = protectedApiRoutes.some(route => pathname.startsWith(route));
-
-  if (!isProtectedPage && !isProtectedApi) {
-    return NextResponse.next();
-  }
+  const isAuthPage = pathname === '/login' || pathname === '/register';
+  const isCustomerOnlyPage = CUSTOMER_ONLY_PAGES.some(p => pathname === p || pathname.startsWith(p + '/'));
 
   const token = request.cookies.get('session')?.value;
 
+  // No session — only block protected routes
   if (!token) {
     if (isProtectedApi) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    return NextResponse.redirect(new URL('/login', request.url));
+    if (isProtectedPage) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+    return NextResponse.next();
   }
 
   try {
@@ -33,42 +44,56 @@ export async function proxy(request: NextRequest) {
     const userId = (payload as { userId: number; role?: UserRole }).userId;
     const role = (payload as { userId: number; role?: UserRole }).role || 'customer';
 
-    const requestHeaders = new Headers(request.headers);
-    requestHeaders.set('x-user-id', userId.toString());
-    requestHeaders.set('x-user-role', role);
+    // Logged-in users should not see login/register
+    if (isAuthPage) {
+      return NextResponse.redirect(new URL(dashboardFor(role), request.url));
+    }
 
-    // Role guards
+    // Restaurant/driver roles must not see customer-only pages
+    if (role !== 'customer' && isCustomerOnlyPage) {
+      return NextResponse.redirect(new URL(dashboardFor(role), request.url));
+    }
+
+    // Role guards for restricted pages
     if (pathname.startsWith('/restaurant-dashboard') || pathname.startsWith('/api/restaurant-dashboard')) {
       if (role !== 'restaurant') {
-        return NextResponse.redirect(new URL('/', request.url));
+        return NextResponse.redirect(new URL(dashboardFor(role), request.url));
       }
     }
 
     if (pathname.startsWith('/driver-dashboard') || pathname.startsWith('/api/driver')) {
       if (role !== 'driver') {
-        return NextResponse.redirect(new URL('/', request.url));
+        return NextResponse.redirect(new URL(dashboardFor(role), request.url));
       }
     }
 
     if (pathname === '/restaurant-setup') {
       if (role !== 'restaurant') {
-        return NextResponse.redirect(new URL('/', request.url));
+        return NextResponse.redirect(new URL(dashboardFor(role), request.url));
       }
     }
 
-    return NextResponse.next({
-      request: { headers: requestHeaders },
-    });
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-user-id', userId.toString());
+    requestHeaders.set('x-user-role', role);
+
+    return NextResponse.next({ request: { headers: requestHeaders } });
   } catch {
     if (isProtectedApi) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    return NextResponse.redirect(new URL('/login', request.url));
+    if (isProtectedPage) {
+      return NextResponse.redirect(new URL('/login', request.url));
+    }
+    return NextResponse.next();
   }
 }
 
 export const config = {
   matcher: [
+    '/',
+    '/login',
+    '/register',
     '/cart',
     '/checkout',
     '/orders/:path*',

@@ -7,20 +7,31 @@ export async function POST(request: NextRequest) {
   if (!userId || role !== 'driver') return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const { jobId, sessionId, orderId, restaurantName, restaurantAddress, deliveryAddress, payAmount, tip, isSimulated } = await request.json();
+    const { jobId, sessionId, orderId, restaurantName, restaurantAddress, deliveryAddress, payAmount, tip, isSimulated, totalMiles, estimatedMinutes } = await request.json();
 
     const db = getDb();
 
-    // If it's a real order, mark it as in_progress and assign driver
     if (!isSimulated && orderId) {
-      db.prepare("UPDATE orders SET status = 'in_progress', driver_user_id = ? WHERE id = ? AND status = 'placed'").run(userId, orderId);
+      const result = db.prepare(`
+        UPDATE orders
+        SET driver_user_id = ?, status = 'preparing', dispatched_to = NULL, dispatch_expires_at = NULL
+        WHERE id = ? AND driver_user_id IS NULL
+      `).run(userId, orderId);
+
+      if (result.changes === 0) {
+        return Response.json({ error: 'already_taken' }, { status: 409 });
+      }
+
+      // Clean up available jobs entry if this came from the available list
+      db.prepare(
+        'DELETE FROM driver_available_jobs WHERE driver_user_id = ? AND order_id = ?'
+      ).run(userId, orderId);
     }
 
-    // Record the delivery
     const result = db.prepare(`
-      INSERT INTO driver_deliveries (session_id, order_id, is_simulated, restaurant_name, restaurant_address, delivery_address, pay_amount, tip, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'accepted')
-    `).run(sessionId, isSimulated ? null : orderId, isSimulated ? 1 : 0, restaurantName, restaurantAddress, deliveryAddress, payAmount, tip);
+      INSERT INTO driver_deliveries (session_id, order_id, is_simulated, restaurant_name, restaurant_address, delivery_address, pay_amount, tip, miles, estimated_minutes, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'accepted')
+    `).run(sessionId, isSimulated ? null : orderId, isSimulated ? 1 : 0, restaurantName, restaurantAddress, deliveryAddress, payAmount, tip, totalMiles ?? 0, estimatedMinutes ?? 0);
 
     return Response.json({ deliveryId: result.lastInsertRowid });
   } catch (error) {

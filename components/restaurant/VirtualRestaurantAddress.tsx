@@ -14,17 +14,28 @@ function initGeocoder() {
 
 interface Props {
   restaurantId: number;
+  /** The restaurant's stored address — shown as-is for non-default restaurants. */
+  storedAddress?: string | null;
+  /** Real lat/lng from DB — if present, this is a non-default restaurant and we use storedAddress directly. */
+  restaurantLat?: number | null;
+  restaurantLng?: number | null;
   /** Shown before the address text — only rendered when an address is available. */
   prefix?: string;
   className?: string;
 }
 
-export default function VirtualRestaurantAddress({ restaurantId, prefix = '', className }: Props) {
+export default function VirtualRestaurantAddress({ restaurantId, storedAddress, restaurantLat, restaurantLng, prefix = '', className }: Props) {
   const { getRestaurantDeliveryInfo } = useLocation();
-  const info = getRestaurantDeliveryInfo(restaurantId);
+  const isDefault = restaurantLat == null || restaurantLng == null;
+  const info = isDefault ? getRestaurantDeliveryInfo(restaurantId) : null;
   const [address, setAddress] = useState<string | null>(null);
 
   useEffect(() => {
+    // Non-default restaurants: use their stored address directly
+    if (!isDefault) {
+      setAddress(storedAddress ?? null);
+      return;
+    }
     if (!info?.virtualLat || !info?.virtualLng) return;
     let cancelled = false;
     setAddress(null); // reset when coords change (new delivery location)
@@ -45,7 +56,7 @@ export default function VirtualRestaurantAddress({ restaurantId, prefix = '', cl
       );
     });
     return () => { cancelled = true; };
-  }, [info?.virtualLat, info?.virtualLng]);
+  }, [isDefault, storedAddress, info?.virtualLat, info?.virtualLng]);
 
   if (!address) return null;
   return <span className={className}>{prefix}{address}</span>;

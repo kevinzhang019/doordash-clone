@@ -2,68 +2,88 @@ import { NextRequest } from 'next/server';
 import getDb from '@/db/database';
 import type { DriverJob } from '@/lib/types';
 
-// SF-area coordinates for simulated jobs
-const SF_RESTAURANTS = [
-  { name: 'The Golden Gate Diner', address: '1 Market St, San Francisco, CA', lat: 37.7945, lng: -122.3954 },
-  { name: 'Mission Burrito House', address: '2901 Mission St, San Francisco, CA', lat: 37.7501, lng: -122.4184 },
-  { name: 'North Beach Pasta', address: '512 Columbus Ave, San Francisco, CA', lat: 37.7998, lng: -122.4101 },
-  { name: 'Sunset Sushi', address: '1316 9th Ave, San Francisco, CA', lat: 37.7639, lng: -122.4671 },
-  { name: 'Castro Cafe', address: '4001 18th St, San Francisco, CA', lat: 37.7607, lng: -122.4350 },
-];
+// ── Geo helpers ──────────────────────────────────────────────────────────────
 
-const DELIVERY_ADDRESSES = [
-  { address: '100 Pine St, San Francisco, CA', lat: 37.7922, lng: -122.3982 },
-  { address: '250 Polk St, San Francisco, CA', lat: 37.7752, lng: -122.4197 },
-  { address: '800 Divisadero St, San Francisco, CA', lat: 37.7757, lng: -122.4376 },
-  { address: '3200 Fillmore St, San Francisco, CA', lat: 37.7993, lng: -122.4359 },
-  { address: '1500 Haight St, San Francisco, CA', lat: 37.7693, lng: -122.4459 },
-  { address: '900 Valencia St, San Francisco, CA', lat: 37.7571, lng: -122.4214 },
-];
-
-const ITEM_NAMES = [
-  ['Cheeseburger', 'Fries', 'Coke'],
-  ['Burrito Bowl', 'Chips & Guac'],
-  ['Margherita Pizza', 'Caesar Salad'],
-  ['Pad Thai', 'Spring Rolls', 'Thai Iced Tea'],
-  ['Spicy Tuna Roll', 'Miso Soup'],
-  ['Chicken Tikka Masala', 'Naan'],
-];
-
-function randomBetween(min: number, max: number) {
-  return Math.random() * (max - min) + min;
+function haversineMiles(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const R = 3958.8;
+  const dLat = (b.lat - a.lat) * Math.PI / 180;
+  const dLng = (b.lng - a.lng) * Math.PI / 180;
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(a.lat * Math.PI / 180) * Math.cos(b.lat * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-function generateSimulatedJob(): DriverJob {
-  const restaurant = SF_RESTAURANTS[Math.floor(Math.random() * SF_RESTAURANTS.length)];
-  const delivery = DELIVERY_ADDRESSES[Math.floor(Math.random() * DELIVERY_ADDRESSES.length)];
-  const items = ITEM_NAMES[Math.floor(Math.random() * ITEM_NAMES.length)];
-  const pay = Math.round(randomBetween(4, 9) * 100) / 100;
-  const tip = Math.round(randomBetween(1, 5) * 100) / 100;
-
-  return {
-    id: `sim_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
-    isSimulated: true,
-    restaurantName: restaurant.name,
-    restaurantAddress: restaurant.address,
-    restaurantCoords: { lat: restaurant.lat, lng: restaurant.lng },
-    deliveryAddress: delivery.address,
-    customerCoords: { lat: delivery.lat, lng: delivery.lng },
-    items,
-    payAmount: pay,
-    tip,
-  };
+function randomCoordWithinMiles(lat: number, lng: number, maxMiles: number): { lat: number; lng: number } {
+  const R = 3958.8;
+  const maxDist = maxMiles / R;
+  const dist = maxDist * Math.sqrt(Math.random());
+  const bearing = Math.random() * 2 * Math.PI;
+  const lat1 = lat * Math.PI / 180;
+  const lng1 = lng * Math.PI / 180;
+  const lat2 = Math.asin(
+    Math.sin(lat1) * Math.cos(dist) +
+    Math.cos(lat1) * Math.sin(dist) * Math.cos(bearing),
+  );
+  const lng2 = lng1 + Math.atan2(
+    Math.sin(bearing) * Math.sin(dist) * Math.cos(lat1),
+    Math.cos(dist) - Math.sin(lat1) * Math.sin(lat2),
+  );
+  return { lat: lat2 * 180 / Math.PI, lng: ((lng2 * 180 / Math.PI) + 540) % 360 - 180 };
 }
 
-// Module-level geocode cache
+// ── Pay / time formulas ───────────────────────────────────────────────────────
+
+function calcPay(totalMiles: number): number {
+  const raw = 2.00 + totalMiles * 0.65;
+  const floored = Math.max(3.50, raw);
+  return Math.round(floored * 4) / 4;
+}
+
+function calcMinutes(totalMiles: number): number {
+  const drive = (totalMiles / 20) * 60;
+  return Math.max(10, Math.round((drive + 6) / 5) * 5);
+}
+
+function randomTip(): number {
+  const steps = [0, 0, 0.5, 0.5, 1, 1, 1.5, 2, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8];
+  return steps[Math.floor(Math.random() * steps.length)];
+}
+
+// ── Reverse geocode ───────────────────────────────────────────────────────────
+
+const reverseCache = new Map<string, string>();
+
+async function reverseGeocode(lat: number, lng: number): Promise<string> {
+  const key = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+  if (reverseCache.has(key)) return reverseCache.get(key)!;
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  if (!apiKey) return key;
+  try {
+    const res = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`,
+    );
+    const data = await res.json();
+    const address: string = data.results?.[0]?.formatted_address ?? key;
+    reverseCache.set(key, address);
+    return address;
+  } catch {
+    return key;
+  }
+}
+
+// ── Forward geocode ───────────────────────────────────────────────────────────
+
 const geocodeCache = new Map<string, { lat: number; lng: number }>();
 
 async function geocodeWithCache(address: string): Promise<{ lat: number; lng: number } | null> {
   if (geocodeCache.has(address)) return geocodeCache.get(address)!;
-  const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-  if (!key) return null;
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  if (!apiKey) return null;
   try {
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${key}`;
-    const res = await fetch(url);
+    const res = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`,
+    );
     const data = await res.json();
     if (data.status === 'OK' && data.results?.[0]) {
       const coords = data.results[0].geometry.location as { lat: number; lng: number };
@@ -74,62 +94,154 @@ async function geocodeWithCache(address: string): Promise<{ lat: number; lng: nu
   return null;
 }
 
+// ── Build a DriverJob from an order row ──────────────────────────────────────
+
+type OrderRow = {
+  id: number; delivery_address: string; subtotal: number; tip: number;
+  restaurant_name: string; restaurant_address: string;
+  r_lat: number | null; r_lng: number | null;
+};
+
+async function buildJobFromOrder(
+  order: OrderRow,
+  driverPos: { lat: number; lng: number } | null,
+  db: ReturnType<typeof getDb>,
+): Promise<DriverJob | null> {
+  const restaurantCoords = order.r_lat && order.r_lng
+    ? { lat: order.r_lat, lng: order.r_lng }
+    : await geocodeWithCache(order.restaurant_address);
+  const customerCoords = await geocodeWithCache(order.delivery_address);
+  if (!restaurantCoords || !customerCoords) return null;
+
+  const d1 = driverPos ? haversineMiles(driverPos, restaurantCoords) : 1.5;
+  const d2 = haversineMiles(restaurantCoords, customerCoords);
+  const totalMiles = d1 + d2;
+  const orderItems = db.prepare('SELECT name FROM order_items WHERE order_id = ?').all(order.id) as { name: string }[];
+
+  return {
+    id: `order_${order.id}`,
+    isSimulated: false,
+    orderId: order.id,
+    restaurantName: order.restaurant_name,
+    restaurantAddress: order.restaurant_address,
+    restaurantCoords,
+    deliveryAddress: order.delivery_address,
+    customerCoords,
+    items: orderItems.map(i => i.name),
+    payAmount: calcPay(totalMiles),
+    tip: order.tip,
+    estimatedMinutes: calcMinutes(totalMiles),
+    totalMiles,
+  };
+}
+
+// ── Route handler ─────────────────────────────────────────────────────────────
+
 export async function GET(request: NextRequest) {
   const userId = parseInt(request.headers.get('x-user-id') ?? '');
   const role = request.headers.get('x-user-role');
   if (!userId || role !== 'driver') return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
+  const { searchParams } = new URL(request.url);
+  const driverLat = parseFloat(searchParams.get('lat') ?? '');
+  const driverLng = parseFloat(searchParams.get('lng') ?? '');
+  const rangeParam = parseInt(searchParams.get('range') ?? '');
+  const simulate = searchParams.get('simulate') === 'true';
+  const range = !isNaN(rangeParam) && rangeParam >= 5 && rangeParam <= 100 ? rangeParam : 10;
+  const driverPos = !isNaN(driverLat) && !isNaN(driverLng)
+    ? { lat: driverLat, lng: driverLng }
+    : null;
+
   const db = getDb();
 
-  // Try to find real unassigned orders
-  const realOrders = db.prepare(`
+  // ── 1. Check if driver already has an active (non-expired) dispatched offer ──
+  const existingDispatch = db.prepare(`
     SELECT o.id, o.delivery_address, o.subtotal, o.tip,
-           r.name as restaurant_name, r.address as restaurant_address, r.lat as r_lat, r.lng as r_lng
+           r.name as restaurant_name, r.address as restaurant_address,
+           r.lat as r_lat, r.lng as r_lng
     FROM orders o
     JOIN restaurants r ON r.id = o.restaurant_id
-    WHERE o.status = 'placed' AND o.driver_user_id IS NULL
-    ORDER BY o.placed_at DESC
-    LIMIT 2
-  `).all() as {
-    id: number; delivery_address: string; subtotal: number; tip: number;
-    restaurant_name: string; restaurant_address: string; r_lat: number | null; r_lng: number | null;
-  }[];
+    WHERE o.dispatched_to = ? AND o.dispatch_expires_at > datetime('now')
+      AND o.driver_user_id IS NULL
+    LIMIT 1
+  `).get(userId) as OrderRow | undefined;
 
-  const jobs: DriverJob[] = [];
+  if (existingDispatch) {
+    const job = await buildJobFromOrder(existingDispatch, driverPos, db);
+    if (job) return Response.json({ jobs: [job] });
+  }
 
-  for (const order of realOrders) {
-    const restaurantCoords = order.r_lat && order.r_lng
-      ? { lat: order.r_lat, lng: order.r_lng }
-      : await geocodeWithCache(order.restaurant_address);
+  // ── 2. Find candidate orders this driver hasn't declined ──────────────────
+  const candidates = db.prepare(`
+    SELECT o.id, o.delivery_address, o.subtotal, o.tip,
+           r.name as restaurant_name, r.address as restaurant_address,
+           r.lat as r_lat, r.lng as r_lng
+    FROM orders o
+    JOIN restaurants r ON r.id = o.restaurant_id
+    WHERE o.status IN ('placed', 'preparing')
+      AND o.driver_user_id IS NULL
+      AND (o.dispatched_to IS NULL OR o.dispatch_expires_at < datetime('now'))
+      AND NOT EXISTS (
+        SELECT 1 FROM driver_job_declines
+        WHERE driver_user_id = ? AND order_id = o.id
+      )
+    ORDER BY o.placed_at ASC
+    LIMIT 5
+  `).all(userId) as OrderRow[];
 
-    const customerCoords = await geocodeWithCache(order.delivery_address);
+  // ── 3. Atomically lock one candidate ─────────────────────────────────────
+  let lockedOrder: OrderRow | null = null;
+  for (const candidate of candidates) {
+    const result = db.prepare(`
+      UPDATE orders
+      SET dispatched_to = ?, dispatch_expires_at = datetime('now', '+15 seconds')
+      WHERE id = ?
+        AND (dispatched_to IS NULL OR dispatch_expires_at < datetime('now'))
+        AND driver_user_id IS NULL
+    `).run(userId, candidate.id);
+    if (result.changes === 1) {
+      lockedOrder = candidate;
+      break;
+    }
+  }
 
-    if (!restaurantCoords || !customerCoords) continue;
+  if (lockedOrder) {
+    const job = await buildJobFromOrder(lockedOrder, driverPos, db);
+    if (job) return Response.json({ jobs: [job] });
+  }
 
-    // Get order items
-    const orderItems = db.prepare('SELECT name FROM order_items WHERE order_id = ?').all(order.id) as { name: string }[];
-    const pay = Math.round((order.subtotal * 0.1 + 3) * 100) / 100;
+  // ── 4. Simulation (only when no real job found AND simulate=true) ─────────
+  if (simulate) {
+    const anchor = driverPos ?? { lat: 37.7749, lng: -122.4194 };
+    const restaurantCoords = randomCoordWithinMiles(anchor.lat, anchor.lng, range);
+    const customerCoords = randomCoordWithinMiles(restaurantCoords.lat, restaurantCoords.lng, range);
 
-    jobs.push({
-      id: `order_${order.id}`,
-      isSimulated: false,
-      orderId: order.id,
-      restaurantName: order.restaurant_name,
-      restaurantAddress: order.restaurant_address,
-      restaurantCoords,
-      deliveryAddress: order.delivery_address,
-      customerCoords,
-      items: orderItems.map(i => i.name),
-      payAmount: pay,
-      tip: order.tip,
+    const [restaurantAddress, deliveryAddress] = await Promise.all([
+      reverseGeocode(restaurantCoords.lat, restaurantCoords.lng),
+      reverseGeocode(customerCoords.lat, customerCoords.lng),
+    ]);
+
+    const d1 = driverPos ? haversineMiles(driverPos, restaurantCoords) : haversineMiles(anchor, restaurantCoords);
+    const d2 = haversineMiles(restaurantCoords, customerCoords);
+    const totalMiles = d1 + d2;
+
+    return Response.json({
+      jobs: [{
+        id: `sim_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        isSimulated: true,
+        restaurantName: '',
+        restaurantAddress,
+        restaurantCoords,
+        deliveryAddress,
+        customerCoords,
+        items: [],
+        payAmount: calcPay(totalMiles),
+        tip: randomTip(),
+        estimatedMinutes: calcMinutes(totalMiles),
+        totalMiles,
+      }],
     });
   }
 
-  // Fill with simulated jobs if needed
-  const count = Math.max(1, 2 - jobs.length);
-  for (let i = 0; i < count; i++) {
-    jobs.push(generateSimulatedJob());
-  }
-
-  return Response.json({ jobs: jobs.slice(0, 2) });
+  return Response.json({ jobs: [] });
 }

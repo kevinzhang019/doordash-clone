@@ -19,10 +19,10 @@ export default function MenuItemEditor({ item, existingCategories, onSave, onClo
   const [price, setPrice] = useState(item?.price?.toString() || '');
   const [imageUrl, setImageUrl] = useState(item?.image_url || '');
   const [isAvailable, setIsAvailable] = useState(item ? Boolean(item.is_available) : true);
-  const [allowSpecialRequests, setAllowSpecialRequests] = useState(item ? Boolean(item.allow_special_requests) : false);
   const [groups, setGroups] = useState<OptionGroupDraft[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [groupError, setGroupError] = useState('');
 
   useEffect(() => {
     if (item) {
@@ -44,9 +44,17 @@ export default function MenuItemEditor({ item, existingCategories, onSave, onClo
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setGroupError('');
     const finalCategory = categoryInput.trim() || category;
     if (!finalCategory) {
       setError('Category is required');
+      return;
+    }
+    const unnamedModifiedGroup = groups.find(
+      g => !g.name.trim() && (g.options.length > 0 || g.required || g.max_selections !== null)
+    );
+    if (unnamedModifiedGroup) {
+      setGroupError('All modified option groups must have a name');
       return;
     }
     setLoading(true);
@@ -58,7 +66,7 @@ export default function MenuItemEditor({ item, existingCategories, onSave, onClo
       price: parseFloat(price),
       image_url: imageUrl.trim(),
       is_available: isAvailable,
-      allow_special_requests: allowSpecialRequests,
+      allow_special_requests: true,
     };
 
     try {
@@ -201,17 +209,11 @@ export default function MenuItemEditor({ item, existingCategories, onSave, onClo
               />
               <span className="text-sm text-gray-700">Available</span>
             </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={allowSpecialRequests}
-                onChange={e => setAllowSpecialRequests(e.target.checked)}
-                className="w-4 h-4 accent-[#FF3008]"
-              />
-              <span className="text-sm text-gray-700">Special requests</span>
-            </label>
           </div>
 
+          {groupError && (
+            <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-4 py-3">{groupError}</div>
+          )}
           <OptionGroupEditor groups={groups} onChange={setGroups} />
 
           <div className="flex gap-3 pt-2 pb-6">

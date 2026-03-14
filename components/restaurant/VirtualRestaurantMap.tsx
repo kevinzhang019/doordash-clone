@@ -12,7 +12,8 @@ interface Props {
 
 export default function VirtualRestaurantMap({ restaurantId, name, fallbackLat, fallbackLng }: Props) {
   const { getRestaurantDeliveryInfo } = useLocation();
-  const info = getRestaurantDeliveryInfo(restaurantId);
+  // Pass real coords so non-default restaurants are placed at their actual location
+  const info = getRestaurantDeliveryInfo(restaurantId, fallbackLat, fallbackLng);
 
   const lat = info?.virtualLat ?? fallbackLat;
   const lng = info?.virtualLng ?? fallbackLng;

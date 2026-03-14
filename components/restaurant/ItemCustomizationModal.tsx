@@ -12,7 +12,7 @@ export interface SelectionDraft {
 interface ItemCustomizationModalProps {
   item: MenuItem;
   onClose: () => void;
-  onAddToCart: (selections: SelectionDraft[]) => Promise<void>;
+  onAddToCart: (selections: SelectionDraft[], specialRequests: string) => Promise<void>;
 }
 
 export default function ItemCustomizationModal({ item, onClose, onAddToCart }: ItemCustomizationModalProps) {
@@ -21,6 +21,7 @@ export default function ItemCustomizationModal({ item, onClose, onAddToCart }: I
   const [selected, setSelected] = useState<Map<number, SelectionDraft[]>>(new Map());
   const [submitting, setSubmitting] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
+  const [specialRequests, setSpecialRequests] = useState('');
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -94,7 +95,7 @@ export default function ItemCustomizationModal({ item, onClose, onAddToCart }: I
     }
     setSubmitting(true);
     const allSelections = Array.from(selected.values()).flat();
-    await onAddToCart(allSelections);
+    await onAddToCart(allSelections, specialRequests);
     setSubmitting(false);
   };
 
@@ -127,9 +128,7 @@ export default function ItemCustomizationModal({ item, onClose, onAddToCart }: I
             <div className="space-y-3">
               {[1, 2].map(i => <div key={i} className="h-24 bg-gray-100 rounded-xl animate-pulse" />)}
             </div>
-          ) : groups.length === 0 ? (
-            <p className="text-gray-500 text-sm text-center py-4">No customization options available.</p>
-          ) : (
+          ) : groups.length === 0 ? null : (
             groups.map(group => {
               const groupSels = selected.get(group.id) || [];
               const isRequiredAndEmpty = showErrors && group.required && groupSels.length === 0;
@@ -192,6 +191,19 @@ export default function ItemCustomizationModal({ item, onClose, onAddToCart }: I
               );
             })
           )}
+
+          {/* Special requests */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-900 mb-1.5">Special requests</label>
+            <textarea
+              value={specialRequests}
+              onChange={e => setSpecialRequests(e.target.value)}
+              placeholder="e.g. no onions, extra sauce, allergies..."
+              rows={2}
+              maxLength={300}
+              className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-200 focus:border-[#FF3008] focus:outline-none focus:ring-1 focus:ring-[#FF3008] resize-none text-gray-700 placeholder-gray-400"
+            />
+          </div>
         </div>
 
         {/* Footer */}

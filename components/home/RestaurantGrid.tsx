@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
-import Link from 'next/link';
 import { Restaurant } from '@/lib/types';
 import RestaurantCard from './RestaurantCard';
 import { useLocation } from '@/components/providers/LocationProvider';
@@ -78,12 +77,12 @@ export default function RestaurantGrid({ restaurants }: RestaurantGridProps) {
     return [...filtered].sort((a, b) => {
       if (sortBy === 'rating') return Number(b.rating) - Number(a.rating);
       if (sortBy === 'distance') {
-        const da = getRestaurantDeliveryInfo(a.id)?.distance ?? Infinity;
-        const db = getRestaurantDeliveryInfo(b.id)?.distance ?? Infinity;
+        const da = getRestaurantDeliveryInfo(a.id, a.lat, a.lng)?.distance ?? Infinity;
+        const db = getRestaurantDeliveryInfo(b.id, b.lat, b.lng)?.distance ?? Infinity;
         return da - db;
       }
-      const da = getRestaurantDeliveryInfo(a.id)?.distance ?? null;
-      const db = getRestaurantDeliveryInfo(b.id)?.distance ?? null;
+      const da = getRestaurantDeliveryInfo(a.id, a.lat, a.lng)?.distance ?? null;
+      const db = getRestaurantDeliveryInfo(b.id, b.lat, b.lng)?.distance ?? null;
       return relevanceScore(Number(b.rating), b.review_count, db) -
              relevanceScore(Number(a.rating), a.review_count, da);
     });
@@ -144,19 +143,6 @@ export default function RestaurantGrid({ restaurants }: RestaurantGridProps) {
           {sorted.map((restaurant) => (
             <RestaurantCard key={restaurant.id} restaurant={restaurant} />
           ))}
-          <Link href="/restaurants/new" className="group block cursor-pointer">
-            <div className="bg-white rounded-xl border-2 border-dashed border-gray-200 hover:border-[#FF3008] transition-colors h-full min-h-[220px] flex flex-col items-center justify-center gap-3 p-6">
-              <div className="w-12 h-12 rounded-full bg-gray-100 group-hover:bg-red-50 flex items-center justify-center transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-400 group-hover:text-[#FF3008] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-              </div>
-              <div className="text-center">
-                <p className="font-semibold text-gray-700 group-hover:text-[#FF3008] transition-colors">Add a Restaurant</p>
-                <p className="text-gray-400 text-sm mt-0.5">List your restaurant here</p>
-              </div>
-            </div>
-          </Link>
         </div>
       )}
     </div>

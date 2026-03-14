@@ -21,7 +21,7 @@ export default function JobNotification({ job, onAccept, onDecline }: JobNotific
       setSecondsLeft(s => {
         if (s <= 1) {
           clearInterval(timerRef.current!);
-          onDecline();
+          setTimeout(() => onDecline(), 0);
           return 0;
         }
         return s - 1;
@@ -31,11 +31,9 @@ export default function JobNotification({ job, onAccept, onDecline }: JobNotific
   }, [job.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const progress = secondsLeft / COUNTDOWN_SECONDS;
-  const circumference = 2 * Math.PI * 22; // r=22
+  const circumference = 2 * Math.PI * 22;
   const strokeDashoffset = circumference * (1 - progress);
-
-  // Mask customer address
-  const maskedAddress = job.deliveryAddress.replace(/^\d+/, '***');
+  const estimatedMins = job.estimatedMinutes;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70">
@@ -44,7 +42,7 @@ export default function JobNotification({ job, onAccept, onDecline }: JobNotific
         <div className="px-6 py-4 flex items-center justify-between border-b border-[#2a2a2a]">
           <div className="flex items-center gap-2">
             <span className="inline-block w-2.5 h-2.5 rounded-full bg-[#FF3008] animate-pulse" />
-            <span className="text-[#FF3008] font-bold text-sm tracking-wide uppercase">New Order!</span>
+            <span className="text-[#FF3008] font-bold text-sm tracking-wide uppercase">New Order</span>
           </div>
           {/* Countdown ring */}
           <div className="relative w-12 h-12 flex-shrink-0">
@@ -66,39 +64,40 @@ export default function JobNotification({ job, onAccept, onDecline }: JobNotific
         </div>
 
         {/* Details */}
-        <div className="px-6 py-4 space-y-3">
+        <div className="px-6 py-5 space-y-4">
+          {/* Pickup address */}
           <div className="flex items-start gap-3">
-            <span className="text-[#FF3008] text-lg flex-shrink-0 mt-0.5">📍</span>
+            <span className="text-[#FF3008] mt-0.5 flex-shrink-0">📍</span>
             <div>
-              <p className="text-gray-400 text-xs mb-0.5">Pickup from</p>
-              <p className="text-white font-semibold text-sm">{job.restaurantName}</p>
-              <p className="text-gray-400 text-xs">{job.restaurantAddress}</p>
+              <p className="text-gray-400 text-xs mb-0.5">Pickup</p>
+              <p className="text-white font-semibold text-sm">{job.restaurantAddress}</p>
             </div>
           </div>
 
+          {/* Estimated time */}
           <div className="flex items-start gap-3">
-            <span className="text-gray-400 text-lg flex-shrink-0 mt-0.5">🏠</span>
+            <span className="text-gray-400 mt-0.5 flex-shrink-0">⏱</span>
             <div>
-              <p className="text-gray-400 text-xs mb-0.5">Deliver to</p>
-              <p className="text-white font-semibold text-sm">{maskedAddress}</p>
+              <p className="text-gray-400 text-xs mb-0.5">Estimated delivery time</p>
+              <p className="text-white font-semibold text-sm">~{estimatedMins} min</p>
             </div>
           </div>
 
-          {job.items.length > 0 && (
-            <div className="flex items-start gap-3">
-              <span className="text-gray-400 text-lg flex-shrink-0 mt-0.5">🍔</span>
-              <div>
-                <p className="text-gray-400 text-xs mb-0.5">Items</p>
-                <p className="text-gray-300 text-xs">{job.items.join(', ')}</p>
-              </div>
+          {/* Pay breakdown */}
+          <div className="bg-[#242424] rounded-xl p-3.5 space-y-2">
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-400">Base pay</span>
+              <span className="text-white">${job.payAmount.toFixed(2)}</span>
             </div>
-          )}
-
-          <div className="flex items-center gap-2 pt-1">
-            <span className="text-[#22c55e] font-bold">${(job.payAmount + job.tip).toFixed(2)}</span>
-            <span className="text-gray-500 text-xs">
-              (${job.payAmount.toFixed(2)} + ${job.tip.toFixed(2)} tip)
-            </span>
+            <div className="flex justify-between text-sm">
+              <span className="text-gray-400">Tip</span>
+              <span className="text-white">${job.tip.toFixed(2)}</span>
+            </div>
+            <div className="h-px bg-[#333]" />
+            <div className="flex justify-between text-sm font-bold">
+              <span className="text-white">Total</span>
+              <span className="text-[#22c55e]">${(job.payAmount + job.tip).toFixed(2)}</span>
+            </div>
           </div>
         </div>
 

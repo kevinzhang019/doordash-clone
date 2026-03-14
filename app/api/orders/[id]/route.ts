@@ -20,9 +20,11 @@ export async function GET(
 
     // IDOR prevention: WHERE id = ? AND user_id = ?
     const order = db.prepare(`
-      SELECT o.*, r.name as restaurant_name
+      SELECT o.*, r.name as restaurant_name, r.delivery_min, r.delivery_max,
+             u.name as driver_name
       FROM orders o
       JOIN restaurants r ON o.restaurant_id = r.id
+      LEFT JOIN users u ON u.id = o.driver_user_id
       WHERE o.id = ? AND o.user_id = ?
     `).get(orderId, userId) as Order | undefined;
 

@@ -98,10 +98,11 @@ export async function GET(request: NextRequest) {
 
   const chartRows = db.prepare(`
     SELECT ${groupByExpr} as period,
-           SUM(total) as revenue,
-           COUNT(*) as orders
-    FROM orders
-    WHERE restaurant_id = ? AND is_demo = 0 AND ${dateFilter}
+           SUM(oi.price * oi.quantity) as revenue,
+           COUNT(DISTINCT o.id) as orders
+    FROM orders o
+    JOIN order_items oi ON oi.order_id = o.id
+    WHERE o.restaurant_id = ? AND ${dateFilter}
     GROUP BY ${groupByExpr}
     ORDER BY period ASC
   `).all(restaurantId) as { period: string; revenue: number; orders: number }[];
@@ -109,9 +110,10 @@ export async function GET(request: NextRequest) {
   const revenue_chart = fillZeroPeriods(chartRows, labels);
 
   const totals = db.prepare(`
-    SELECT COALESCE(SUM(total), 0) as total_revenue, COUNT(*) as order_count
-    FROM orders
-    WHERE restaurant_id = ? AND is_demo = 0
+    SELECT COALESCE(SUM(oi.price * oi.quantity), 0) as total_revenue, COUNT(DISTINCT o.id) as order_count
+    FROM orders o
+    JOIN order_items oi ON oi.order_id = o.id
+    WHERE o.restaurant_id = ?
   `).get(restaurantId) as { total_revenue: number; order_count: number };
 
   const avg_order_value = totals.order_count > 0 ? totals.total_revenue / totals.order_count : 0;
@@ -120,7 +122,7 @@ export async function GET(request: NextRequest) {
     SELECT oi.name, SUM(oi.quantity) as total_qty
     FROM order_items oi
     JOIN orders o ON oi.order_id = o.id
-    WHERE o.restaurant_id = ? AND o.is_demo = 0
+    WHERE o.restaurant_id = ?
     GROUP BY oi.name
     ORDER BY total_qty DESC
     LIMIT 10
@@ -130,7 +132,7 @@ export async function GET(request: NextRequest) {
     SELECT oi.name, SUM(oi.price * oi.quantity) as total_revenue
     FROM order_items oi
     JOIN orders o ON oi.order_id = o.id
-    WHERE o.restaurant_id = ? AND o.is_demo = 0
+    WHERE o.restaurant_id = ?
     GROUP BY oi.name
     ORDER BY total_revenue DESC
     LIMIT 10

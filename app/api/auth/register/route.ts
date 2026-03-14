@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import bcrypt from 'bcryptjs';
 import getDb from '@/db/database';
 import { signToken, setSessionCookie } from '@/lib/auth';
+import { isValidEmail } from '@/lib/validation';
 import type { UserRole } from '@/lib/types';
 
 export async function POST(request: NextRequest) {
@@ -10,6 +11,10 @@ export async function POST(request: NextRequest) {
 
     if (!email || !name || !password) {
       return Response.json({ error: 'All fields are required' }, { status: 400 });
+    }
+
+    if (!isValidEmail(email)) {
+      return Response.json({ error: 'Please enter a valid email address' }, { status: 400 });
     }
 
     if (password.length < 6) {

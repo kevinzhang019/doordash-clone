@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import type { AnalyticsData } from '@/lib/types';
 
 type Period = 'day' | 'week' | 'month' | 'year';
@@ -31,9 +31,6 @@ export default function AnalyticsPage() {
   const [period, setPeriod] = useState<Period>('week');
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [demoActive, setDemoActive] = useState(false);
-  const [demoLoading, setDemoLoading] = useState(false);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchAnalytics = useCallback(async (p: Period = period) => {
     try {
@@ -54,53 +51,6 @@ export default function AnalyticsPage() {
     fetchAnalytics(period);
   }, [period, fetchAnalytics]);
 
-  // Cleanup interval on unmount
-  useEffect(() => {
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, []);
-
-  const activateDemo = async () => {
-    setDemoLoading(true);
-    try {
-      await fetch('/api/restaurant-dashboard/demo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'seed' }),
-      });
-      setDemoActive(true);
-      await fetchAnalytics(period);
-
-      // Start live order interval
-      intervalRef.current = setInterval(async () => {
-        await fetch('/api/restaurant-dashboard/demo', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'live' }),
-        });
-        await fetchAnalytics(period);
-      }, 7000);
-    } finally {
-      setDemoLoading(false);
-    }
-  };
-
-  const deactivateDemo = async () => {
-    setDemoLoading(true);
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    try {
-      await fetch('/api/restaurant-dashboard/demo', { method: 'DELETE' });
-      setDemoActive(false);
-      await fetchAnalytics(period);
-    } finally {
-      setDemoLoading(false);
-    }
-  };
-
   const chart = data?.revenue_chart || [];
   const maxRevenue = Math.max(...chart.map(d => d.revenue), 1);
 
@@ -108,22 +58,6 @@ export default function AnalyticsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
-
-        {/* Demo mode button */}
-        <button
-          onClick={demoActive ? deactivateDemo : activateDemo}
-          disabled={demoLoading}
-          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer ${
-            demoActive
-              ? 'bg-red-50 text-red-600 border border-red-200 hover:bg-red-100'
-              : 'bg-gray-100 text-gray-700 border border-gray-200 hover:bg-gray-200'
-          }`}
-        >
-          {demoActive && (
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
-          )}
-          {demoLoading ? 'Loading...' : demoActive ? 'Demo Mode Active — Click to Stop' : 'Fill with Demo Data'}
-        </button>
       </div>
 
       {/* Period tabs */}

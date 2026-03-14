@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import {
   getVirtualRestaurantCoords,
   haversineDistance,
@@ -29,9 +29,9 @@ interface LocationContextType {
   deliveryAddress: string;
   onboardingComplete: boolean;
   gpsStatus: 'idle' | 'requesting' | 'granted' | 'denied';
-  requestGPS: (onResolved?: (address: string, lat: number, lng: number) => void) => void;
+  requestGPS: () => Promise<{ address: string; lat: number; lng: number }>;
   setDeliveryLocation: (address: string, lat: number, lng: number) => void;
-  getRestaurantDeliveryInfo: (restaurantId: number) => RestaurantDeliveryInfo | null;
+  getRestaurantDeliveryInfo: (restaurantId: number, restaurantLat?: number | null, restaurantLng?: number | null) => RestaurantDeliveryInfo | null;
 }
 
 const LocationContext = createContext<LocationContextType | null>(null);
@@ -50,6 +50,12 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
   const [onboardingComplete, setOnboardingComplete] = useState(false);
   const [gpsStatus, setGpsStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied'>('idle');
 
+  // Refs so _triggerAddressLoad can read the latest state without re-registering
+  const deliveryAddressRef = useRef(deliveryAddress);
+  const deliveryCoordsRef = useRef(deliveryCoords);
+  useEffect(() => { deliveryAddressRef.current = deliveryAddress; }, [deliveryAddress]);
+  useEffect(() => { deliveryCoordsRef.current = deliveryCoords; }, [deliveryCoords]);
+
   // Load persisted delivery location from localStorage on mount
   useEffect(() => {
     const complete = localStorage.getItem('onboardingComplete') === '1';
@@ -58,7 +64,8 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       const addr = localStorage.getItem('deliveryAddress') || '';
       const lat = parseFloat(localStorage.getItem('deliveryLat') || '');
       const lng = parseFloat(localStorage.getItem('deliveryLng') || '');
-      if (addr && !isNaN(lat) && !isNaN(lng)) {
+      // Skip legacy 'Current Location' placeholder — require a real address
+      if (addr && addr !== 'Current Location' && !isNaN(lat) && !isNaN(lng)) {
         setDeliveryAddress(addr);
         setDeliveryCoords({ lat, lng });
       }
@@ -69,6 +76,20 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     _triggerAddressLoad = async () => {
       try {
+        const guestAddr = deliveryAddressRef.current;
+        const guestCoords = deliveryCoordsRef.current;
+
+        // If there's a guest address in memory, save it to the user's account and keep it active
+        if (guestAddr && guestCoords) {
+          await fetch('/api/addresses', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ address: guestAddr, lat: guestCoords.lat, lng: guestCoords.lng }),
+          });
+          return;
+        }
+
+        // No guest address — load the user's most recent saved address from DB
         const res = await fetch('/api/addresses');
         if (!res.ok) return;
         const data = await res.json();
@@ -107,45 +128,47 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     }).catch(() => {});
   }, []);
 
-  const requestGPS = useCallback((onResolved?: (address: string, lat: number, lng: number) => void) => {
-    if (!navigator.geolocation) {
-      setGpsStatus('denied');
-      return;
-    }
-    setGpsStatus('requesting');
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const { latitude: lat, longitude: lng } = pos.coords;
-        let address = 'Current Location';
-        try {
-          const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
-          const res = await fetch(
-            `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${key}`
-          );
-          const data = await res.json();
-          const result = data.results?.[0];
-          if (result?.formatted_address) {
-            address = result.formatted_address;
+  const requestGPS = useCallback((): Promise<{ address: string; lat: number; lng: number }> => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        setGpsStatus('denied');
+        reject(new Error('Geolocation not supported'));
+        return;
+      }
+      setGpsStatus('requesting');
+      navigator.geolocation.getCurrentPosition(
+        async (pos) => {
+          const { latitude: lat, longitude: lng } = pos.coords;
+          try {
+            const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '';
+            const res = await fetch(
+              `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${key}`
+            );
+            const data = await res.json();
+            const address: string = data.results?.[0]?.formatted_address ?? '';
+            setGpsStatus('granted');
+            resolve({ address, lat, lng });
+          } catch {
+            setGpsStatus('granted');
+            resolve({ address: '', lat, lng });
           }
-        } catch {
-          // Fall back to generic label if reverse geocoding fails
-        }
-        setGpsStatus('granted');
-        if (onResolved) {
-          onResolved(address, lat, lng);
-        } else {
-          setDeliveryLocation(address, lat, lng);
-        }
-      },
-      () => setGpsStatus('denied'),
-      { timeout: 10000 }
-    );
-  }, [setDeliveryLocation]);
+        },
+        () => {
+          setGpsStatus('denied');
+          reject(new Error('Location denied'));
+        },
+        { timeout: 10000 }
+      );
+    });
+  }, []);
 
   const getRestaurantDeliveryInfo = useCallback(
-    (restaurantId: number): RestaurantDeliveryInfo | null => {
+    (restaurantId: number, restaurantLat?: number | null, restaurantLng?: number | null): RestaurantDeliveryInfo | null => {
       if (!deliveryCoords) return null;
-      const vCoords = getVirtualRestaurantCoords(restaurantId, deliveryCoords.lat, deliveryCoords.lng);
+      // Use the restaurant's real coordinates if stored; fall back to virtual placement for seeded restaurants
+      const vCoords = (restaurantLat != null && restaurantLng != null)
+        ? { lat: restaurantLat, lng: restaurantLng }
+        : getVirtualRestaurantCoords(restaurantId, deliveryCoords.lat, deliveryCoords.lng);
       const distance = haversineDistance(
         deliveryCoords.lat,
         deliveryCoords.lng,

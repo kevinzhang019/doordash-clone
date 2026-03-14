@@ -20,11 +20,11 @@ interface CartContextType {
   clearLastAdded: () => void;
   openSidebar: () => void;
   closeSidebar: () => void;
-  addItem: (menuItemId: number, selections?: SelectionDraft[]) => Promise<{ error?: string; conflictingRestaurant?: string }>;
+  addItem: (menuItemId: number, selections?: SelectionDraft[], specialRequests?: string) => Promise<{ error?: string; conflictingRestaurant?: string }>;
   removeItem: (cartItemId: number) => Promise<void>;
   updateQuantity: (cartItemId: number, quantity: number) => Promise<void>;
   clearCart: () => Promise<void>;
-  clearCartAndAdd: (menuItemId: number, selections?: SelectionDraft[]) => Promise<{ error?: string }>;
+  clearCartAndAdd: (menuItemId: number, selections?: SelectionDraft[], specialRequests?: string) => Promise<{ error?: string }>;
   refreshCart: () => Promise<CartItem[]>;
 }
 
@@ -70,12 +70,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const closeSidebar = () => setIsSidebarOpen(false);
   const clearLastAdded = () => setLastAddedItem(null);
 
-  const addItem = async (menuItemId: number, selections: SelectionDraft[] = []): Promise<{ error?: string; conflictingRestaurant?: string }> => {
+  const addItem = async (menuItemId: number, selections: SelectionDraft[] = [], specialRequests = ''): Promise<{ error?: string; conflictingRestaurant?: string }> => {
     try {
       const res = await fetch('/api/cart/items', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ menuItemId, selections }),
+        body: JSON.stringify({ menuItemId, selections, specialRequests }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -126,9 +126,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const clearCartAndAdd = async (menuItemId: number, selections: SelectionDraft[] = []): Promise<{ error?: string }> => {
+  const clearCartAndAdd = async (menuItemId: number, selections: SelectionDraft[] = [], specialRequests = ''): Promise<{ error?: string }> => {
     await clearCart();
-    return addItem(menuItemId, selections);
+    return addItem(menuItemId, selections, specialRequests);
   };
 
   return (

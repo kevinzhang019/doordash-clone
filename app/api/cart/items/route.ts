@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
   if (!userId) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const { menuItemId, quantity = 1, selections = [] } = await request.json();
+    const { menuItemId, quantity = 1, selections = [], specialRequests = '' } = await request.json();
 
     if (!menuItemId) {
       return Response.json({ error: 'menuItemId is required' }, { status: 400 });
@@ -46,6 +46,7 @@ export async function POST(request: NextRequest) {
     }
 
     const selectionList: SelectionDraft[] = Array.isArray(selections) ? selections : [];
+    const specialRequestsStr = typeof specialRequests === 'string' ? specialRequests.trim() : '';
 
     // Normalize selections for comparison
     const normalizeSelections = (sels: SelectionDraft[]) =>
@@ -54,14 +55,17 @@ export async function POST(request: NextRequest) {
 
     const newSels = normalizeSelections(selectionList);
 
-    // Read-then-write: find existing cart row with same item + identical selections
+    // Read-then-write: find existing cart row with same item + identical selections + identical special requests
     const existingRows = db.prepare(
-      'SELECT ci.id FROM cart_items ci WHERE ci.user_id = ? AND ci.menu_item_id = ?'
-    ).all(userId, menuItemId) as { id: number }[];
+      'SELECT ci.id, ci.special_requests FROM cart_items ci WHERE ci.user_id = ? AND ci.menu_item_id = ?'
+    ).all(userId, menuItemId) as { id: number; special_requests: string | null }[];
 
     let matchedCartItemId: number | null = null;
 
     for (const row of existingRows) {
+      const rowSpecialRequests = row.special_requests ?? '';
+      if (rowSpecialRequests !== specialRequestsStr) continue;
+
       const rowSels = db.prepare(
         'SELECT option_id, name, price_modifier FROM cart_item_selections WHERE cart_item_id = ?'
       ).all(row.id) as { option_id: number | null; name: string; price_modifier: number }[];
@@ -83,8 +87,8 @@ export async function POST(request: NextRequest) {
       } else {
         // Insert new row
         const result = db.prepare(
-          'INSERT INTO cart_items (user_id, restaurant_id, menu_item_id, quantity) VALUES (?, ?, ?, ?)'
-        ).run(userId, menuItem.restaurant_id, menuItemId, quantity);
+          'INSERT INTO cart_items (user_id, restaurant_id, menu_item_id, quantity, special_requests) VALUES (?, ?, ?, ?, ?)'
+        ).run(userId, menuItem.restaurant_id, menuItemId, quantity, specialRequestsStr || null);
 
         const cartItemId = result.lastInsertRowid;
 

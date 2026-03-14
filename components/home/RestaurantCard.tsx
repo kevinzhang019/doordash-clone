@@ -11,7 +11,7 @@ interface RestaurantCardProps {
 
 export default function RestaurantCard({ restaurant }: RestaurantCardProps) {
   const { getRestaurantDeliveryInfo } = useLocation();
-  const info = getRestaurantDeliveryInfo(restaurant.id);
+  const info = getRestaurantDeliveryInfo(restaurant.id, restaurant.lat, restaurant.lng);
 
   const distance = info?.distance ?? null;
   const deliveryFee = info?.deliveryFee ?? restaurant.delivery_fee;

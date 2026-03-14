@@ -1,8 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import AddressAutocomplete from '@/components/ui/AddressAutocomplete';
+import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+import AddressAutocomplete, { AddressAutocompleteHandle } from '@/components/ui/AddressAutocomplete';
 import { useLocation } from '@/components/providers/LocationProvider';
+import { useAuth } from '@/components/providers/AuthProvider';
 
 interface SavedAddress {
   id: number;
@@ -13,12 +15,16 @@ interface SavedAddress {
 
 interface AddressModalProps {
   onClose: () => void;
+  required?: boolean;
 }
 
-export default function AddressModal({ onClose }: AddressModalProps) {
+export default function AddressModal({ onClose, required }: AddressModalProps) {
   const { setDeliveryLocation, requestGPS, gpsStatus } = useLocation();
+  const { user } = useAuth();
   const [inputAddress, setInputAddress] = useState('');
+  const [pendingCoords, setPendingCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const autocompleteRef = useRef<AddressAutocompleteHandle>(null);
 
   useEffect(() => {
     fetch('/api/addresses')
@@ -30,8 +36,11 @@ export default function AddressModal({ onClose }: AddressModalProps) {
   const handleSelect = (addr: string, coords?: { lat: number; lng: number }) => {
     setInputAddress(addr);
     if (coords) {
+      setPendingCoords(null);
       setDeliveryLocation(addr, coords.lat, coords.lng);
       onClose();
+    } else {
+      setPendingCoords(null);
     }
   };
 
@@ -40,19 +49,31 @@ export default function AddressModal({ onClose }: AddressModalProps) {
     onClose();
   };
 
-  const handleGPS = () => {
-    setGpsRequested(true);
-    requestGPS((address, lat, lng) => {
-      setInputAddress(address);
-      setDeliveryLocation(address, lat, lng);
+  const handleGPS = async () => {
+    try {
+      const { address, lat, lng } = await requestGPS();
+      if (address) {
+        setInputAddress(address);
+        setPendingCoords({ lat, lng });
+        autocompleteRef.current?.fill(address);
+      }
+    } catch {
+      // denied — do nothing
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && inputAddress && pendingCoords) {
+      e.preventDefault();
+      setDeliveryLocation(inputAddress, pendingCoords.lat, pendingCoords.lng);
       onClose();
-    });
+    }
   };
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center pt-20 px-4 bg-black/50 backdrop-blur-sm"
-      onClick={onClose}
+      onClick={required ? undefined : onClose}
     >
       <div
         className="w-full max-w-lg bg-white rounded-2xl shadow-2xl overflow-hidden"
@@ -61,21 +82,25 @@ export default function AddressModal({ onClose }: AddressModalProps) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <h2 className="text-lg font-bold text-gray-900">Deliver to</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer p-1"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+          {!required && (
+            <button
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-600 transition-colors cursor-pointer p-1"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
         </div>
 
         <div className="px-6 py-5 space-y-4">
           {/* Autocomplete */}
           <AddressAutocomplete
+            ref={autocompleteRef}
             value={inputAddress}
             onChange={handleSelect}
+            onKeyDown={handleKeyDown}
             placeholder="Enter your delivery address"
             wrapperClassName="w-full"
             className="w-full py-3.5 pr-4 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-base bg-gray-50"
@@ -131,6 +156,16 @@ export default function AddressModal({ onClose }: AddressModalProps) {
             </div>
           )}
         </div>
+
+        {/* Sign in / sign up prompt for guests */}
+        {!user && (
+          <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex items-center justify-center gap-1 text-sm text-gray-500">
+            <span>Have an account?</span>
+            <Link href="/login" onClick={onClose} className="font-semibold text-[#FF3008] hover:underline">Sign in</Link>
+            <span>or</span>
+            <Link href="/register" onClick={onClose} className="font-semibold text-[#FF3008] hover:underline">Sign up</Link>
+          </div>
+        )}
       </div>
     </div>
   );
