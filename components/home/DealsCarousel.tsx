@@ -11,7 +11,7 @@ interface DisplayDeal extends Deal {
   extraDealsCount: number;
 }
 
-// Seeded RNG so same address always picks same restaurants
+// Seeded RNG — same address always produces the same sequence
 function seededRng(seed: string) {
   let h = 5381;
   for (let i = 0; i < seed.length; i++) h = (Math.imul(33, h) ^ seed.charCodeAt(i)) >>> 0;
@@ -21,7 +21,6 @@ function seededRng(seed: string) {
   };
 }
 
-// Higher = better deal. BOGO = ~50% off for 2 items.
 function effectiveDiscount(deal: Deal): number {
   if (deal.deal_type === 'bogo') return 50;
   return deal.discount_value ?? 0;
@@ -47,10 +46,7 @@ interface RestaurantStub {
 export default function DealsCarousel({ allRestaurants }: { allRestaurants: RestaurantStub[] }) {
   const { deliveryAddress } = useLocation();
   const [dbDeals, setDbDeals] = useState<Deal[]>([]);
-  const [randomDeals, setRandomDeals] = useState<DisplayDeal[]>([]);
   const [page, setPage] = useState(0);
-
-  const seededIds = new Set(allRestaurants.filter(r => r.isSeeded).map(r => r.id));
 
   useEffect(() => {
     fetch('/api/deals')
@@ -59,58 +55,56 @@ export default function DealsCarousel({ allRestaurants }: { allRestaurants: Rest
       .catch(() => {});
   }, []);
 
-  useEffect(() => {
-    if (!deliveryAddress) return;
-    setPage(0);
+  // Reset to page 0 whenever the address changes
+  useEffect(() => { setPage(0); }, [deliveryAddress]);
 
-    const rng = seededRng(deliveryAddress);
+  // ── Compute all deals inline (deterministic for same address) ──────────
 
-    // Only real deals for default restaurants
-    const seededDbDeals = dbDeals.filter(d => seededIds.has(d.restaurant_id));
-    const restaurantsWithRealDeals = new Set(seededDbDeals.map(d => d.restaurant_id));
+  const rng = deliveryAddress ? seededRng(deliveryAddress) : null;
 
-    // Random deals only for default restaurants that have no real deals
-    const available = allRestaurants.filter(r => r.isSeeded && !restaurantsWithRealDeals.has(r.id));
-    const shuffled = [...available].sort(() => rng() - 0.5);
-    const picked = shuffled.slice(0, 3);
+  const seededIds = new Set(allRestaurants.filter(r => r.isSeeded).map(r => r.id));
 
-    const generated: DisplayDeal[] = picked.map((r, i) => {
-      const template = RANDOM_DEAL_TYPES[Math.floor(rng() * RANDOM_DEAL_TYPES.length)];
-      return {
-        id: -(i + 1),
-        restaurant_id: r.id,
-        menu_item_id: r.menu_item_id,
-        deal_type: template.deal_type,
-        discount_value: template.discount_value,
-        is_active: 1,
-        created_at: new Date().toISOString(),
-        isRandom: true,
-        extraDealsCount: 0,
-        restaurant_name: r.name,
-        restaurant_image_url: r.image_url,
-        menu_item_name: r.menu_item_name,
-        menu_item_price: r.menu_item_price,
-      };
-    });
-
-    setRandomDeals(generated);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deliveryAddress, dbDeals, allRestaurants]);
-
-  // Group real deals by restaurant (default restaurants only), pick best per restaurant
+  // Real DB deals — default restaurants only, one card per restaurant (best deal)
   const seededDbDeals = dbDeals.filter(d => seededIds.has(d.restaurant_id));
   const byRestaurant = new Map<number, Deal[]>();
   for (const deal of seededDbDeals) {
-    const arr = byRestaurant.get(deal.restaurant_id) ?? [];
-    byRestaurant.set(deal.restaurant_id, [...arr, deal]);
+    byRestaurant.set(deal.restaurant_id, [...(byRestaurant.get(deal.restaurant_id) ?? []), deal]);
   }
-
   const bestDbDeals: DisplayDeal[] = Array.from(byRestaurant.values()).map(deals => {
     const sorted = [...deals].sort((a, b) => effectiveDiscount(b) - effectiveDiscount(a));
     return { ...sorted[0], isRandom: false, extraDealsCount: sorted.length - 1 };
   });
 
-  const allDeals: DisplayDeal[] = [...bestDbDeals, ...randomDeals];
+  // Random deals — default restaurants with no real deal
+  const restaurantsWithRealDeals = new Set(seededDbDeals.map(d => d.restaurant_id));
+  const available = allRestaurants.filter(r => r.isSeeded && !restaurantsWithRealDeals.has(r.id));
+  const randomDeals: DisplayDeal[] = rng
+    ? [...available]
+        .sort(() => rng() - 0.5)
+        .slice(0, 3)
+        .map((r, i) => {
+          const template = RANDOM_DEAL_TYPES[Math.floor(rng() * RANDOM_DEAL_TYPES.length)];
+          return {
+            id: -(i + 1),
+            restaurant_id: r.id,
+            menu_item_id: r.menu_item_id,
+            deal_type: template.deal_type,
+            discount_value: template.discount_value,
+            is_active: 1,
+            created_at: '',
+            isRandom: true,
+            extraDealsCount: 0,
+            restaurant_name: r.name,
+            restaurant_image_url: r.image_url,
+            menu_item_name: r.menu_item_name,
+            menu_item_price: r.menu_item_price,
+          };
+        })
+    : [];
+
+  // Shuffle the combined list so the order (and thus page 1) changes per address
+  const combined = [...bestDbDeals, ...randomDeals];
+  const allDeals: DisplayDeal[] = rng ? [...combined].sort(() => rng() - 0.5) : combined;
 
   if (allDeals.length === 0) return null;
 
@@ -129,7 +123,6 @@ export default function DealsCarousel({ allRestaurants }: { allRestaurants: Rest
               href={`/restaurants/${deal.restaurant_id}`}
               className="group block rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-shadow duration-300 border border-gray-100"
             >
-              {/* Image with deal badge */}
               <div className="relative w-full aspect-[3/1] overflow-hidden">
                 {deal.restaurant_image_url ? (
                   <Image
@@ -160,7 +153,6 @@ export default function DealsCarousel({ allRestaurants }: { allRestaurants: Rest
                 </div>
               </div>
 
-              {/* Card footer */}
               <div className="bg-white px-3 py-1.5">
                 <p className="font-bold text-gray-900 text-lg leading-tight group-hover:text-[#FF3008] transition-colors truncate">
                   {deal.restaurant_name}
