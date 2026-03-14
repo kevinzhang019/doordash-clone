@@ -2,10 +2,8 @@
 
 import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
-import { useRouter } from 'next/navigation';
 import { MenuItem, MenuItemOptionGroup, MenuItemOption, Deal } from '@/lib/types';
 import { useCart } from '@/components/providers/CartProvider';
-import { useAuth } from '@/components/providers/AuthProvider';
 
 interface SelectionDraft {
   option_id: number;
@@ -30,9 +28,7 @@ function getDealLabel(deal: Deal): string {
 const ANIM_MS = 300;
 
 export default function MenuItemCard({ item, isExpanded, onExpand, onCollapse, deal }: MenuItemCardProps) {
-  const { user } = useAuth();
   const { addItem, clearCartAndAdd } = useCart();
-  const router = useRouter();
 
   const cardRef = useRef<HTMLDivElement>(null);
   const savedScrollY = useRef(0);
@@ -81,7 +77,6 @@ export default function MenuItemCard({ item, isExpanded, onExpand, onCollapse, d
   }, [isExpanded, item.id]);
 
   const handleAddClick = () => {
-    if (!user) { router.push('/login'); return; }
     savedScrollY.current = window.scrollY;
     setSelected(new Map());
     setShowErrors(false);
