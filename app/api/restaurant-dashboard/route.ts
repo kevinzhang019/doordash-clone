@@ -29,14 +29,35 @@ export async function PUT(request: NextRequest) {
   if (!restaurantId) return Response.json({ error: 'No restaurant found' }, { status: 404 });
 
   try {
-    const { name, cuisine, description, image_url, delivery_fee, delivery_min, delivery_max, address } = await request.json();
+    const body = await request.json();
+    const { name, cuisine, description, image_url, delivery_fee, delivery_min, delivery_max, address, lat, lng, is_accepting_orders } = body;
 
     const db = getDb();
-    db.prepare(`
-      UPDATE restaurants
-      SET name = ?, cuisine = ?, description = ?, image_url = ?, delivery_fee = ?, delivery_min = ?, delivery_max = ?, address = ?
-      WHERE id = ?
-    `).run(name, cuisine, description, image_url, delivery_fee, delivery_min, delivery_max, address, restaurantId);
+
+    // If only toggling is_accepting_orders
+    if (is_accepting_orders !== undefined && Object.keys(body).length === 1) {
+      db.prepare('UPDATE restaurants SET is_accepting_orders = ? WHERE id = ?').run(is_accepting_orders ? 1 : 0, restaurantId);
+      const restaurant = db.prepare('SELECT * FROM restaurants WHERE id = ?').get(restaurantId);
+      return Response.json({ restaurant });
+    }
+
+    if (typeof lat === 'number' && typeof lng === 'number') {
+      db.prepare(`
+        UPDATE restaurants
+        SET name = ?, cuisine = ?, description = ?, image_url = ?, delivery_fee = ?, delivery_min = ?, delivery_max = ?, address = ?, lat = ?, lng = ?,
+            is_accepting_orders = COALESCE(?, is_accepting_orders)
+        WHERE id = ?
+      `).run(name, cuisine, description, image_url, delivery_fee, delivery_min, delivery_max, address, lat, lng,
+             is_accepting_orders !== undefined ? (is_accepting_orders ? 1 : 0) : null, restaurantId);
+    } else {
+      db.prepare(`
+        UPDATE restaurants
+        SET name = ?, cuisine = ?, description = ?, image_url = ?, delivery_fee = ?, delivery_min = ?, delivery_max = ?,
+            address = ?, is_accepting_orders = COALESCE(?, is_accepting_orders)
+        WHERE id = ?
+      `).run(name, cuisine, description, image_url, delivery_fee, delivery_min, delivery_max, address,
+             is_accepting_orders !== undefined ? (is_accepting_orders ? 1 : 0) : null, restaurantId);
+    }
 
     const restaurant = db.prepare('SELECT * FROM restaurants WHERE id = ?').get(restaurantId);
     return Response.json({ restaurant });

@@ -22,6 +22,7 @@ export interface Restaurant {
   address: string;
   lat: number | null;
   lng: number | null;
+  is_accepting_orders: number;
 }
 
 export interface MenuItem {
@@ -43,6 +44,50 @@ export interface MenuItemAddon {
   price: number;
 }
 
+export interface MenuItemOptionGroup {
+  id: number;
+  menu_item_id: number;
+  name: string;
+  required: number;
+  max_selections: number | null;
+  sort_order: number;
+  options?: MenuItemOption[];
+}
+
+export interface MenuItemOption {
+  id: number;
+  group_id: number;
+  name: string;
+  price_modifier: number;
+  sort_order: number;
+}
+
+export interface CartItemSelection {
+  id: number;
+  cart_item_id: number;
+  option_id: number | null;
+  name: string;
+  price_modifier: number;
+}
+
+export interface OrderItemSelection {
+  id: number;
+  order_item_id: number;
+  option_id: number | null;
+  name: string;
+  price_modifier: number;
+}
+
+export interface AnalyticsData {
+  period: string;
+  revenue_chart: { label: string; revenue: number; orders: number }[];
+  total_revenue: number;
+  order_count: number;
+  avg_order_value: number;
+  top_items_by_qty: { name: string; total_qty: number }[];
+  top_items_by_revenue: { name: string; total_revenue: number }[];
+}
+
 export interface CartItem {
   id: number;
   user_id: number;
@@ -55,6 +100,8 @@ export interface CartItem {
   price?: number;
   image_url?: string;
   restaurant_name?: string;
+  selections?: CartItemSelection[];
+  effective_price?: number;
 }
 
 export interface Order {
@@ -119,6 +166,8 @@ export interface DriverJob {
   items: string[];
   payAmount: number;
   tip: number;
+  estimatedMinutes: number;
+  totalMiles: number;
 }
 
 export interface DriverSession {

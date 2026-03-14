@@ -2,6 +2,20 @@ import { NextRequest } from 'next/server';
 import getDb from '@/db/database';
 import { CartItem } from '@/lib/types';
 
+export async function DELETE(request: NextRequest) {
+  const userId = parseInt(request.headers.get('x-user-id') ?? '');
+  if (!userId) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
+  try {
+    const db = getDb();
+    db.prepare('DELETE FROM cart_items WHERE user_id = ?').run(userId);
+    return Response.json({ success: true });
+  } catch (error) {
+    console.error('Clear cart error:', error);
+    return Response.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}
+
 export async function GET(request: NextRequest) {
   const userId = parseInt(request.headers.get('x-user-id') ?? '');
   if (!userId) return Response.json({ error: 'Unauthorized' }, { status: 401 });
@@ -19,6 +33,19 @@ export async function GET(request: NextRequest) {
       WHERE ci.user_id = ?
       ORDER BY ci.id
     `).all(userId) as CartItem[];
+
+    if (cartItems.length > 0) {
+      const ids = cartItems.map(ci => ci.id);
+      const allSelections = db.prepare(
+        `SELECT * FROM cart_item_selections WHERE cart_item_id IN (${ids.map(() => '?').join(',')}) ORDER BY id`
+      ).all(...ids) as { id: number; cart_item_id: number; option_id: number | null; name: string; price_modifier: number }[];
+
+      for (const item of cartItems) {
+        item.selections = allSelections.filter(s => s.cart_item_id === item.id);
+        const selectionTotal = item.selections.reduce((sum, s) => sum + s.price_modifier, 0);
+        item.effective_price = (item.price || 0) + selectionTotal;
+      }
+    }
 
     return Response.json({ cartItems });
   } catch (error) {

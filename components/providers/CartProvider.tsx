@@ -4,6 +4,12 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { CartItem } from '@/lib/types';
 import { useAuth } from './AuthProvider';
 
+interface SelectionDraft {
+  option_id?: number | null;
+  name: string;
+  price_modifier?: number;
+}
+
 interface CartContextType {
   cartItems: CartItem[];
   cartCount: number;
@@ -14,10 +20,11 @@ interface CartContextType {
   clearLastAdded: () => void;
   openSidebar: () => void;
   closeSidebar: () => void;
-  addItem: (menuItemId: number) => Promise<{ error?: string; conflictingRestaurant?: string }>;
+  addItem: (menuItemId: number, selections?: SelectionDraft[]) => Promise<{ error?: string; conflictingRestaurant?: string }>;
   removeItem: (cartItemId: number) => Promise<void>;
   updateQuantity: (cartItemId: number, quantity: number) => Promise<void>;
-  clearCart: () => void;
+  clearCart: () => Promise<void>;
+  clearCartAndAdd: (menuItemId: number, selections?: SelectionDraft[]) => Promise<{ error?: string }>;
   refreshCart: () => Promise<CartItem[]>;
 }
 
@@ -27,7 +34,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [lastAddedItem, setLastAddedItem] = useState<CartItem | null>(null);
 
   const refreshCart = useCallback(async (): Promise<CartItem[]> => {
@@ -57,25 +64,26 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [refreshCart]);
 
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
-  const cartTotal = cartItems.reduce((sum, item) => sum + (item.price || 0) * item.quantity, 0);
+  const cartTotal = cartItems.reduce((sum, item) => sum + (item.effective_price ?? item.price ?? 0) * item.quantity, 0);
 
   const openSidebar = () => setIsSidebarOpen(true);
   const closeSidebar = () => setIsSidebarOpen(false);
   const clearLastAdded = () => setLastAddedItem(null);
 
-  const addItem = async (menuItemId: number): Promise<{ error?: string; conflictingRestaurant?: string }> => {
+  const addItem = async (menuItemId: number, selections: SelectionDraft[] = []): Promise<{ error?: string; conflictingRestaurant?: string }> => {
     try {
       const res = await fetch('/api/cart/items', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ menuItemId }),
+        body: JSON.stringify({ menuItemId, selections }),
       });
       const data = await res.json();
       if (!res.ok) {
         return { error: data.error, conflictingRestaurant: data.conflictingRestaurant };
       }
       const updatedItems = await refreshCart();
-      const added = updatedItems.find(item => item.menu_item_id === menuItemId);
+      // Find the most recently added item with this menu item id
+      const added = [...updatedItems].reverse().find(item => item.menu_item_id === menuItemId);
       if (added) setLastAddedItem(added);
       return {};
     } catch {
@@ -109,7 +117,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const clearCart = () => setCartItems([]);
+  const clearCart = async () => {
+    try {
+      await fetch('/api/cart', { method: 'DELETE' });
+      setCartItems([]);
+    } catch {
+      // silent fail
+    }
+  };
+
+  const clearCartAndAdd = async (menuItemId: number, selections: SelectionDraft[] = []): Promise<{ error?: string }> => {
+    await clearCart();
+    return addItem(menuItemId, selections);
+  };
 
   return (
     <CartContext.Provider value={{
@@ -117,7 +137,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       isSidebarOpen, loading,
       lastAddedItem, clearLastAdded,
       openSidebar, closeSidebar,
-      addItem, removeItem, updateQuantity, clearCart,
+      addItem, removeItem, updateQuantity, clearCart, clearCartAndAdd,
       refreshCart,
     }}>
       {children}

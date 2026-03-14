@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import AddressAutocomplete from '@/components/ui/AddressAutocomplete';
@@ -15,23 +15,58 @@ export default function RestaurantSetupPage() {
   const { user } = useAuth();
   const router = useRouter();
 
+  useEffect(() => {
+    if (user && user.role !== 'restaurant') {
+      router.replace('/');
+    }
+  }, [user, router]);
+
   const [name, setName] = useState('');
   const [cuisine, setCuisine] = useState('American');
   const [description, setDescription] = useState('');
   const [imageUrl, setImageUrl] = useState('');
+  const [imageTab, setImageTab] = useState<'url' | 'upload'>('url');
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [deliveryFee, setDeliveryFee] = useState('2.99');
   const [deliveryMin, setDeliveryMin] = useState('20');
   const [deliveryMax, setDeliveryMax] = useState('40');
   const [address, setAddress] = useState('');
+  const [addressCoords, setAddressCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingImage(true);
+    setError('');
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      const res = await fetch('/api/restaurant-dashboard/image-upload', {
+        method: 'POST',
+        body: formData,
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setError(data.error || 'Upload failed');
+      } else {
+        const data = await res.json();
+        setImageUrl(data.imageUrl);
+      }
+    } catch {
+      setError('Upload failed. Please try again.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    if (!address.trim()) {
-      setError('Please enter an address');
+    if (!address.trim() || !addressCoords) {
+      setError('Please select your restaurant address from the dropdown suggestions');
       return;
     }
 
@@ -50,6 +85,8 @@ export default function RestaurantSetupPage() {
           delivery_min: parseInt(deliveryMin),
           delivery_max: parseInt(deliveryMax),
           address: address.trim(),
+          lat: addressCoords.lat,
+          lng: addressCoords.lng,
         }),
       });
 
@@ -137,15 +174,45 @@ export default function RestaurantSetupPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Image URL (optional)
+                  Restaurant Image (optional)
                 </label>
-                <input
-                  type="url"
-                  value={imageUrl}
-                  onChange={(e) => setImageUrl(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm"
-                  placeholder="https://..."
-                />
+                <div className="flex gap-1 bg-gray-100 p-1 rounded-lg mb-2 w-fit">
+                  <button
+                    type="button"
+                    onClick={() => setImageTab('url')}
+                    className={`px-3 py-1 rounded text-xs font-medium transition-colors cursor-pointer ${imageTab === 'url' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
+                  >
+                    Paste URL
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setImageTab('upload')}
+                    className={`px-3 py-1 rounded text-xs font-medium transition-colors cursor-pointer ${imageTab === 'upload' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'}`}
+                  >
+                    Upload File
+                  </button>
+                </div>
+                {imageTab === 'url' ? (
+                  <input
+                    type="url"
+                    value={imageUrl}
+                    onChange={(e) => setImageUrl(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm"
+                    placeholder="https://..."
+                  />
+                ) : (
+                  <div>
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={handleImageUpload}
+                      disabled={uploadingImage}
+                      className="w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#FF3008] file:text-white hover:file:bg-red-600 file:cursor-pointer border border-gray-200 rounded-xl px-3 py-2 focus:outline-none disabled:opacity-50"
+                    />
+                    {uploadingImage && <p className="text-xs text-gray-400 mt-1">Uploading...</p>}
+                    {imageUrl && !uploadingImage && <p className="text-xs text-green-600 mt-1">Image uploaded successfully</p>}
+                  </div>
+                )}
               </div>
 
               <div className="sm:col-span-2">
@@ -168,8 +235,13 @@ export default function RestaurantSetupPage() {
                 </label>
                 <AddressAutocomplete
                   value={address}
-                  onChange={(addr) => setAddress(addr)}
+                  onChange={(addr, coords) => {
+                    setAddress(addr);
+                    setAddressCoords(coords ?? null);
+                  }}
                   placeholder="Start typing your restaurant's address..."
+                  wrapperClassName="w-full"
+                  className="w-full py-3 pr-4 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm"
                 />
               </div>
 

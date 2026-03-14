@@ -23,9 +23,10 @@ function getDb(): Database.Database {
 
 function runMigrations(db: Database.Database) {
   // --- Phase 1: Migrate users table to support multi-role (same email, different roles) ---
-  const userIndexes = (db.prepare("PRAGMA index_list(users)").all() as { name: string }[]);
+  const usersTableExists = !!(db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='users'").get());
+  const userIndexes = usersTableExists ? (db.prepare("PRAGMA index_list(users)").all() as { name: string }[]) : [];
   const hasEmailRoleIndex = userIndexes.some(idx => idx.name === 'users_email_role');
-  if (!hasEmailRoleIndex) {
+  if (usersTableExists && !hasEmailRoleIndex) {
     const userCols = (db.prepare("PRAGMA table_info(users)").all() as { name: string }[]).map(c => c.name);
     db.exec(`
       CREATE TABLE users_new (
@@ -50,6 +51,23 @@ function runMigrations(db: Database.Database) {
     db.exec(`DROP TABLE users`);
     db.exec(`ALTER TABLE users_new RENAME TO users`);
     db.pragma('foreign_keys = ON');
+    db.exec(`CREATE UNIQUE INDEX users_email_role ON users(email, role)`);
+  }
+
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      email TEXT NOT NULL,
+      name TEXT NOT NULL,
+      password_hash TEXT NOT NULL,
+      role TEXT NOT NULL DEFAULT 'customer',
+      phone TEXT,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+  `);
+  // Create unique index separately (can't use IF NOT EXISTS in older SQLite for indexes inside CREATE TABLE)
+  const userIndexes2 = (db.prepare("PRAGMA index_list(users)").all() as { name: string }[]);
+  if (!userIndexes2.some(idx => idx.name === 'users_email_role')) {
     db.exec(`CREATE UNIQUE INDEX users_email_role ON users(email, role)`);
   }
 
@@ -189,6 +207,15 @@ function runMigrations(db: Database.Database) {
     db.exec('ALTER TABLE menu_items ADD COLUMN allow_special_requests INTEGER NOT NULL DEFAULT 0');
   }
 
+  const deliveryCols = (db.prepare("PRAGMA table_info(driver_deliveries)").all() as { name: string }[]).map(c => c.name);
+  if (!deliveryCols.includes('miles')) db.exec('ALTER TABLE driver_deliveries ADD COLUMN miles REAL NOT NULL DEFAULT 0');
+  if (!deliveryCols.includes('estimated_minutes')) db.exec('ALTER TABLE driver_deliveries ADD COLUMN estimated_minutes INTEGER NOT NULL DEFAULT 0');
+
+  const userColsCheck = (db.prepare("PRAGMA table_info(users)").all() as { name: string }[]).map(c => c.name);
+  if (!userColsCheck.includes('avatar_url')) {
+    db.exec('ALTER TABLE users ADD COLUMN avatar_url TEXT');
+  }
+
   const orderCols = (db.prepare("PRAGMA table_info(orders)").all() as { name: string }[]).map(c => c.name);
   if (!orderCols.includes('driver_user_id')) {
     db.exec('ALTER TABLE orders ADD COLUMN driver_user_id INTEGER REFERENCES users(id)');
@@ -196,6 +223,75 @@ function runMigrations(db: Database.Database) {
   if (!orderCols.includes('tip')) {
     db.exec('ALTER TABLE orders ADD COLUMN tip REAL NOT NULL DEFAULT 0');
   }
+  if (!orderCols.includes('is_demo')) {
+    db.exec('ALTER TABLE orders ADD COLUMN is_demo INTEGER NOT NULL DEFAULT 0');
+  }
+
+  const restCols = (db.prepare("PRAGMA table_info(restaurants)").all() as { name: string }[]).map(c => c.name);
+  if (!restCols.includes('is_accepting_orders')) {
+    db.exec('ALTER TABLE restaurants ADD COLUMN is_accepting_orders INTEGER NOT NULL DEFAULT 1');
+  }
+
+  // --- New tables for option groups and selections ---
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS menu_item_option_groups (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      menu_item_id INTEGER NOT NULL REFERENCES menu_items(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      required INTEGER NOT NULL DEFAULT 0,
+      max_selections INTEGER,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS menu_item_options (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      group_id INTEGER NOT NULL REFERENCES menu_item_option_groups(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      price_modifier REAL NOT NULL DEFAULT 0,
+      sort_order INTEGER NOT NULL DEFAULT 0
+    );
+
+    CREATE TABLE IF NOT EXISTS order_item_selections (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_item_id INTEGER NOT NULL REFERENCES order_items(id) ON DELETE CASCADE,
+      option_id INTEGER,
+      name TEXT NOT NULL,
+      price_modifier REAL NOT NULL DEFAULT 0
+    );
+  `);
+
+  // Rebuild cart_items to remove UNIQUE(user_id, menu_item_id) constraint
+  // so the same item can appear multiple times with different selections
+  const cartIndexes = db.prepare("PRAGMA index_list(cart_items)").all() as { name: string; unique: number; origin: string }[];
+  const hasCartUniqueConstraint = cartIndexes.some(idx => idx.unique === 1 && idx.origin === 'u');
+  if (hasCartUniqueConstraint) {
+    db.pragma('foreign_keys = OFF');
+    db.exec(`
+      CREATE TABLE cart_items_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL REFERENCES users(id),
+        restaurant_id INTEGER NOT NULL REFERENCES restaurants(id),
+        menu_item_id INTEGER NOT NULL REFERENCES menu_items(id),
+        quantity INTEGER NOT NULL DEFAULT 1
+      );
+      INSERT INTO cart_items_new (id, user_id, restaurant_id, menu_item_id, quantity)
+        SELECT id, user_id, restaurant_id, menu_item_id, quantity FROM cart_items;
+      DROP TABLE cart_items;
+      ALTER TABLE cart_items_new RENAME TO cart_items;
+    `);
+    db.pragma('foreign_keys = ON');
+  }
+
+  // Create cart_item_selections (depends on cart_items existing without UNIQUE constraint)
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS cart_item_selections (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      cart_item_id INTEGER NOT NULL REFERENCES cart_items(id) ON DELETE CASCADE,
+      option_id INTEGER REFERENCES menu_item_options(id),
+      name TEXT NOT NULL,
+      price_modifier REAL NOT NULL DEFAULT 0
+    );
+  `);
 
   // Seed restaurants if empty
   const count = (db.prepare('SELECT COUNT(*) as count FROM restaurants').get() as { count: number }).count;

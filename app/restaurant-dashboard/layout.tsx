@@ -7,6 +7,7 @@ import { useAuth } from '@/components/providers/AuthProvider';
 const NAV_ITEMS = [
   { href: '/restaurant-dashboard', label: 'Overview', icon: '📊' },
   { href: '/restaurant-dashboard/menu', label: 'Menu', icon: '🍽️' },
+  { href: '/restaurant-dashboard/analytics', label: 'Analytics', icon: '📈' },
   { href: '/restaurant-dashboard/hours', label: 'Hours', icon: '🕐' },
   { href: '/restaurant-dashboard/settings', label: 'Settings', icon: '⚙️' },
 ];

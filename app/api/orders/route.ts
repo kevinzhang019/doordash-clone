@@ -60,10 +60,22 @@ export async function POST(request: NextRequest) {
 
       const restaurantId = cartItems[0].restaurant_id;
 
+      // Fetch selections for all cart items
+      const cartItemIds = cartItems.map(ci => ci.id);
+      const allSelections = cartItemIds.length > 0
+        ? db.prepare(
+            `SELECT * FROM cart_item_selections WHERE cart_item_id IN (${cartItemIds.map(() => '?').join(',')})`
+          ).all(...cartItemIds) as { id: number; cart_item_id: number; option_id: number | null; name: string; price_modifier: number }[]
+        : [];
+
       // Use client-supplied delivery fee (calculated from distance) or fall back to restaurant default
       const restaurant = db.prepare('SELECT delivery_fee FROM restaurants WHERE id = ?').get(restaurantId) as { delivery_fee: number };
 
-      const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+      const subtotal = cartItems.reduce((sum, item) => {
+        const itemSelections = allSelections.filter(s => s.cart_item_id === item.id);
+        const selTotal = itemSelections.reduce((s, sel) => s + sel.price_modifier, 0);
+        return sum + (item.price + selTotal) * item.quantity;
+      }, 0);
       const deliveryFee =
         typeof clientDeliveryFee === 'number' && clientDeliveryFee >= 0
           ? Math.round(clientDeliveryFee * 100) / 100
@@ -74,18 +86,30 @@ export async function POST(request: NextRequest) {
       const orderResult = db.prepare(`
         INSERT INTO orders (user_id, restaurant_id, status, delivery_address, subtotal, delivery_fee, total)
         VALUES (?, ?, 'placed', ?, ?, ?, ?)
-      `).run(userId, restaurantId, deliveryAddress.trim(), subtotal, deliveryFee, total);
+      `).run(userId, restaurantId, deliveryAddress.trim(), Math.round(subtotal * 100) / 100, deliveryFee, Math.round(total * 100) / 100);
 
       const orderId = orderResult.lastInsertRowid as number;
 
-      // Insert order items (with price snapshots)
+      // Insert order items (with price snapshots including selections)
       const insertOrderItem = db.prepare(`
         INSERT INTO order_items (order_id, menu_item_id, name, price, quantity)
         VALUES (?, ?, ?, ?, ?)
       `);
+      const insertOrderItemSelection = db.prepare(`
+        INSERT INTO order_item_selections (order_item_id, option_id, name, price_modifier) VALUES (?, ?, ?, ?)
+      `);
 
       for (const item of cartItems) {
-        insertOrderItem.run(orderId, item.menu_item_id, item.name, item.price, item.quantity);
+        const itemSelections = allSelections.filter(s => s.cart_item_id === item.id);
+        const selTotal = itemSelections.reduce((s, sel) => s + sel.price_modifier, 0);
+        const effectivePrice = Math.round((item.price + selTotal) * 100) / 100;
+
+        const orderItemResult = insertOrderItem.run(orderId, item.menu_item_id, item.name, effectivePrice, item.quantity);
+        const orderItemId = orderItemResult.lastInsertRowid as number;
+
+        for (const sel of itemSelections) {
+          insertOrderItemSelection.run(orderItemId, sel.option_id, sel.name, sel.price_modifier);
+        }
       }
 
       // Clear cart

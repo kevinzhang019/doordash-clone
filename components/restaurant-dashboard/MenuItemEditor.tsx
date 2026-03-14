@@ -1,13 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import AddonManager from './AddonManager';
-import type { MenuItem, MenuItemAddon } from '@/lib/types';
-
-interface Addon {
-  name: string;
-  price: number;
-}
+import OptionGroupEditor, { type OptionGroupDraft } from './OptionGroupEditor';
+import type { MenuItem } from '@/lib/types';
 
 interface MenuItemEditorProps {
   item?: MenuItem | null;
@@ -25,15 +20,24 @@ export default function MenuItemEditor({ item, existingCategories, onSave, onClo
   const [imageUrl, setImageUrl] = useState(item?.image_url || '');
   const [isAvailable, setIsAvailable] = useState(item ? Boolean(item.is_available) : true);
   const [allowSpecialRequests, setAllowSpecialRequests] = useState(item ? Boolean(item.allow_special_requests) : false);
-  const [addons, setAddons] = useState<Addon[]>([]);
+  const [groups, setGroups] = useState<OptionGroupDraft[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (item) {
-      fetch(`/api/restaurant-dashboard/menu/${item.id}/addons`)
+      fetch(`/api/restaurant-dashboard/menu/${item.id}/option-groups`)
         .then(r => r.json())
-        .then(d => setAddons((d.addons as MenuItemAddon[] || []).map(a => ({ name: a.name, price: a.price }))));
+        .then(d => {
+          const rawGroups = d.groups || [];
+          setGroups(rawGroups.map((g: { name: string; required: number; max_selections: number | null; options?: { name: string; price_modifier: number }[] }) => ({
+            name: g.name,
+            required: Boolean(g.required),
+            max_selections: g.max_selections,
+            options: (g.options || []).map((o: { name: string; price_modifier: number }) => ({ name: o.name, price_modifier: o.price_modifier })),
+          })));
+        })
+        .catch(() => {});
     }
   }, [item]);
 
@@ -78,11 +82,11 @@ export default function MenuItemEditor({ item, existingCategories, onSave, onClo
         itemId = data.item.id;
       }
 
-      // Save addons
-      await fetch(`/api/restaurant-dashboard/menu/${itemId}/addons`, {
+      // Save option groups
+      await fetch(`/api/restaurant-dashboard/menu/${itemId}/option-groups`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ addons }),
+        body: JSON.stringify({ groups }),
       });
 
       onSave();
@@ -208,7 +212,7 @@ export default function MenuItemEditor({ item, existingCategories, onSave, onClo
             </label>
           </div>
 
-          <AddonManager addons={addons} onChange={setAddons} />
+          <OptionGroupEditor groups={groups} onChange={setGroups} />
 
           <div className="flex gap-3 pt-2 pb-6">
             <button
