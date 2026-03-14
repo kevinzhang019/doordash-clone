@@ -114,11 +114,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     wasGuestRef.current = false;
 
     (async () => {
-      // If transitioning from guest to logged-in, migrate localStorage cart first
+      // If transitioning from guest to logged-in, wipe server cart and replace with guest cart
       if (wasGuest) {
         const guestItems = readGuestCart();
         if (guestItems.length > 0) {
           setLoading(true);
+          // Always wipe existing server cart first
+          await fetch('/api/cart', { method: 'DELETE' });
           for (const item of guestItems) {
             await fetch('/api/cart/items', {
               method: 'POST',
