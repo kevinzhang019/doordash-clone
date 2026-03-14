@@ -273,10 +273,11 @@ const restCols = (db.prepare("PRAGMA table_info(restaurants)").all() as { name: 
         user_id INTEGER NOT NULL REFERENCES users(id),
         restaurant_id INTEGER NOT NULL REFERENCES restaurants(id),
         menu_item_id INTEGER NOT NULL REFERENCES menu_items(id),
-        quantity INTEGER NOT NULL DEFAULT 1
+        quantity INTEGER NOT NULL DEFAULT 1,
+        special_requests TEXT
       );
-      INSERT INTO cart_items_new (id, user_id, restaurant_id, menu_item_id, quantity)
-        SELECT id, user_id, restaurant_id, menu_item_id, quantity FROM cart_items;
+      INSERT INTO cart_items_new (id, user_id, restaurant_id, menu_item_id, quantity, special_requests)
+        SELECT id, user_id, restaurant_id, menu_item_id, quantity, special_requests FROM cart_items;
       DROP TABLE cart_items;
       ALTER TABLE cart_items_new RENAME TO cart_items;
     `);

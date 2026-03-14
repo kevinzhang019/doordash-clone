@@ -61,7 +61,7 @@ export default function OptionGroupEditor({ groups, onChange }: OptionGroupEdito
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-gray-700">Option Groups</h3>
+        <h3 className="text-sm font-medium text-gray-700">Option Groups (Modifiers)</h3>
         <button
           type="button"
           onClick={addGroup}
