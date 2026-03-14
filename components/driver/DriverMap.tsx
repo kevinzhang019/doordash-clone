@@ -252,7 +252,7 @@ export default function DriverMap({ phase, restaurantCoords, customerCoords, onR
         <button
           onClick={handleRecenter}
           title="Re-center on my location"
-          className="absolute bottom-6 right-14 z-10 w-10 h-10 bg-[#1a1a1a] border border-[#2a2a2a] rounded-full shadow-lg flex items-center justify-center text-white hover:bg-[#2a2a2a] transition-colors cursor-pointer"
+          className="absolute bottom-6 right-14 z-30 w-10 h-10 bg-[#1a1a1a] border border-[#2a2a2a] rounded-full shadow-lg flex items-center justify-center text-white hover:bg-[#2a2a2a] transition-colors cursor-pointer"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="3" />

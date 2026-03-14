@@ -71,10 +71,10 @@ function calcEtaMins(order: Order): number | null {
   if (!delivery_min || !delivery_max) return null;
   const placedMs = new Date(order.placed_at).getTime();
   if (status === 'placed' || status === 'preparing') {
-    return Math.max(0, Math.round((placedMs + delivery_max * 60000 - Date.now()) / 60000));
+    return Math.max(0, Math.round((placedMs + delivery_max * 60000 - Date.now()) / 60000)) + 5;
   }
-  if (status === 'ready') return Math.round(delivery_min / 2);
-  if (status === 'picked_up') return 10;
+  if (status === 'ready') return Math.round(delivery_min / 2) + 5;
+  if (status === 'picked_up') return 15;
   return null;
 }
 
