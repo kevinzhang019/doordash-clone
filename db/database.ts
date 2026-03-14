@@ -215,6 +215,10 @@ function runMigrations(db: Database.Database) {
   const deliveryCols = (db.prepare("PRAGMA table_info(driver_deliveries)").all() as { name: string }[]).map(c => c.name);
   if (!deliveryCols.includes('miles')) db.exec('ALTER TABLE driver_deliveries ADD COLUMN miles REAL NOT NULL DEFAULT 0');
   if (!deliveryCols.includes('estimated_minutes')) db.exec('ALTER TABLE driver_deliveries ADD COLUMN estimated_minutes INTEGER NOT NULL DEFAULT 0');
+  if (!deliveryCols.includes('restaurant_lat')) db.exec('ALTER TABLE driver_deliveries ADD COLUMN restaurant_lat REAL');
+  if (!deliveryCols.includes('restaurant_lng')) db.exec('ALTER TABLE driver_deliveries ADD COLUMN restaurant_lng REAL');
+  if (!deliveryCols.includes('customer_lat')) db.exec('ALTER TABLE driver_deliveries ADD COLUMN customer_lat REAL');
+  if (!deliveryCols.includes('customer_lng')) db.exec('ALTER TABLE driver_deliveries ADD COLUMN customer_lng REAL');
 
   const userColsCheck = (db.prepare("PRAGMA table_info(users)").all() as { name: string }[]).map(c => c.name);
   if (!userColsCheck.includes('avatar_url')) {

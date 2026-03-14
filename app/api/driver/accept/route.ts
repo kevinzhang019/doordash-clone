@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
   if (!userId || role !== 'driver') return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const { jobId, sessionId, orderId, restaurantName, restaurantAddress, deliveryAddress, payAmount, tip, isSimulated, totalMiles, estimatedMinutes } = await request.json();
+    const { jobId, sessionId, orderId, restaurantName, restaurantAddress, restaurantCoords, deliveryAddress, customerCoords, payAmount, tip, isSimulated, totalMiles, estimatedMinutes } = await request.json();
 
     const db = getDb();
 
@@ -32,9 +32,9 @@ export async function POST(request: NextRequest) {
     }
 
     const result = db.prepare(`
-      INSERT INTO driver_deliveries (session_id, order_id, is_simulated, restaurant_name, restaurant_address, delivery_address, pay_amount, tip, miles, estimated_minutes, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'accepted')
-    `).run(sessionId, isSimulated ? null : orderId, isSimulated ? 1 : 0, restaurantName, restaurantAddress, deliveryAddress, payAmount, tip, totalMiles ?? 0, estimatedMinutes ?? 0);
+      INSERT INTO driver_deliveries (session_id, order_id, is_simulated, restaurant_name, restaurant_address, restaurant_lat, restaurant_lng, delivery_address, customer_lat, customer_lng, pay_amount, tip, miles, estimated_minutes, status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'accepted')
+    `).run(sessionId, isSimulated ? null : orderId, isSimulated ? 1 : 0, restaurantName, restaurantAddress, restaurantCoords?.lat ?? null, restaurantCoords?.lng ?? null, deliveryAddress, customerCoords?.lat ?? null, customerCoords?.lng ?? null, payAmount, tip, totalMiles ?? 0, estimatedMinutes ?? 0);
 
     return Response.json({ deliveryId: result.lastInsertRowid });
   } catch (error) {

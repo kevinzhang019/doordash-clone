@@ -44,6 +44,9 @@ export default function DriverDashboardPage() {
   const orderStatusRef = useRef<string | null>(null);
   const [availableJobs, setAvailableJobs] = useState<DriverJob[]>([]);
   const [acceptingAvailableId, setAcceptingAvailableId] = useState<string | null>(null);
+  const [acceptingJob, setAcceptingJob] = useState(false);
+  const [takenNotice, setTakenNotice] = useState<string | null>(null);
+  const takenNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [jobSidebarOpen, setJobSidebarOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const seenJobIdsRef = useRef<Set<string>>(new Set());
@@ -108,13 +111,25 @@ export default function DriverDashboardPage() {
     }
   }, [availableJobs]);
 
-  // Always start offline — end any session left over from a previous visit
+  // On mount: restore any existing active session (driver stays online across tab changes)
   useEffect(() => {
-    fetch('/api/driver/session', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'end' }),
-    }).catch(() => {});
+    (async () => {
+      try {
+        const res = await fetch('/api/driver/session');
+        const data = await res.json();
+        if (data.session) {
+          setSession(data.session);
+          if (data.activeDelivery) {
+            setCurrentJob(data.activeDelivery.job);
+            setDeliveryId(data.activeDelivery.deliveryId);
+            setOrderStatus(data.activeDelivery.orderStatus);
+            setPhase(data.activeDelivery.phase as Phase);
+          } else {
+            setPhase('active_waiting');
+          }
+        }
+      } catch { /* ignore */ }
+    })();
   }, []);
 
   const stopPolling = useCallback(() => {
@@ -136,6 +151,12 @@ export default function DriverDashboardPage() {
       clearTimeout(availableJobsPollRef.current);
       availableJobsPollRef.current = null;
     }
+  }, []);
+
+  const showTakenNotice = useCallback((msg: string) => {
+    if (takenNoticeTimerRef.current) clearTimeout(takenNoticeTimerRef.current);
+    setTakenNotice(msg);
+    takenNoticeTimerRef.current = setTimeout(() => setTakenNotice(null), 3500);
   }, []);
 
   const pollForJob = useCallback(() => {
@@ -290,7 +311,8 @@ export default function DriverDashboardPage() {
   };
 
   const handleAcceptJob = async () => {
-    if (!currentJob || !session) return;
+    if (!currentJob || !session || acceptingJob) return;
+    setAcceptingJob(true);
     try {
       const res = await fetch('/api/driver/accept', {
         method: 'POST',
@@ -301,7 +323,9 @@ export default function DriverDashboardPage() {
           orderId: currentJob.orderId,
           restaurantName: currentJob.restaurantName,
           restaurantAddress: currentJob.restaurantAddress,
+          restaurantCoords: currentJob.restaurantCoords,
           deliveryAddress: currentJob.deliveryAddress,
+          customerCoords: currentJob.customerCoords,
           payAmount: currentJob.payAmount,
           tip: currentJob.tip,
           isSimulated: currentJob.isSimulated,
@@ -311,9 +335,9 @@ export default function DriverDashboardPage() {
       });
       const data = await res.json();
       if (res.status === 409) {
-        // Someone else grabbed it — go back to waiting
         setCurrentJob(null);
         setPhase('active_waiting');
+        showTakenNotice('Another driver already took this job.');
         return;
       }
       setDeliveryId(data.deliveryId);
@@ -322,6 +346,8 @@ export default function DriverDashboardPage() {
     } catch {
       setCurrentJob(null);
       setPhase('active_waiting');
+    } finally {
+      setAcceptingJob(false);
     }
   };
 
@@ -360,7 +386,9 @@ export default function DriverDashboardPage() {
           orderId: job.orderId,
           restaurantName: job.restaurantName,
           restaurantAddress: job.restaurantAddress,
+          restaurantCoords: job.restaurantCoords,
           deliveryAddress: job.deliveryAddress,
+          customerCoords: job.customerCoords,
           payAmount: job.payAmount,
           tip: job.tip,
           isSimulated: false,
@@ -369,12 +397,15 @@ export default function DriverDashboardPage() {
         }),
       });
       if (res.status === 409) {
-        // Already taken — refresh available list
+        // Remove immediately so UI doesn't show a stale card, then refresh
+        setAvailableJobs(prev => prev.filter(j => j.id !== job.id));
+        showTakenNotice('Another driver already took this job.');
         const coords = driverCoordsRef.current;
         const qs = coords ? `?lat=${coords.lat}&lng=${coords.lng}` : '';
-        const r2 = await fetch(`/api/driver/available-jobs${qs}`);
-        const d2 = await r2.json();
-        setAvailableJobs(d2.jobs ?? []);
+        fetch(`/api/driver/available-jobs${qs}`)
+          .then(r => r.json())
+          .then(d => setAvailableJobs(d.jobs ?? []))
+          .catch(() => {});
         return;
       }
       const data = await res.json();
@@ -392,34 +423,6 @@ export default function DriverDashboardPage() {
     }
   };
 
-  // Go offline automatically when the driver leaves the tab
-  useEffect(() => {
-    const sendOfflineBeacon = () => {
-      if (!sessionRef.current) return;
-      const sessionBlob = new Blob([JSON.stringify({ action: 'end' })], { type: 'application/json' });
-      navigator.sendBeacon('/api/driver/session', sessionBlob);
-      if (deliveryIdRef.current) {
-        const cancelBlob = new Blob(
-          [JSON.stringify({ deliveryId: deliveryIdRef.current, orderId: currentJobRef.current?.orderId })],
-          { type: 'application/json' }
-        );
-        navigator.sendBeacon('/api/driver/cancel', cancelBlob);
-      }
-    };
-
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'hidden' && sessionRef.current) {
-        handleGoOffline();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('beforeunload', sendOfflineBeacon);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('beforeunload', sendOfflineBeacon);
-    };
-  }, [handleGoOffline]);
 
   // Keyboard shortcuts: Space = Go Active (idle) or Go Offline (waiting), Esc = Go Offline
   useEffect(() => {
@@ -751,6 +754,7 @@ export default function DriverDashboardPage() {
               </button>
               {currentJob && !currentJob.isSimulated && currentJob.orderId && user && (
                 <DeliveryChat
+                  key={currentJob.orderId}
                   orderId={currentJob.orderId}
                   currentUserId={user.id}
                   isActive
@@ -783,6 +787,7 @@ export default function DriverDashboardPage() {
               </button>
               {currentJob && !currentJob.isSimulated && currentJob.orderId && user && (
                 <DeliveryChat
+                  key={currentJob.orderId}
                   orderId={currentJob.orderId}
                   currentUserId={user.id}
                   isActive
@@ -815,7 +820,18 @@ export default function DriverDashboardPage() {
             job={currentJob}
             onAccept={handleAcceptJob}
             onDecline={handleDeclineJob}
+            isAccepting={acceptingJob}
           />
+        )}
+
+        {/* Job taken toast */}
+        {takenNotice && (
+          <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-50 pointer-events-none">
+            <div className="bg-[#1a1a1a] border border-[#3a3a3a] text-white text-sm font-medium px-5 py-3 rounded-full shadow-2xl flex items-center gap-2 whitespace-nowrap">
+              <span className="w-2 h-2 rounded-full bg-yellow-400 flex-shrink-0" />
+              {takenNotice}
+            </div>
+          </div>
         )}
 
         {/* Go Active button — idle state */}
