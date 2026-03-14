@@ -1,7 +1,7 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
-import { seedDatabase, seedReviews, seedAdditionalRestaurants, seedAdditionalReviews } from './seed';
+import { seedDatabase, seedMenuItemOptions, seedReviews, seedAdditionalRestaurants, seedAdditionalReviews } from './seed';
 
 let db: Database.Database;
 
@@ -207,6 +207,11 @@ function runMigrations(db: Database.Database) {
     db.exec('ALTER TABLE menu_items ADD COLUMN allow_special_requests INTEGER NOT NULL DEFAULT 0');
   }
 
+  const cartItemCols = (db.prepare("PRAGMA table_info(cart_items)").all() as { name: string }[]).map(c => c.name);
+  if (!cartItemCols.includes('special_requests')) {
+    db.exec('ALTER TABLE cart_items ADD COLUMN special_requests TEXT');
+  }
+
   const deliveryCols = (db.prepare("PRAGMA table_info(driver_deliveries)").all() as { name: string }[]).map(c => c.name);
   if (!deliveryCols.includes('miles')) db.exec('ALTER TABLE driver_deliveries ADD COLUMN miles REAL NOT NULL DEFAULT 0');
   if (!deliveryCols.includes('estimated_minutes')) db.exec('ALTER TABLE driver_deliveries ADD COLUMN estimated_minutes INTEGER NOT NULL DEFAULT 0');
@@ -223,11 +228,7 @@ function runMigrations(db: Database.Database) {
   if (!orderCols.includes('tip')) {
     db.exec('ALTER TABLE orders ADD COLUMN tip REAL NOT NULL DEFAULT 0');
   }
-  if (!orderCols.includes('is_demo')) {
-    db.exec('ALTER TABLE orders ADD COLUMN is_demo INTEGER NOT NULL DEFAULT 0');
-  }
-
-  const restCols = (db.prepare("PRAGMA table_info(restaurants)").all() as { name: string }[]).map(c => c.name);
+const restCols = (db.prepare("PRAGMA table_info(restaurants)").all() as { name: string }[]).map(c => c.name);
   if (!restCols.includes('is_accepting_orders')) {
     db.exec('ALTER TABLE restaurants ADD COLUMN is_accepting_orders INTEGER NOT NULL DEFAULT 1');
   }
@@ -326,6 +327,12 @@ function runMigrations(db: Database.Database) {
   const threeStarCount = (db.prepare('SELECT COUNT(*) as count FROM reviews WHERE rating = 3 AND user_id IS NULL').get() as { count: number }).count;
   if (threeStarCount === 0) {
     db.prepare('UPDATE reviews SET rating = 3 WHERE id IN (3, 10, 15, 22, 27, 34, 39, 46, 51, 58) AND user_id IS NULL').run();
+  }
+
+  // Seed menu item option groups if not yet seeded
+  const optionGroupCount = (db.prepare('SELECT COUNT(*) as count FROM menu_item_option_groups').get() as { count: number }).count;
+  if (optionGroupCount === 0) {
+    seedMenuItemOptions(db);
   }
 }
 
