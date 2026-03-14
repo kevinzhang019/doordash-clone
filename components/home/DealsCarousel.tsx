@@ -144,7 +144,7 @@ export default function DealsCarousel({ allRestaurants }: { allRestaurants: Rest
                 ) : (
                   <div className="w-full h-full bg-gray-100 flex items-center justify-center text-5xl">🍽️</div>
                 )}
-                <div className="absolute top-3 left-3">
+                <div className="absolute top-3 left-3 flex items-center gap-1.5">
                   <span className="bg-[#8f1a00] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full">
                     <span className="bg-[#FF3008] inline-flex items-center gap-1 text-white font-extrabold text-xs px-2 py-0.5 rounded-full leading-none">
                       <span className="text-sm leading-none">🏷️</span>
@@ -154,6 +154,11 @@ export default function DealsCarousel({ allRestaurants }: { allRestaurants: Rest
                       {deal.menu_item_name}
                     </span>
                   </span>
+                  {deal.extraDealsCount > 0 && (
+                    <span className="bg-white/90 text-[#FF3008] font-bold text-xs px-2 py-1 rounded-full leading-none shadow-sm">
+                      +{deal.extraDealsCount}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -162,11 +167,6 @@ export default function DealsCarousel({ allRestaurants }: { allRestaurants: Rest
                 <p className="font-bold text-gray-900 text-lg leading-tight group-hover:text-[#FF3008] transition-colors truncate">
                   {deal.restaurant_name}
                 </p>
-                {deal.extraDealsCount > 0 && (
-                  <p className="text-xs text-[#FF3008] font-semibold mt-0.5">
-                    + {deal.extraDealsCount} more deal{deal.extraDealsCount > 1 ? 's' : ''}
-                  </p>
-                )}
               </div>
             </Link>
           );
