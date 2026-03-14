@@ -12,14 +12,27 @@ export async function POST(request: NextRequest) {
     const db = getDb();
 
     if (!isSimulated && orderId) {
+      // For default (unowned) restaurants, always ensure status is 'ready' so the
+      // driver can pick up without waiting for a non-existent owner.
+      const orderRow = db.prepare(
+        'SELECT restaurant_id FROM orders WHERE id = ?'
+      ).get(orderId) as { restaurant_id: number } | undefined;
+      const isOwned = orderRow
+        ? !!db.prepare('SELECT 1 FROM restaurant_owners WHERE restaurant_id = ?').get(orderRow.restaurant_id)
+        : false;
+
       const result = db.prepare(`
         UPDATE orders
         SET driver_user_id = ?,
-            status = CASE WHEN status = 'ready' THEN 'ready' ELSE 'preparing' END,
+            status = CASE
+              WHEN ? = 0 THEN 'ready'
+              WHEN status = 'ready' THEN 'ready'
+              ELSE 'preparing'
+            END,
             dispatched_to = NULL,
             dispatch_expires_at = NULL
         WHERE id = ? AND driver_user_id IS NULL
-      `).run(userId, orderId);
+      `).run(userId, isOwned ? 1 : 0, orderId);
 
       if (result.changes === 0) {
         return Response.json({ error: 'already_taken' }, { status: 409 });
