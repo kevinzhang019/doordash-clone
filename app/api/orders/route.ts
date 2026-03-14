@@ -60,6 +60,10 @@ export async function POST(request: NextRequest) {
 
       const restaurantId = cartItems[0].restaurant_id;
 
+      // Default (seeded) restaurants have no owner — auto-advance to 'ready'
+      const isOwned = !!db.prepare('SELECT 1 FROM restaurant_owners WHERE restaurant_id = ?').get(restaurantId);
+      const initialStatus = isOwned ? 'placed' : 'ready';
+
       // Fetch selections for all cart items
       const cartItemIds = cartItems.map(ci => ci.id);
       const allSelections = cartItemIds.length > 0
@@ -85,8 +89,8 @@ export async function POST(request: NextRequest) {
       // Insert order
       const orderResult = db.prepare(`
         INSERT INTO orders (user_id, restaurant_id, status, delivery_address, subtotal, delivery_fee, total)
-        VALUES (?, ?, 'placed', ?, ?, ?, ?)
-      `).run(userId, restaurantId, deliveryAddress.trim(), Math.round(subtotal * 100) / 100, deliveryFee, Math.round(total * 100) / 100);
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `).run(userId, restaurantId, initialStatus, deliveryAddress.trim(), Math.round(subtotal * 100) / 100, deliveryFee, Math.round(total * 100) / 100);
 
       const orderId = orderResult.lastInsertRowid as number;
 

@@ -163,6 +163,7 @@ export async function GET(request: NextRequest) {
     JOIN restaurants r ON r.id = o.restaurant_id
     WHERE o.dispatched_to = ? AND o.dispatch_expires_at > datetime('now')
       AND o.driver_user_id IS NULL
+      AND o.status IN ('placed', 'preparing', 'ready')
     LIMIT 1
   `).get(userId) as OrderRow | undefined;
 
@@ -178,7 +179,7 @@ export async function GET(request: NextRequest) {
            r.lat as r_lat, r.lng as r_lng
     FROM orders o
     JOIN restaurants r ON r.id = o.restaurant_id
-    WHERE o.status IN ('placed', 'preparing')
+    WHERE o.status IN ('placed', 'preparing', 'ready')
       AND o.driver_user_id IS NULL
       AND (o.dispatched_to IS NULL OR o.dispatch_expires_at < datetime('now'))
       AND NOT EXISTS (

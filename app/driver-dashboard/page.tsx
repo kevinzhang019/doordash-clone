@@ -224,6 +224,18 @@ export default function DriverDashboardPage() {
     stopPolling();
     stopAvailableJobsPoll();
     stopOrderStatusPoll();
+
+    // Cancel any active delivery before going offline
+    const activeDeliveryId = deliveryIdRef.current;
+    const activeJob = currentJobRef.current;
+    if (activeDeliveryId || (activeJob && !activeJob.isSimulated && activeJob.orderId)) {
+      await fetch('/api/driver/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deliveryId: activeDeliveryId, orderId: activeJob?.orderId }),
+      });
+    }
+
     await fetch('/api/driver/session', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -231,6 +243,7 @@ export default function DriverDashboardPage() {
     });
     setSession(null);
     setCurrentJob(null);
+    setDeliveryId(null);
     setAvailableJobs([]);
     setOrderStatus(null);
     setSessionMinutes(0);

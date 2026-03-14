@@ -14,7 +14,10 @@ export async function POST(request: NextRequest) {
     if (!isSimulated && orderId) {
       const result = db.prepare(`
         UPDATE orders
-        SET driver_user_id = ?, status = 'preparing', dispatched_to = NULL, dispatch_expires_at = NULL
+        SET driver_user_id = ?,
+            status = CASE WHEN status = 'ready' THEN 'ready' ELSE 'preparing' END,
+            dispatched_to = NULL,
+            dispatch_expires_at = NULL
         WHERE id = ? AND driver_user_id IS NULL
       `).run(userId, orderId);
 

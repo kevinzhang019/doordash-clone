@@ -62,7 +62,7 @@ export async function GET(request: NextRequest) {
     JOIN restaurants r ON r.id = o.restaurant_id
     WHERE daj.driver_user_id = ?
       AND o.driver_user_id IS NULL
-      AND o.status IN ('placed', 'preparing')
+      AND o.status IN ('placed', 'preparing', 'ready')
     ORDER BY daj.added_at DESC
   `).all(userId) as {
     id: number; delivery_address: string; subtotal: number; tip: number;
