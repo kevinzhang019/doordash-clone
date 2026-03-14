@@ -18,8 +18,16 @@ const STATUS_LABELS: Record<string, string> = {
   delivered: 'Delivered',
 };
 
-function OrderStatusProgress({ status }: { status: string }) {
-  const currentIndex = STATUS_STEPS.indexOf(status as (typeof STATUS_STEPS)[number]);
+// 'ready' with no driver means the order lost its driver and is waiting for a new one —
+// show it at the 'placed' step so the customer isn't confused by "Ready" with no driver.
+function displayStatus(status: string, driverUserId: number | null): string {
+  if (status === 'ready' && !driverUserId) return 'placed';
+  return status;
+}
+
+function OrderStatusProgress({ status, driverUserId }: { status: string; driverUserId: number | null }) {
+  const effectiveStatus = displayStatus(status, driverUserId);
+  const currentIndex = STATUS_STEPS.indexOf(effectiveStatus as (typeof STATUS_STEPS)[number]);
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
       <h3 className="font-semibold text-gray-900 mb-4">Order Status</h3>
@@ -67,13 +75,14 @@ function calcEtaMins(order: Order): number | null {
   }
 
   // Fallback: estimate from placed_at + restaurant delivery window
-  const { status, delivery_min, delivery_max } = order;
+  const { delivery_min, delivery_max } = order;
   if (!delivery_min || !delivery_max) return null;
+  const effectiveStatus = displayStatus(order.status, order.driver_user_id);
   const placedMs = new Date(order.placed_at).getTime();
-  if (status === 'placed' || status === 'preparing') {
+  if (effectiveStatus === 'placed' || effectiveStatus === 'preparing') {
     return Math.max(0, Math.round((placedMs + delivery_max * 60000 - Date.now()) / 60000)) + 5;
   }
-  if (status === 'ready') return Math.round(delivery_min / 2) + 5;
+  if (effectiveStatus === 'ready') return Math.round(delivery_min / 2) + 5;
   if (status === 'picked_up') return 15;
   return null;
 }
@@ -317,7 +326,7 @@ export default function OrderDetailPage() {
       </div>
 
       {/* Status Progress */}
-      <OrderStatusProgress status={order.status} />
+      <OrderStatusProgress status={order.status} driverUserId={order.driver_user_id} />
 
       {/* Driver card */}
       {order.driver_name && order.status !== 'delivered' && (
@@ -348,11 +357,11 @@ export default function OrderDetailPage() {
           </div>
           <span className={`px-3 py-1 rounded-full text-sm font-medium capitalize ${
             order.status === 'delivered' ? 'bg-green-100 text-green-700'
-            : order.status === 'placed' ? 'bg-blue-100 text-blue-700'
+            : displayStatus(order.status, order.driver_user_id) === 'placed' ? 'bg-blue-100 text-blue-700'
             : order.status === 'picked_up' ? 'bg-purple-100 text-purple-700'
             : 'bg-yellow-100 text-yellow-700'
           }`}>
-            {STATUS_LABELS[order.status] ?? order.status}
+            {STATUS_LABELS[displayStatus(order.status, order.driver_user_id)] ?? order.status}
           </span>
         </div>
 

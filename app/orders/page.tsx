@@ -69,11 +69,11 @@ export default function OrdersPage() {
                   <span className={`inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${
                     order.status === 'delivered'
                       ? 'bg-green-100 text-green-700'
-                      : order.status === 'placed'
+                      : (order.status === 'placed' || (order.status === 'ready' && !order.driver_user_id))
                       ? 'bg-blue-100 text-blue-700'
                       : 'bg-yellow-100 text-yellow-700'
                   }`}>
-                    {order.status}
+                    {order.status === 'ready' && !order.driver_user_id ? 'placed' : order.status}
                   </span>
                 </div>
               </div>
