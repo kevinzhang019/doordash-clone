@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useLocation } from '@/components/providers/LocationProvider';
@@ -49,7 +49,6 @@ export default function DealsCarousel({ allRestaurants }: { allRestaurants: Rest
   const [dbDeals, setDbDeals] = useState<Deal[]>([]);
   const [randomDeals, setRandomDeals] = useState<DisplayDeal[]>([]);
   const [page, setPage] = useState(0);
-  const prevAddress = useRef('');
 
   const seededIds = new Set(allRestaurants.filter(r => r.isSeeded).map(r => r.id));
 
@@ -61,8 +60,7 @@ export default function DealsCarousel({ allRestaurants }: { allRestaurants: Rest
   }, []);
 
   useEffect(() => {
-    if (!deliveryAddress || deliveryAddress === prevAddress.current) return;
-    prevAddress.current = deliveryAddress;
+    if (!deliveryAddress) return;
     setPage(0);
 
     const rng = seededRng(deliveryAddress);
