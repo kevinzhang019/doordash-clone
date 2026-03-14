@@ -489,7 +489,7 @@ export default function Navbar() {
                 </div>
                 <Link
                   href="/login"
-                  className="bg-[#FF3008] text-white text-sm font-semibold rounded-lg px-4 py-2 hover:bg-red-600 transition-colors"
+                  className="text-gray-600 hover:text-gray-900 text-sm font-medium border border-gray-300 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors"
                 >
                   Log In
                 </Link>
