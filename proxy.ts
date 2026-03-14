@@ -6,8 +6,8 @@ const secret = new TextEncoder().encode(
   process.env.JWT_SECRET || 'fallback-secret-change-in-production'
 );
 
-const protectedRoutes = ['/cart', '/checkout', '/orders', '/restaurant-dashboard', '/driver-dashboard', '/restaurant-setup', '/settings'];
-const protectedApiRoutes = ['/api/cart', '/api/orders', '/api/reviews', '/api/addresses', '/api/restaurant-dashboard', '/api/driver', '/api/settings'];
+const protectedRoutes = ['/orders', '/restaurant-dashboard', '/driver-dashboard', '/restaurant-setup', '/settings'];
+const protectedApiRoutes = ['/api/cart', '/api/orders', '/api/reviews', '/api/restaurant-dashboard', '/api/driver', '/api/settings', '/api/messages'];
 
 // Pages that restaurant/driver roles should never see
 const CUSTOMER_ONLY_PAGES = ['/', '/cart', '/checkout', '/orders'];
@@ -27,6 +27,8 @@ export async function proxy(request: NextRequest) {
   const isCustomerOnlyPage = CUSTOMER_ONLY_PAGES.some(p => pathname === p || pathname.startsWith(p + '/'));
 
   const token = request.cookies.get('session')?.value;
+  const existingGuestId = request.cookies.get('guest_id')?.value;
+  const guestId = existingGuestId || crypto.randomUUID();
 
   // No session — only block protected routes
   if (!token) {
@@ -36,7 +38,18 @@ export async function proxy(request: NextRequest) {
     if (isProtectedPage) {
       return NextResponse.redirect(new URL('/login', request.url));
     }
-    return NextResponse.next();
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-guest-id', guestId);
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
+    if (!existingGuestId) {
+      response.cookies.set('guest_id', guestId, {
+        httpOnly: true,
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 365,
+        path: '/',
+      });
+    }
+    return response;
   }
 
   try {
@@ -76,6 +89,9 @@ export async function proxy(request: NextRequest) {
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-user-id', userId.toString());
     requestHeaders.set('x-user-role', role);
+    if (existingGuestId) {
+      requestHeaders.set('x-guest-id', existingGuestId);
+    }
 
     return NextResponse.next({ request: { headers: requestHeaders } });
   } catch {
@@ -109,5 +125,6 @@ export const config = {
     '/restaurant-setup',
     '/settings',
     '/api/settings/:path*',
+    '/api/messages/:path*',
   ],
 };
