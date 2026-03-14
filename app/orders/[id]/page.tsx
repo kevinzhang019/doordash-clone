@@ -18,10 +18,10 @@ const STATUS_LABELS: Record<string, string> = {
   delivered: 'Delivered',
 };
 
-// 'ready' with no driver means the order lost its driver and is waiting for a new one —
-// show it at the 'placed' step so the customer isn't confused by "Ready" with no driver.
+// Any in-progress status without a driver means the order lost its driver and is waiting
+// for a new one — show it at the 'placed' step so the customer isn't confused.
 function displayStatus(status: string, driverUserId: number | null): string {
-  if (status === 'ready' && !driverUserId) return 'placed';
+  if (!driverUserId && (status === 'ready' || status === 'preparing' || status === 'picked_up')) return 'placed';
   return status;
 }
 

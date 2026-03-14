@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       const resetStatus = isOwned ? 'placed' : 'ready';
 
       db.prepare(
-        `UPDATE orders SET status = ?, driver_user_id = NULL, dispatched_to = NULL, dispatch_expires_at = NULL WHERE id = ?`
+        `UPDATE orders SET status = ?, driver_user_id = NULL, dispatched_to = NULL, dispatch_expires_at = NULL, estimated_delivery_at = NULL WHERE id = ?`
       ).run(resetStatus, orderId);
       // Clear all per-driver decline/available records so every driver gets a fresh shot
       db.prepare('DELETE FROM driver_job_declines WHERE order_id = ?').run(orderId);
