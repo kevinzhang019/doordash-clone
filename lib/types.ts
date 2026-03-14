@@ -120,6 +120,7 @@ export interface Order {
   placed_at: string;
   driver_user_id?: number | null;
   dispatched_to?: number | null;
+  estimated_delivery_at?: string | null;
   restaurant_name?: string;
   driver_name?: string;
   delivery_min?: number;

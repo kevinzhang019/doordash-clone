@@ -237,6 +237,9 @@ function runMigrations(db: Database.Database) {
   if (!orderCols.includes('declined_count')) {
     db.exec('ALTER TABLE orders ADD COLUMN declined_count INTEGER NOT NULL DEFAULT 0');
   }
+  if (!orderCols.includes('estimated_delivery_at')) {
+    db.exec('ALTER TABLE orders ADD COLUMN estimated_delivery_at TEXT');
+  }
 
 const restCols = (db.prepare("PRAGMA table_info(restaurants)").all() as { name: string }[]).map(c => c.name);
   if (!restCols.includes('is_accepting_orders')) {

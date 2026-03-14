@@ -8,7 +8,7 @@ export async function GET(request: NextRequest) {
   const db = getDb();
 
   const orders = db.prepare(`
-    SELECT o.id, o.status, o.placed_at, o.total,
+    SELECT o.id, o.status, o.placed_at, o.total, o.estimated_delivery_at,
            r.name as restaurant_name, r.delivery_min, r.delivery_max
     FROM orders o
     JOIN restaurants r ON r.id = o.restaurant_id

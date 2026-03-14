@@ -41,6 +41,7 @@ export default function DriverDashboardPage() {
   const [loadingActive, setLoadingActive] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
   const [orderStatus, setOrderStatus] = useState<string | null>(null);
+  const orderStatusRef = useRef<string | null>(null);
   const [availableJobs, setAvailableJobs] = useState<DriverJob[]>([]);
   const [acceptingAvailableId, setAcceptingAvailableId] = useState<string | null>(null);
   const avatarRef = useRef<HTMLDivElement>(null);
@@ -85,6 +86,7 @@ export default function DriverDashboardPage() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
+  useEffect(() => { orderStatusRef.current = orderStatus; }, [orderStatus]);
   useEffect(() => { sessionRef.current = session; }, [session]);
   useEffect(() => { phaseRef.current = phase; }, [phase]);
   useEffect(() => { deliveryIdRef.current = deliveryId; }, [deliveryId]);
@@ -465,6 +467,45 @@ export default function DriverDashboardPage() {
     }
   };
 
+  // Parse Google Maps duration text ("8 mins", "1 hour 5 mins") to minutes
+  const parseDurationMins = (text: string): number => {
+    let total = 0;
+    const hourMatch = text.match(/(\d+)\s*hour/i);
+    const minMatch = text.match(/(\d+)\s*min/i);
+    if (hourMatch) total += parseInt(hourMatch[1]) * 60;
+    if (minMatch) total += parseInt(minMatch[1]);
+    return total || 1;
+  };
+
+  const handleRouteReady = useCallback(async (distance: string, duration: string) => {
+    setRouteInfo({ distance, duration });
+    const job = currentJobRef.current;
+    if (!job || job.isSimulated || !job.orderId) return;
+
+    const durationMins = parseDurationMins(duration);
+    const currentPhase = phaseRef.current;
+    let etaMins: number;
+
+    if (currentPhase === 'job_accepted_pickup') {
+      // duration = driver → restaurant; add rough estimate for restaurant → customer
+      const leg2Estimate = Math.round(job.estimatedMinutes / 2);
+      etaMins = durationMins + leg2Estimate;
+      if (orderStatusRef.current === 'preparing') etaMins += 5;
+    } else if (currentPhase === 'job_accepted_deliver') {
+      // duration = restaurant → customer (map origin is fixed at restaurant)
+      etaMins = durationMins;
+    } else {
+      return;
+    }
+
+    const estimatedDeliveryAt = new Date(Date.now() + etaMins * 60000).toISOString();
+    fetch(`/api/driver/orders/${job.orderId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ estimated_delivery_at: estimatedDeliveryAt }),
+    }).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const mapPhase = phase === 'job_accepted_pickup' ? 'pickup'
     : phase === 'job_accepted_deliver' ? 'deliver'
     : 'waiting';
@@ -565,7 +606,7 @@ export default function DriverDashboardPage() {
             phase={mapPhase}
             restaurantCoords={currentJob?.restaurantCoords}
             customerCoords={currentJob?.customerCoords}
-            onRouteReady={(distance, duration) => setRouteInfo({ distance, duration })}
+            onRouteReady={handleRouteReady}
           />
         </div>
 

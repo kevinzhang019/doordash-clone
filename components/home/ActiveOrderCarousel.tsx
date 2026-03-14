@@ -11,6 +11,7 @@ type ActiveOrder = {
   restaurant_name: string;
   delivery_min: number;
   delivery_max: number;
+  estimated_delivery_at?: string | null;
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -30,20 +31,19 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 function calcEtaMinutes(order: ActiveOrder): number {
-  const placedMs = new Date(order.placed_at).getTime();
-  const nowMs = Date.now();
-  const { status, delivery_min, delivery_max } = order;
+  // Prefer driver's real-time map-based ETA when available
+  if (order.estimated_delivery_at) {
+    return Math.max(0, Math.round((new Date(order.estimated_delivery_at).getTime() - Date.now()) / 60000));
+  }
 
+  // Fallback: estimate from placed_at + restaurant delivery window
+  const placedMs = new Date(order.placed_at).getTime();
+  const { status, delivery_min, delivery_max } = order;
   if (status === 'placed' || status === 'preparing') {
-    const etaMs = placedMs + delivery_max * 60 * 1000;
-    return Math.max(0, Math.round((etaMs - nowMs) / 60000));
+    return Math.max(0, Math.round((placedMs + delivery_max * 60000 - Date.now()) / 60000));
   }
-  if (status === 'ready') {
-    return Math.round(delivery_min / 2);
-  }
-  if (status === 'picked_up') {
-    return 10;
-  }
+  if (status === 'ready') return Math.round(delivery_min / 2);
+  if (status === 'picked_up') return 10;
   return 0;
 }
 

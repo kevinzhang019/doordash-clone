@@ -59,12 +59,19 @@ function OrderStatusProgress({ status }: { status: string }) {
 // ── ETA calculation ────────────────────────────────────────────────────────────
 
 function calcEtaMins(order: Order): number | null {
-  const { status, placed_at, delivery_min, delivery_max } = order;
+  if (order.status === 'delivered') return null;
+
+  // Prefer the driver's real-time map-based ETA when available
+  if (order.estimated_delivery_at) {
+    return Math.max(0, Math.round((new Date(order.estimated_delivery_at).getTime() - Date.now()) / 60000));
+  }
+
+  // Fallback: estimate from placed_at + restaurant delivery window
+  const { status, delivery_min, delivery_max } = order;
   if (!delivery_min || !delivery_max) return null;
-  const placedMs = new Date(placed_at).getTime();
-  const nowMs = Date.now();
+  const placedMs = new Date(order.placed_at).getTime();
   if (status === 'placed' || status === 'preparing') {
-    return Math.max(0, Math.round((placedMs + delivery_max * 60000 - nowMs) / 60000));
+    return Math.max(0, Math.round((placedMs + delivery_max * 60000 - Date.now()) / 60000));
   }
   if (status === 'ready') return Math.round(delivery_min / 2);
   if (status === 'picked_up') return 10;
