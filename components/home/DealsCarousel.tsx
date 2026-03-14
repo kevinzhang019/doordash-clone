@@ -4,34 +4,7 @@ import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useLocation } from '@/components/providers/LocationProvider';
-import type { Deal } from '@/lib/types';
-
-interface DisplayDeal extends Deal {
-  isRandom?: boolean;
-  extraDealsCount: number;
-}
-
-// Seeded RNG — same address always produces the same sequence
-function seededRng(seed: string) {
-  let h = 5381;
-  for (let i = 0; i < seed.length; i++) h = (Math.imul(33, h) ^ seed.charCodeAt(i)) >>> 0;
-  return () => {
-    h ^= h << 13; h ^= h >> 17; h ^= h << 5;
-    return (h >>> 0) / 0xffffffff;
-  };
-}
-
-function effectiveDiscount(deal: Deal): number {
-  if (deal.deal_type === 'bogo') return 50;
-  return deal.discount_value ?? 0;
-}
-
-const RANDOM_DEAL_TYPES: Array<{ deal_type: 'percentage_off' | 'bogo'; discount_value: number | null }> = [
-  { deal_type: 'percentage_off', discount_value: 20 },
-  { deal_type: 'percentage_off', discount_value: 30 },
-  { deal_type: 'percentage_off', discount_value: 50 },
-  { deal_type: 'bogo', discount_value: null },
-];
+import { getAddressDeal, seededRng, dealLabel, AddressDeal } from '@/lib/dealUtils';
 
 interface RestaurantStub {
   id: number;
@@ -43,124 +16,86 @@ interface RestaurantStub {
   isSeeded: boolean;
 }
 
+interface DisplayDeal {
+  restaurant_id: number;
+  restaurant_name: string;
+  restaurant_image_url: string;
+  menu_item_name: string;
+  deal: AddressDeal;
+}
+
 export default function DealsCarousel({ allRestaurants }: { allRestaurants: RestaurantStub[] }) {
   const { deliveryAddress } = useLocation();
-  const [dbDeals, setDbDeals] = useState<Deal[]>([]);
   const [page, setPage] = useState(0);
 
-  useEffect(() => {
-    fetch('/api/deals')
-      .then(r => r.json())
-      .then(d => setDbDeals(d.deals || []))
-      .catch(() => {});
-  }, []);
-
-  // Reset to page 0 whenever the address changes
   useEffect(() => { setPage(0); }, [deliveryAddress]);
 
-  // ── Compute all deals inline (deterministic for same address) ──────────
+  if (!deliveryAddress) return null;
 
-  const rng = deliveryAddress ? seededRng(deliveryAddress) : null;
+  // Generate a deal for every default restaurant, filter out nulls, shuffle the list
+  const rng = seededRng(deliveryAddress);
 
-  const seededIds = new Set(allRestaurants.filter(r => r.isSeeded).map(r => r.id));
+  const deals: DisplayDeal[] = allRestaurants
+    .filter(r => r.isSeeded)
+    .flatMap(r => {
+      const deal = getAddressDeal(deliveryAddress, r.id);
+      if (!deal) return [];
+      return [{
+        restaurant_id: r.id,
+        restaurant_name: r.name,
+        restaurant_image_url: r.image_url,
+        menu_item_name: r.menu_item_name,
+        deal,
+      }];
+    })
+    .sort(() => rng() - 0.5);
 
-  // Real DB deals — default restaurants only, one card per restaurant (best deal)
-  const seededDbDeals = dbDeals.filter(d => seededIds.has(d.restaurant_id));
-  const byRestaurant = new Map<number, Deal[]>();
-  for (const deal of seededDbDeals) {
-    byRestaurant.set(deal.restaurant_id, [...(byRestaurant.get(deal.restaurant_id) ?? []), deal]);
-  }
-  const bestDbDeals: DisplayDeal[] = Array.from(byRestaurant.values()).map(deals => {
-    const sorted = [...deals].sort((a, b) => effectiveDiscount(b) - effectiveDiscount(a));
-    return { ...sorted[0], isRandom: false, extraDealsCount: sorted.length - 1 };
-  });
+  if (deals.length === 0) return null;
 
-  // Random deals — default restaurants with no real deal
-  const restaurantsWithRealDeals = new Set(seededDbDeals.map(d => d.restaurant_id));
-  const available = allRestaurants.filter(r => r.isSeeded && !restaurantsWithRealDeals.has(r.id));
-  const randomDeals: DisplayDeal[] = rng
-    ? [...available]
-        .sort(() => rng() - 0.5)
-        .slice(0, 3)
-        .map((r, i) => {
-          const template = RANDOM_DEAL_TYPES[Math.floor(rng() * RANDOM_DEAL_TYPES.length)];
-          return {
-            id: -(i + 1),
-            restaurant_id: r.id,
-            menu_item_id: r.menu_item_id,
-            deal_type: template.deal_type,
-            discount_value: template.discount_value,
-            is_active: 1,
-            created_at: '',
-            isRandom: true,
-            extraDealsCount: 0,
-            restaurant_name: r.name,
-            restaurant_image_url: r.image_url,
-            menu_item_name: r.menu_item_name,
-            menu_item_price: r.menu_item_price,
-          };
-        })
-    : [];
-
-  // Shuffle the combined list so the order (and thus page 1) changes per address
-  const combined = [...bestDbDeals, ...randomDeals];
-  const allDeals: DisplayDeal[] = rng ? [...combined].sort(() => rng() - 0.5) : combined;
-
-  if (allDeals.length === 0) return null;
-
-  const totalPages = Math.ceil(allDeals.length / 3);
-  const visibleDeals = allDeals.slice(page * 3, page * 3 + 3);
+  const totalPages = Math.ceil(deals.length / 3);
+  const visibleDeals = deals.slice(page * 3, page * 3 + 3);
 
   return (
     <section className="mb-10">
       <div className="grid grid-cols-3 gap-3">
-        {visibleDeals.map((deal) => {
-          const dealValue = deal.deal_type === 'bogo' ? 'BOGO' : `${deal.discount_value}%`;
-
-          return (
-            <Link
-              key={deal.id}
-              href={`/restaurants/${deal.restaurant_id}`}
-              className="group block rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-shadow duration-300 border border-gray-100"
-            >
-              <div className="relative w-full aspect-[3/1] overflow-hidden">
-                {deal.restaurant_image_url ? (
-                  <Image
-                    src={deal.restaurant_image_url}
-                    alt={deal.restaurant_name || ''}
-                    fill
-                    className="object-cover group-hover:scale-105 transition-transform duration-300"
-                    unoptimized
-                  />
-                ) : (
-                  <div className="w-full h-full bg-gray-100 flex items-center justify-center text-5xl">🍽️</div>
-                )}
-                <div className="absolute top-3 left-3 flex items-center gap-1.5">
-                  <span className="bg-[#8f1a00] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full">
-                    <span className="bg-[#FF3008] inline-flex items-center gap-1 text-white font-extrabold text-xs px-2 py-0.5 rounded-full leading-none">
-                      <span className="text-sm leading-none">🏷️</span>
-                      {dealValue}
-                    </span>
-                    <span className="text-white font-semibold text-sm leading-none">
-                      {deal.menu_item_name}
-                    </span>
+        {visibleDeals.map((d) => (
+          <Link
+            key={d.restaurant_id}
+            href={`/restaurants/${d.restaurant_id}`}
+            className="group block rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-shadow duration-300 border border-gray-100"
+          >
+            <div className="relative w-full aspect-[3/1] overflow-hidden">
+              {d.restaurant_image_url ? (
+                <Image
+                  src={d.restaurant_image_url}
+                  alt={d.restaurant_name}
+                  fill
+                  className="object-cover group-hover:scale-105 transition-transform duration-300"
+                  unoptimized
+                />
+              ) : (
+                <div className="w-full h-full bg-gray-100 flex items-center justify-center text-5xl">🍽️</div>
+              )}
+              <div className="absolute top-3 left-3">
+                <span className="bg-[#8f1a00] inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full">
+                  <span className="bg-[#FF3008] inline-flex items-center gap-1 text-white font-extrabold text-xs px-2 py-0.5 rounded-full leading-none">
+                    <span className="text-sm leading-none">🏷️</span>
+                    {dealLabel(d.deal)}
                   </span>
-                  {deal.extraDealsCount > 0 && (
-                    <span className="bg-[#FF3008] text-white font-bold text-xs px-2 py-1 rounded-full leading-none shadow-sm">
-                      +{deal.extraDealsCount}
-                    </span>
-                  )}
-                </div>
+                  <span className="text-white font-semibold text-sm leading-none">
+                    {d.menu_item_name}
+                  </span>
+                </span>
               </div>
+            </div>
 
-              <div className="bg-white px-3 py-1.5">
-                <p className="font-bold text-gray-900 text-lg leading-tight group-hover:text-[#FF3008] transition-colors truncate">
-                  {deal.restaurant_name}
-                </p>
-              </div>
-            </Link>
-          );
-        })}
+            <div className="bg-white px-3 py-1.5">
+              <p className="font-bold text-gray-900 text-lg leading-tight group-hover:text-[#FF3008] transition-colors truncate">
+                {d.restaurant_name}
+              </p>
+            </div>
+          </Link>
+        ))}
       </div>
 
       {totalPages > 1 && (

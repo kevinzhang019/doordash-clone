@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useCart } from '@/components/providers/CartProvider';
 import { useLocation } from '@/components/providers/LocationProvider';
-import { Deal } from '@/lib/types';
+import { getAddressDeal, dealSavings } from '@/lib/dealUtils';
 
 const TIP_PRESET_RATES = [0.15, 0.18, 0.20, 0.25];
 const TAX_RATE = 0.085;
@@ -30,27 +30,13 @@ export default function CheckoutPage() {
   const info = restaurantId ? getRestaurantDeliveryInfo(restaurantId) : null;
   const deliveryFee = info?.deliveryFee ?? 2.99;
 
-  const [deals, setDeals] = useState<Deal[]>([]);
-  useEffect(() => {
-    if (!restaurantId) return;
-    fetch('/api/deals')
-      .then(r => r.json())
-      .then(data => setDeals((data.deals || []).filter((d: Deal) => d.restaurant_id === restaurantId)))
-      .catch(() => {});
-  }, [restaurantId]);
+  const addressDeal = restaurantId && deliveryAddress ? getAddressDeal(deliveryAddress, restaurantId) : null;
 
-  const totalDealSavings = cartItems.reduce((sum, item) => {
-    const deal = deals.find(d => d.menu_item_id === item.menu_item_id);
-    if (!deal) return sum;
-    const unitPrice = item.effective_price ?? item.price ?? 0;
-    if (deal.deal_type === 'percentage_off' && deal.discount_value) {
-      return sum + unitPrice * (deal.discount_value / 100) * item.quantity;
-    }
-    if (deal.deal_type === 'bogo') {
-      return sum + unitPrice * Math.floor(item.quantity / 2);
-    }
-    return sum;
-  }, 0);
+  const totalDealSavings = addressDeal
+    ? cartItems.reduce((sum, item) => {
+        return sum + dealSavings(addressDeal, item.effective_price ?? item.price ?? 0, item.quantity);
+      }, 0)
+    : 0;
 
   const presetAmounts = TIP_PRESET_RATES.map((r) => roundToHalf(cartTotal * r));
 

@@ -391,28 +391,6 @@ const restCols = (db.prepare("PRAGMA table_info(restaurants)").all() as { name: 
     CREATE INDEX IF NOT EXISTS idx_messages_order_id ON messages(order_id);
   `);
 
-  // Seed demo deals if none exist
-  const dealCount = (db.prepare('SELECT COUNT(*) as count FROM deals').get() as { count: number }).count;
-  if (dealCount === 0) {
-    const insertDeal = db.prepare('INSERT INTO deals (restaurant_id, menu_item_id, deal_type, discount_value) VALUES (?, ?, ?, ?)');
-    const getItem = (restaurantName: string, itemName: string) =>
-      db.prepare(`SELECT m.id, m.restaurant_id FROM menu_items m JOIN restaurants r ON r.id = m.restaurant_id WHERE m.name = ? AND r.name = ?`).get(itemName, restaurantName) as { id: number; restaurant_id: number } | undefined;
-
-    const items: Array<[string, string, 'percentage_off' | 'bogo', number | null]> = [
-      ['Bella Napoli', 'Margherita DOP', 'percentage_off', 20],
-      ['Bella Napoli', 'Bruschetta al Pomodoro', 'bogo', null],
-      ['Bella Napoli', 'Tiramisù Classico', 'percentage_off', 30],
-      ['Sakura Garden', 'Karaage Chicken', 'percentage_off', 15],
-      ['Casa Fuego', 'Tacos al Pastor (3)', 'bogo', null],
-      ['Spice Route', 'Butter Chicken', 'percentage_off', 25],
-      ['Golden Dragon', 'Kung Pao Chicken', 'percentage_off', 20],
-      ['Seoul Kitchen', 'Bibimbap', 'bogo', null],
-    ];
-    for (const [restaurantName, itemName, dealType, discountValue] of items) {
-      const item = getItem(restaurantName, itemName);
-      if (item) insertDeal.run(item.restaurant_id, item.id, dealType, discountValue);
-    }
-  }
 }
 
 export default getDb;

@@ -1,8 +1,8 @@
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import getDb from '@/db/database';
-import { Restaurant, MenuItem, Review, Deal } from '@/lib/types';
-import MenuSection from '@/components/restaurant/MenuSection';
+import { Restaurant, MenuItem, Review } from '@/lib/types';
+import RestaurantMenuWithDeals from '@/components/restaurant/RestaurantMenuWithDeals';
 import RestaurantDistance from '@/components/restaurant/RestaurantDistance';
 import RestaurantDeliveryStats from '@/components/restaurant/RestaurantDeliveryStats';
 import VirtualRestaurantAddress from '@/components/restaurant/VirtualRestaurantAddress';
@@ -33,11 +33,7 @@ async function getRestaurantData(id: number) {
     'SELECT * FROM reviews WHERE restaurant_id = ? ORDER BY created_at DESC LIMIT 20'
   ).all(id) as Review[];
 
-  const deals = db.prepare(
-    'SELECT * FROM deals WHERE restaurant_id = ? AND is_active = 1'
-  ).all(id) as Deal[];
-
-  return { restaurant, menu, reviews, deals };
+  return { restaurant, menu, reviews };
 }
 
 export default async function RestaurantPage({ params }: RestaurantPageProps) {
@@ -48,12 +44,7 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
   const data = await getRestaurantData(restaurantId);
   if (!data) notFound();
 
-  const { restaurant, menu, reviews, deals } = data;
-  const categories = Object.keys(menu);
-  const allMenuItems = Object.values(menu).flat();
-  const dealItems = deals
-    .map(deal => allMenuItems.find(item => item.id === deal.menu_item_id))
-    .filter((item): item is MenuItem => item !== undefined);
+  const { restaurant, menu, reviews } = data;
 
   const avgRating = reviews.length > 0
     ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
@@ -129,30 +120,8 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
         />
       </div>
 
-      {/* Menu */}
-      <div className="space-y-10 mb-12">
-        {/* Featured Deals */}
-        {dealItems.length > 0 && (
-          <section>
-            <h2 className="text-xl font-bold text-gray-900 mb-4 pb-2 border-b-2 border-[#FF3008] flex items-center gap-2">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-[#FF3008]" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-              </svg>
-              <span className="text-[#FF3008]">Today&apos;s Deals</span>
-            </h2>
-            <MenuSection items={dealItems} deals={deals} />
-          </section>
-        )}
-
-        {categories.map((category) => (
-          <section key={category}>
-            <h2 className="text-xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">
-              {category}
-            </h2>
-            <MenuSection items={menu[category]} deals={deals} />
-          </section>
-        ))}
-      </div>
+      {/* Menu — deals injected client-side from delivery address */}
+      <RestaurantMenuWithDeals menu={menu} restaurantId={restaurant.id} />
 
       {/* Reviews */}
       {reviews.length > 0 && (

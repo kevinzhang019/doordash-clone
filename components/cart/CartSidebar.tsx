@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { useCart } from '@/components/providers/CartProvider';
 import { useLocation } from '@/components/providers/LocationProvider';
-import { Deal } from '@/lib/types';
+import { getAddressDeal, dealSavings } from '@/lib/dealUtils';
 
 const TAX_RATE = 0.085;
 
@@ -150,10 +150,9 @@ function SidebarCartItem({
 
 export default function CartSidebar() {
   const { cartItems, cartTotal, isSidebarOpen, closeSidebar, removeItem, updateQuantity } = useCart();
-  const { getRestaurantDeliveryInfo } = useLocation();
+  const { getRestaurantDeliveryInfo, deliveryAddress } = useLocation();
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [removingIds, setRemovingIds] = useState<number[]>([]);
-  const [deals, setDeals] = useState<Deal[]>([]);
 
   const handleRemove = (id: number) => {
     if (removingIds.includes(id)) return;
@@ -186,26 +185,13 @@ export default function CartSidebar() {
   const deliveryFee = deliveryInfo?.deliveryFee ?? 2.99;
   const visibleItems = cartItems.filter((item) => !removingIds.includes(item.id));
 
-  useEffect(() => {
-    if (!restaurantId) { setDeals([]); return; }
-    fetch('/api/deals')
-      .then(r => r.json())
-      .then(data => setDeals((data.deals || []).filter((d: Deal) => d.restaurant_id === restaurantId)))
-      .catch(() => {});
-  }, [restaurantId]);
+  const addressDeal = restaurantId && deliveryAddress ? getAddressDeal(deliveryAddress, restaurantId) : null;
 
-  const totalDealSavings = cartItems.reduce((sum, item) => {
-    const deal = deals.find(d => d.menu_item_id === item.menu_item_id);
-    if (!deal) return sum;
-    const unitPrice = item.effective_price ?? item.price ?? 0;
-    if (deal.deal_type === 'percentage_off' && deal.discount_value) {
-      return sum + unitPrice * (deal.discount_value / 100) * item.quantity;
-    }
-    if (deal.deal_type === 'bogo') {
-      return sum + unitPrice * Math.floor(item.quantity / 2);
-    }
-    return sum;
-  }, 0);
+  const totalDealSavings = addressDeal
+    ? cartItems.reduce((sum, item) => {
+        return sum + dealSavings(addressDeal, item.effective_price ?? item.price ?? 0, item.quantity);
+      }, 0)
+    : 0;
 
   const discountedSubtotal = cartTotal - totalDealSavings;
   const taxAmount = discountedSubtotal * TAX_RATE;
