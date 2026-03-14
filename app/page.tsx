@@ -24,21 +24,25 @@ async function getRestaurants(): Promise<RestaurantWithReviews[]> {
   `).all() as RestaurantWithReviews[];
 }
 
-async function getFirstMenuItemPerRestaurant(): Promise<Record<number, { menu_item_id: number; menu_item_name: string; menu_item_price: number }>> {
+async function getMenuItemsPerRestaurant(): Promise<Record<number, { menu_item_id: number; menu_item_name: string; menu_item_price: number }[]>> {
   const db = getDb();
   const rows = db.prepare(`
     SELECT restaurant_id, id as menu_item_id, name as menu_item_name, price as menu_item_price
     FROM menu_items
     WHERE is_available = 1
-    GROUP BY restaurant_id
-    ORDER BY restaurant_id, id
+    ORDER BY restaurant_id, category, name
   `).all() as { restaurant_id: number; menu_item_id: number; menu_item_name: string; menu_item_price: number }[];
-  return Object.fromEntries(rows.map(r => [r.restaurant_id, r]));
+  const result: Record<number, { menu_item_id: number; menu_item_name: string; menu_item_price: number }[]> = {};
+  for (const row of rows) {
+    if (!result[row.restaurant_id]) result[row.restaurant_id] = [];
+    result[row.restaurant_id].push(row);
+  }
+  return result;
 }
 
 export default async function HomePage() {
   const restaurants = await getRestaurants();
-  const firstItems = await getFirstMenuItemPerRestaurant();
+  const menuItems = await getMenuItemsPerRestaurant();
 
   const db = getDb();
   const ownedIds = new Set(
@@ -50,14 +54,12 @@ export default async function HomePage() {
     id: r.id,
     name: r.name,
     image_url: r.image_url,
-    menu_item_id: firstItems[r.id]?.menu_item_id ?? 0,
-    menu_item_name: firstItems[r.id]?.menu_item_name ?? '',
-    menu_item_price: firstItems[r.id]?.menu_item_price ?? 0,
+    menu_items: menuItems[r.id] ?? [],
     isSeeded: !ownedIds.has(r.id),
   }));
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
       <ActiveOrderCarousel />
       <DealsCarousel allRestaurants={carouselRestaurants} />
       <RestaurantGrid restaurants={restaurants} />

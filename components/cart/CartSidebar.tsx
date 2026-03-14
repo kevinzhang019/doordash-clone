@@ -149,7 +149,7 @@ function SidebarCartItem({
 }
 
 export default function CartSidebar() {
-  const { cartItems, cartTotal, isSidebarOpen, closeSidebar, removeItem, updateQuantity } = useCart();
+  const { cartItems, cartTotal, isSidebarOpen, closeSidebar, removeItem, updateQuantity, reorderSkipped, setReorderSkipped } = useCart();
   const { getRestaurantDeliveryInfo, deliveryAddress } = useLocation();
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [removingIds, setRemovingIds] = useState<number[]>([]);
@@ -263,6 +263,41 @@ export default function CartSidebar() {
 
             {/* Items */}
             <div className="flex-1 overflow-y-auto p-4">
+              {/* Reorder unavailable items notice */}
+              <AnimatePresence>
+                {reorderSkipped.length > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    className="mb-4 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-start gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-amber-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                        </svg>
+                        <div>
+                          <p className="text-amber-800 font-semibold text-sm">Some items unavailable</p>
+                          <p className="text-amber-700 text-xs mt-0.5">
+                            {reorderSkipped.join(', ')} {reorderSkipped.length === 1 ? 'was' : 'were'} not added — currently unavailable.
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setReorderSkipped([])}
+                        className="text-amber-400 hover:text-amber-600 transition-colors flex-shrink-0 cursor-pointer"
+                        aria-label="Dismiss"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {visibleItems.length === 0 ? (
                 <motion.div
                   initial={{ opacity: 0, y: 16 }}

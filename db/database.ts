@@ -148,6 +148,16 @@ function runMigrations(db: Database.Database) {
       is_active INTEGER DEFAULT 1,
       created_at TEXT DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS guest_addresses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      guest_id TEXT NOT NULL,
+      address TEXT NOT NULL,
+      lat REAL NOT NULL,
+      lng REAL NOT NULL,
+      is_active INTEGER DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
   `);
 
   // --- New tables for restaurant owners, hours, addons, driver sessions ---
@@ -244,6 +254,15 @@ function runMigrations(db: Database.Database) {
   if (!orderCols.includes('estimated_delivery_at')) {
     db.exec('ALTER TABLE orders ADD COLUMN estimated_delivery_at TEXT');
   }
+  if (!orderCols.includes('delivery_lat')) {
+    db.exec('ALTER TABLE orders ADD COLUMN delivery_lat REAL');
+  }
+  if (!orderCols.includes('delivery_lng')) {
+    db.exec('ALTER TABLE orders ADD COLUMN delivery_lng REAL');
+  }
+  if (!orderCols.includes('delivered_at')) {
+    db.exec('ALTER TABLE orders ADD COLUMN delivered_at TEXT');
+  }
 
 const restCols = (db.prepare("PRAGMA table_info(restaurants)").all() as { name: string }[]).map(c => c.name);
   if (!restCols.includes('is_accepting_orders')) {
@@ -322,6 +341,14 @@ const restCols = (db.prepare("PRAGMA table_info(restaurants)").all() as { name: 
   const cols = (db.prepare("PRAGMA table_info(restaurants)").all() as { name: string }[]).map(c => c.name);
   if (!cols.includes('lat')) db.exec('ALTER TABLE restaurants ADD COLUMN lat REAL');
   if (!cols.includes('lng')) db.exec('ALTER TABLE restaurants ADD COLUMN lng REAL');
+
+  // Null out lat/lng for restaurants 11-20 so they use virtual addressing like the original 10
+  const hasHardcodedSFCoords = db.prepare(
+    "SELECT COUNT(*) as count FROM restaurants WHERE id >= 11 AND lat IS NOT NULL"
+  ).get() as { count: number };
+  if (hasHardcodedSFCoords.count > 0) {
+    db.exec('UPDATE restaurants SET lat = NULL, lng = NULL WHERE id >= 11');
+  }
 
   // Seed reviews if empty
   const reviewCount = (db.prepare('SELECT COUNT(*) as count FROM reviews').get() as { count: number }).count;

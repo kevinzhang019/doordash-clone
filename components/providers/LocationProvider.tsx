@@ -56,7 +56,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { deliveryAddressRef.current = deliveryAddress; }, [deliveryAddress]);
   useEffect(() => { deliveryCoordsRef.current = deliveryCoords; }, [deliveryCoords]);
 
-  // Load persisted delivery location from localStorage on mount
+  // Load persisted delivery location on mount: localStorage first, then fall back to DB (for guests too)
   useEffect(() => {
     const complete = localStorage.getItem('onboardingComplete') === '1';
     if (complete) {
@@ -68,8 +68,24 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
       if (addr && addr !== 'Current Location' && !isNaN(lat) && !isNaN(lng)) {
         setDeliveryAddress(addr);
         setDeliveryCoords({ lat, lng });
+        return;
       }
     }
+    // No localStorage address — try loading from DB (works for both guests and logged-in users)
+    fetch('/api/addresses').then(async (res) => {
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.address?.lat != null && data.address?.lng != null) {
+        const { address: addr, lat, lng } = data.address;
+        setDeliveryAddress(addr);
+        setDeliveryCoords({ lat, lng });
+        setOnboardingComplete(true);
+        localStorage.setItem('onboardingComplete', '1');
+        localStorage.setItem('deliveryAddress', addr);
+        localStorage.setItem('deliveryLat', String(lat));
+        localStorage.setItem('deliveryLng', String(lng));
+      }
+    }).catch(() => {});
   }, []);
 
   // Register the triggerAddressLoad function so AuthProvider can call it
@@ -79,7 +95,8 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
         const guestAddr = deliveryAddressRef.current;
         const guestCoords = deliveryCoordsRef.current;
 
-        // If there's a guest address in memory, save it to the user's account and keep it active
+        // If there's a guest address in memory, save it to the user's account (migration also
+        // happens server-side via x-guest-id header, but this ensures in-memory addr is saved too)
         if (guestAddr && guestCoords) {
           await fetch('/api/addresses', {
             method: 'POST',
@@ -89,7 +106,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        // No guest address — load the user's most recent saved address from DB
+        // No in-memory address — load from DB (migration of guest DB addresses also happens here)
         const res = await fetch('/api/addresses');
         if (!res.ok) return;
         const data = await res.json();
@@ -104,7 +121,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem('deliveryLng', String(lng));
         }
       } catch {
-        // Silently ignore — user may not be logged in
+        // Silently ignore
       }
     };
     return () => {
@@ -120,7 +137,7 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('deliveryAddress', address);
     localStorage.setItem('deliveryLat', String(lat));
     localStorage.setItem('deliveryLng', String(lng));
-    // Persist to DB if logged in (silently ignored for guests — middleware returns 401)
+    // Persist to DB (works for both guests and logged-in users)
     fetch('/api/addresses', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

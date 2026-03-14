@@ -9,9 +9,10 @@ interface JobNotificationProps {
   job: DriverJob;
   onAccept: () => void;
   onDecline: () => void;
+  isAccepting?: boolean;
 }
 
-export default function JobNotification({ job, onAccept, onDecline }: JobNotificationProps) {
+export default function JobNotification({ job, onAccept, onDecline, isAccepting = false }: JobNotificationProps) {
   const [secondsLeft, setSecondsLeft] = useState(COUNTDOWN_SECONDS);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -111,9 +112,10 @@ export default function JobNotification({ job, onAccept, onDecline }: JobNotific
           </button>
           <button
             onClick={onAccept}
-            className="flex-1 bg-[#FF3008] hover:bg-red-700 text-white font-semibold py-3 rounded-xl transition-colors cursor-pointer"
+            disabled={isAccepting}
+            className="flex-1 bg-[#FF3008] hover:bg-red-700 text-white font-semibold py-3 rounded-xl transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Accept
+            {isAccepting ? 'Accepting...' : 'Accept'}
           </button>
         </div>
       </div>

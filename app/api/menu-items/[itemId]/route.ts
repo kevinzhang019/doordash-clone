@@ -3,7 +3,7 @@ import getDb from '@/db/database';
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: { itemId: string } }
 ) {
   const db = getDb();
   const item = db.prepare(`
@@ -12,7 +12,7 @@ export async function GET(
     FROM menu_items mi
     JOIN restaurants r ON r.id = mi.restaurant_id
     WHERE mi.id = ?
-  `).get(parseInt(params.id)) as {
+  `).get(parseInt(params.itemId)) as {
     id: number;
     name: string;
     price: number;

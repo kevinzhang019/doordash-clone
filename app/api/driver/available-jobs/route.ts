@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import getDb from '@/db/database';
+import { getVirtualRestaurantCoords } from '@/lib/restaurantDistance';
 import type { DriverJob } from '@/lib/types';
 
 function haversineMiles(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
@@ -40,6 +41,26 @@ async function geocodeWithCache(address: string): Promise<{ lat: number; lng: nu
   return null;
 }
 
+const reverseCache = new Map<string, string>();
+
+async function reverseGeocode(lat: number, lng: number): Promise<string> {
+  const key = `${lat.toFixed(5)},${lng.toFixed(5)}`;
+  if (reverseCache.has(key)) return reverseCache.get(key)!;
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  if (!apiKey) return key;
+  try {
+    const res = await fetch(
+      `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${apiKey}`,
+    );
+    const data = await res.json();
+    const address: string = data.results?.[0]?.formatted_address ?? key;
+    reverseCache.set(key, address);
+    return address;
+  } catch {
+    return key;
+  }
+}
+
 export async function GET(request: NextRequest) {
   const userId = parseInt(request.headers.get('x-user-id') ?? '');
   const role = request.headers.get('x-user-role');
@@ -53,7 +74,7 @@ export async function GET(request: NextRequest) {
   const db = getDb();
 
   const rows = db.prepare(`
-    SELECT o.id, o.delivery_address, o.subtotal, o.tip,
+    SELECT o.id, o.restaurant_id, o.delivery_address, o.delivery_lat, o.delivery_lng, o.subtotal, o.tip,
            r.name as restaurant_name, r.address as restaurant_address,
            r.lat as r_lat, r.lng as r_lng,
            daj.added_at
@@ -65,7 +86,8 @@ export async function GET(request: NextRequest) {
       AND o.status IN ('placed', 'preparing', 'ready')
     ORDER BY daj.added_at DESC
   `).all(userId) as {
-    id: number; delivery_address: string; subtotal: number; tip: number;
+    id: number; restaurant_id: number; delivery_address: string; delivery_lat: number | null; delivery_lng: number | null;
+    subtotal: number; tip: number;
     restaurant_name: string; restaurant_address: string;
     r_lat: number | null; r_lng: number | null; added_at: string;
   }[];
@@ -73,10 +95,23 @@ export async function GET(request: NextRequest) {
   const jobs: DriverJob[] = [];
 
   for (const row of rows) {
-    const restaurantCoords = row.r_lat && row.r_lng
-      ? { lat: row.r_lat, lng: row.r_lng }
-      : await geocodeWithCache(row.restaurant_address);
-    const customerCoords = await geocodeWithCache(row.delivery_address);
+    const customerCoords = row.delivery_lat && row.delivery_lng
+      ? { lat: row.delivery_lat, lng: row.delivery_lng }
+      : await geocodeWithCache(row.delivery_address);
+
+    let restaurantCoords: { lat: number; lng: number } | null;
+    let restaurantAddress: string;
+    if (row.r_lat && row.r_lng) {
+      restaurantCoords = { lat: row.r_lat, lng: row.r_lng };
+      restaurantAddress = row.restaurant_address;
+    } else if (customerCoords) {
+      restaurantCoords = getVirtualRestaurantCoords(row.restaurant_id, customerCoords.lat, customerCoords.lng);
+      restaurantAddress = await reverseGeocode(restaurantCoords.lat, restaurantCoords.lng);
+    } else {
+      restaurantCoords = await geocodeWithCache(row.restaurant_address);
+      restaurantAddress = row.restaurant_address;
+    }
+
     if (!restaurantCoords || !customerCoords) continue;
 
     const d1 = driverPos ? haversineMiles(driverPos, restaurantCoords) : 1.5;
@@ -89,7 +124,7 @@ export async function GET(request: NextRequest) {
       isSimulated: false,
       orderId: row.id,
       restaurantName: row.restaurant_name,
-      restaurantAddress: row.restaurant_address,
+      restaurantAddress,
       restaurantCoords,
       deliveryAddress: row.delivery_address,
       customerCoords,

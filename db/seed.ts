@@ -2610,8 +2610,8 @@ export function seedReviews(db: Database.Database) {
 
 export function seedAdditionalRestaurants(db: Database.Database) {
   const insertRestaurant = db.prepare(`
-    INSERT INTO restaurants (name, cuisine, description, image_url, rating, delivery_fee, delivery_min, delivery_max, address, lat, lng)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO restaurants (name, cuisine, description, image_url, rating, delivery_fee, delivery_min, delivery_max, address)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const insertMenuItem = db.prepare(`
     INSERT INTO menu_items (restaurant_id, category, name, description, price, image_url, is_available)
@@ -2620,7 +2620,7 @@ export function seedAdditionalRestaurants(db: Database.Database) {
 
   const seedAll = db.transaction(() => {
     // 11. Trattoria Roma - Italian
-    const trattoria = insertRestaurant.run('Trattoria Roma', 'Italian', 'A rustic Roman trattoria serving classic recipes passed down through generations. From creamy cacio e pepe to slow-braised oxtail, every dish is a love letter to the Eternal City.', 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80', 4.6, 3.49, 30, 50, '4072 18th St, San Francisco, CA 94114', 37.7605, -122.4334);
+    const trattoria = insertRestaurant.run('Trattoria Roma', 'Italian', 'A rustic Roman trattoria serving classic recipes passed down through generations. From creamy cacio e pepe to slow-braised oxtail, every dish is a love letter to the Eternal City.', 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80', 4.6, 3.49, 30, 50, '4072 18th St, San Francisco, CA 94114');
     const tratId = trattoria.lastInsertRowid as number;
     insertMenuItem.run(tratId, 'Antipasti', 'Supplì al Telefono', 'Roman-style fried rice croquettes stuffed with ragù and mozzarella, served with tomato dipping sauce', 9.99, 'https://images.unsplash.com/photo-1621956838481-b8b7b3be7e5e?w=400&q=80');
     insertMenuItem.run(tratId, 'Antipasti', 'Fiori di Zucca Fritti', 'Tempura-battered zucchini blossoms stuffed with ricotta and anchovy, fried to golden perfection', 12.99, 'https://images.unsplash.com/photo-1563245372-f21724e3856d?w=400&q=80');
@@ -2634,7 +2634,7 @@ export function seedAdditionalRestaurants(db: Database.Database) {
     insertMenuItem.run(tratId, 'Dolci', 'Semifreddo al Torroncino', 'Frozen nougat semifreddo with honey, almonds, and a drizzle of bitter caramel', 7.99, 'https://images.unsplash.com/photo-1551024506-0bccd828d307?w=400&q=80');
 
     // 12. Ramen Kazu - Japanese
-    const ramenKazu = insertRestaurant.run('Ramen Kazu', 'Japanese', 'Tokyo-trained chef Kazu brings authentic Japanese ramen to San Francisco. Rich tonkotsu broths, perfectly springy noodles, and creative toppings crafted with obsessive attention to detail.', 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=800&q=80', 4.7, 2.49, 20, 35, '175 2nd St, San Francisco, CA 94105', 37.7864, -122.3990);
+    const ramenKazu = insertRestaurant.run('Ramen Kazu', 'Japanese', 'Tokyo-trained chef Kazu brings authentic Japanese ramen to San Francisco. Rich tonkotsu broths, perfectly springy noodles, and creative toppings crafted with obsessive attention to detail.', 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=800&q=80', 4.7, 2.49, 20, 35, '175 2nd St, San Francisco, CA 94105');
     const kazuId = ramenKazu.lastInsertRowid as number;
     insertMenuItem.run(kazuId, 'Starters', 'Gyoza (6 pcs)', 'Pan-fried pork and cabbage dumplings with crispy skirt, served with yuzu ponzu', 8.99, 'https://images.unsplash.com/photo-1496116218417-1a781b1c416c?w=400&q=80');
     insertMenuItem.run(kazuId, 'Starters', 'Karaage Chicken', 'Japanese fried chicken thighs marinated in soy, ginger, and sake — crispy, juicy, and addictive', 11.99, 'https://images.unsplash.com/photo-1562802378-063ec186a863?w=400&q=80');
@@ -2647,7 +2647,7 @@ export function seedAdditionalRestaurants(db: Database.Database) {
     insertMenuItem.run(kazuId, 'Rice Bowls', 'Salmon Ikura Don', 'Sashimi-grade salmon over seasoned rice topped with salmon roe and shiso', 19.99, 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80');
 
     // 13. El Taquero - Mexican
-    const elTaquero = insertRestaurant.run('El Taquero', 'Mexican', 'Street-style tacos and bold Mexican flavors inspired by the taquerias of Mexico City. Everything is made fresh daily — from hand-pressed tortillas to slow-cooked meats simmered with dried chiles and spices.', 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=800&q=80', 4.5, 1.99, 15, 30, '2400 Mission St, San Francisco, CA 94110', 37.7572, -122.4192);
+    const elTaquero = insertRestaurant.run('El Taquero', 'Mexican', 'Street-style tacos and bold Mexican flavors inspired by the taquerias of Mexico City. Everything is made fresh daily — from hand-pressed tortillas to slow-cooked meats simmered with dried chiles and spices.', 'https://images.unsplash.com/photo-1565299585323-38d6b0865b47?w=800&q=80', 4.5, 1.99, 15, 30, '2400 Mission St, San Francisco, CA 94110');
     const taqueroId = elTaquero.lastInsertRowid as number;
     insertMenuItem.run(taqueroId, 'Antojitos', 'Queso Fundido', 'Melted Oaxacan cheese with chorizo and roasted peppers, served with fresh tortillas', 10.99, 'https://images.unsplash.com/photo-1564844536311-de546a28c87d?w=400&q=80');
     insertMenuItem.run(taqueroId, 'Antojitos', 'Tostadas de Tinga', 'Crispy tostadas with shredded chipotle chicken, crema, avocado, and queso fresco', 9.99, 'https://images.unsplash.com/photo-1599974579688-8dbdd335c77f?w=400&q=80');
@@ -2661,7 +2661,7 @@ export function seedAdditionalRestaurants(db: Database.Database) {
     insertMenuItem.run(taqueroId, 'Postres', 'Flan de Cajeta', 'Silky goat milk caramel flan with a bittersweet caramel pool and cinnamon crema', 6.99, 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=400&q=80');
 
     // 14. Masala House - Indian
-    const masalaHouse = insertRestaurant.run('Masala House', 'Indian', 'Contemporary Indian cuisine celebrating the diverse regional cooking of the subcontinent. From smoky Punjabi tandoor dishes to fragrant Kerala seafood curries, each plate tells a delicious story.', 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=800&q=80', 4.6, 2.99, 25, 45, '1700 Haight St, San Francisco, CA 94117', 37.7693, -122.4513);
+    const masalaHouse = insertRestaurant.run('Masala House', 'Indian', 'Contemporary Indian cuisine celebrating the diverse regional cooking of the subcontinent. From smoky Punjabi tandoor dishes to fragrant Kerala seafood curries, each plate tells a delicious story.', 'https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=800&q=80', 4.6, 2.99, 25, 45, '1700 Haight St, San Francisco, CA 94117');
     const masalaId = masalaHouse.lastInsertRowid as number;
     insertMenuItem.run(masalaId, 'Starters', 'Aloo Tikki Chaat', 'Crispy potato cakes topped with chickpea curry, tamarind chutney, yogurt, and pomegranate', 9.99, 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=400&q=80');
     insertMenuItem.run(masalaId, 'Starters', 'Seekh Kebab', 'Hand-minced lamb with garam masala and herbs, grilled on skewers with mint chutney', 13.99, 'https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?w=400&q=80');
@@ -2675,7 +2675,7 @@ export function seedAdditionalRestaurants(db: Database.Database) {
     insertMenuItem.run(masalaId, 'Breads & Rice', 'Garlic Kulcha', 'Leavened flatbread stuffed with roasted garlic and herbs, baked in the tandoor', 4.99, 'https://images.unsplash.com/photo-1565557623262-b51c2513a641?w=400&q=80');
 
     // 15. Dragon Palace - Chinese
-    const dragonPalace = insertRestaurant.run('Dragon Palace', 'Chinese', 'Authentic Cantonese banquet cooking brought to your table. Our chefs trained in Hong Kong specialty restaurants, bringing traditional dim sum, whole fish, and wok-tossed classics to the Sunset District.', 'https://images.unsplash.com/photo-1563245372-f21724e3856d?w=800&q=80', 4.4, 3.99, 30, 50, '2801 Judah St, San Francisco, CA 94122', 37.7608, -122.5011);
+    const dragonPalace = insertRestaurant.run('Dragon Palace', 'Chinese', 'Authentic Cantonese banquet cooking brought to your table. Our chefs trained in Hong Kong specialty restaurants, bringing traditional dim sum, whole fish, and wok-tossed classics to the Sunset District.', 'https://images.unsplash.com/photo-1563245372-f21724e3856d?w=800&q=80', 4.4, 3.99, 30, 50, '2801 Judah St, San Francisco, CA 94122');
     const dragonId = dragonPalace.lastInsertRowid as number;
     insertMenuItem.run(dragonId, 'Dim Sum', 'Char Siu Bao (3 pcs)', 'Steamed BBQ pork buns with pillowy dough and a sweet-savory filling', 7.99, 'https://images.unsplash.com/photo-1563245372-f21724e3856d?w=400&q=80');
     insertMenuItem.run(dragonId, 'Dim Sum', 'Cheung Fun (Shrimp)', 'Rice noodle rolls with whole shrimp, served with sweet soy sauce and sesame oil', 9.99, 'https://images.unsplash.com/photo-1563245372-f21724e3856d?w=400&q=80');
@@ -2689,7 +2689,7 @@ export function seedAdditionalRestaurants(db: Database.Database) {
     insertMenuItem.run(dragonId, 'Noodles & Rice', 'Yangzhou Fried Rice', 'Classic wok-fried rice with shrimp, char siu, egg, and vegetables — the gold standard', 13.99, 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&q=80');
 
     // 16. Bistro Léon - French
-    const bistroLeon = insertRestaurant.run('Bistro Léon', 'French', 'A convivial Lyonnaise bouchon in the heart of Noe Valley. Chef Léon serves hearty Lyonnais classics — quenelles, gratins, and the finest steak frites — alongside a thoughtfully curated wine list.', 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80', 4.5, 3.99, 35, 55, '4016 24th St, San Francisco, CA 94114', 37.7502, -122.4310);
+    const bistroLeon = insertRestaurant.run('Bistro Léon', 'French', 'A convivial Lyonnaise bouchon in the heart of Noe Valley. Chef Léon serves hearty Lyonnais classics — quenelles, gratins, and the finest steak frites — alongside a thoughtfully curated wine list.', 'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80', 4.5, 3.99, 35, 55, '4016 24th St, San Francisco, CA 94114');
     const leonId = bistroLeon.lastInsertRowid as number;
     insertMenuItem.run(leonId, 'Starters', 'Salade Lyonnaise', 'Frisée lettuce with lardons, a perfectly poached egg, and Dijon vinaigrette — Lyon\'s most iconic dish', 13.99, 'https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=400&q=80');
     insertMenuItem.run(leonId, 'Starters', 'Quenelles de Brochet', 'Delicate pike quenelles in a rich Nantua crayfish sauce — the pinnacle of Lyonnais cuisine', 16.99, 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=400&q=80');
@@ -2702,7 +2702,7 @@ export function seedAdditionalRestaurants(db: Database.Database) {
     insertMenuItem.run(leonId, 'Desserts', 'Profiteroles au Chocolat', 'Choux pastry puffs filled with vanilla ice cream and drenched in warm Valrhona chocolate sauce', 10.99, 'https://images.unsplash.com/photo-1551024506-0bccd828d307?w=400&q=80');
 
     // 17. Aegean Table - Mediterranean
-    const aegean = insertRestaurant.run('Aegean Table', 'Mediterranean', 'A modern mezze bar celebrating the coastal cuisines of Greece, Turkey, and Lebanon. Share small plates, sip natural wines, and let the flavors of the Aegean transport you to a sun-drenched terrace by the sea.', 'https://images.unsplash.com/photo-1544025162-d76694265947?w=800&q=80', 4.7, 2.99, 25, 40, '500 Hayes St, San Francisco, CA 94102', 37.7764, -122.4246);
+    const aegean = insertRestaurant.run('Aegean Table', 'Mediterranean', 'A modern mezze bar celebrating the coastal cuisines of Greece, Turkey, and Lebanon. Share small plates, sip natural wines, and let the flavors of the Aegean transport you to a sun-drenched terrace by the sea.', 'https://images.unsplash.com/photo-1544025162-d76694265947?w=800&q=80', 4.7, 2.99, 25, 40, '500 Hayes St, San Francisco, CA 94102');
     const aegeanId = aegean.lastInsertRowid as number;
     insertMenuItem.run(aegeanId, 'Cold Mezze', 'Htipiti', 'Whipped roasted red pepper and feta spread with olive oil, walnuts, and pita chips', 9.99, 'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=400&q=80');
     insertMenuItem.run(aegeanId, 'Cold Mezze', 'Taramosalata', 'Creamy fish roe dip whipped with bread, lemon, and olive oil — a Greek classic', 8.99, 'https://images.unsplash.com/photo-1540189549336-e6e99c3679fe?w=400&q=80');
@@ -2716,7 +2716,7 @@ export function seedAdditionalRestaurants(db: Database.Database) {
     insertMenuItem.run(aegeanId, 'Desserts', 'Galaktoboureko', 'Crispy phyllo custard pie soaked in orange blossom syrup — rich and aromatic', 8.99, 'https://images.unsplash.com/photo-1551024506-0bccd828d307?w=400&q=80');
 
     // 18. Hangang BBQ - Korean
-    const hangang = insertRestaurant.run('Hangang BBQ', 'Korean', 'Premium Korean barbecue with high-grade meats, house-made marinades, and a full array of banchan. Our charcoal grills and expert table service deliver the ultimate Korean dining experience at home.', 'https://images.unsplash.com/photo-1590301157890-4810ed352733?w=800&q=80', 4.8, 3.49, 30, 50, '4001 Geary Blvd, San Francisco, CA 94118', 37.7815, -122.4628);
+    const hangang = insertRestaurant.run('Hangang BBQ', 'Korean', 'Premium Korean barbecue with high-grade meats, house-made marinades, and a full array of banchan. Our charcoal grills and expert table service deliver the ultimate Korean dining experience at home.', 'https://images.unsplash.com/photo-1590301157890-4810ed352733?w=800&q=80', 4.8, 3.49, 30, 50, '4001 Geary Blvd, San Francisco, CA 94118');
     const hangangId = hangang.lastInsertRowid as number;
     insertMenuItem.run(hangangId, 'Starters', 'Sundubu Jjigae', 'Silky soft tofu stew with clams, pork, and egg in a fiery gochugaru broth', 13.99, 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=400&q=80');
     insertMenuItem.run(hangangId, 'Starters', 'Pajeon', 'Crispy green onion and seafood pancake with a soy dipping sauce — perfect with makgeolli', 12.99, 'https://images.unsplash.com/photo-1601050690597-df0568f70950?w=400&q=80');
@@ -2729,7 +2729,7 @@ export function seedAdditionalRestaurants(db: Database.Database) {
     insertMenuItem.run(hangangId, 'Desserts', 'Bingsu (Mango)', 'Shaved milk ice with fresh mango, mochi, condensed milk, and sweet red bean', 12.99, 'https://images.unsplash.com/photo-1488477181946-6428a0291777?w=400&q=80');
 
     // 19. Siam Street - Thai
-    const siamStreet = insertRestaurant.run('Siam Street', 'Thai', 'Regional Thai cooking that goes far beyond the usual. From the coconut-rich curries of the South to the herbaceous, fiery dishes of Isaan, Siam Street takes you on a journey through Thailand\'s incredible culinary geography.', 'https://images.unsplash.com/photo-1562565652-a0d8f0c59eb4?w=800&q=80', 4.6, 2.49, 20, 35, '4652 Mission St, San Francisco, CA 94112', 37.7208, -122.4382);
+    const siamStreet = insertRestaurant.run('Siam Street', 'Thai', 'Regional Thai cooking that goes far beyond the usual. From the coconut-rich curries of the South to the herbaceous, fiery dishes of Isaan, Siam Street takes you on a journey through Thailand\'s incredible culinary geography.', 'https://images.unsplash.com/photo-1562565652-a0d8f0c59eb4?w=800&q=80', 4.6, 2.49, 20, 35, '4652 Mission St, San Francisco, CA 94112');
     const siamId = siamStreet.lastInsertRowid as number;
     insertMenuItem.run(siamId, 'Appetizers', 'Miang Kham', 'Traditional wild betel leaf wraps with toasted coconut, ginger, lime, peanuts, and dried shrimp', 10.99, 'https://images.unsplash.com/photo-1547592166-23ac45744acd?w=400&q=80');
     insertMenuItem.run(siamId, 'Appetizers', 'Sai Oua', 'Northern Thai herbal pork sausage with lemongrass, galangal, and kaffir lime leaves', 12.99, 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400&q=80');
@@ -2743,7 +2743,7 @@ export function seedAdditionalRestaurants(db: Database.Database) {
     insertMenuItem.run(siamId, 'Desserts', 'Khanom Krok', 'Crispy-edged coconut rice pancakes with a custardy center — made fresh to order', 7.99, 'https://images.unsplash.com/photo-1551024506-0bccd828d307?w=400&q=80');
 
     // 20. Pit Stop BBQ - American
-    const pitStop = insertRestaurant.run('Pit Stop BBQ', 'American', 'Low and slow is the only way we know. Our pitmasters smoke meats over California oak for 12–18 hours, producing ribs, brisket, and pulled pork with bark so good you\'ll want to eat it by itself.', 'https://images.unsplash.com/photo-1544025162-d76694265947?w=800&q=80', 4.7, 2.99, 25, 45, '1200 Tennessee St, San Francisco, CA 94107', 37.7581, -122.3900);
+    const pitStop = insertRestaurant.run('Pit Stop BBQ', 'American', 'Low and slow is the only way we know. Our pitmasters smoke meats over California oak for 12–18 hours, producing ribs, brisket, and pulled pork with bark so good you\'ll want to eat it by itself.', 'https://images.unsplash.com/photo-1544025162-d76694265947?w=800&q=80', 4.7, 2.99, 25, 45, '1200 Tennessee St, San Francisco, CA 94107');
     const pitId = pitStop.lastInsertRowid as number;
     insertMenuItem.run(pitId, 'Starters', 'Burnt End Bites', 'Caramelized brisket point burnt ends tossed in house BBQ sauce — candy-like and irresistible', 13.99, 'https://images.unsplash.com/photo-1544025162-d76694265947?w=400&q=80');
     insertMenuItem.run(pitId, 'Starters', 'Smoked Wings (8 pcs)', 'Low-and-slow smoked chicken wings finished on the grill with Alabama white sauce', 14.99, 'https://images.unsplash.com/photo-1567620832903-9fc6debc209f?w=400&q=80');

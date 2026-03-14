@@ -53,7 +53,7 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       {/* Restaurant Header */}
-      <div className="relative w-full h-56 sm:h-72 rounded-2xl overflow-hidden mb-6">
+      <div className="relative w-full h-40 sm:h-52 rounded-2xl overflow-hidden mb-6">
         <Image
           src={restaurant.image_url}
           alt={restaurant.name}

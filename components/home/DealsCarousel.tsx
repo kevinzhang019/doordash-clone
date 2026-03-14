@@ -6,13 +6,17 @@ import Link from 'next/link';
 import { useLocation } from '@/components/providers/LocationProvider';
 import { getAddressDeal, seededRng, dealLabel, AddressDeal } from '@/lib/dealUtils';
 
+interface MenuItemStub {
+  menu_item_id: number;
+  menu_item_name: string;
+  menu_item_price: number;
+}
+
 interface RestaurantStub {
   id: number;
   name: string;
   image_url: string;
-  menu_item_name: string;
-  menu_item_price: number;
-  menu_item_id: number;
+  menu_items: MenuItemStub[];
   isSeeded: boolean;
 }
 
@@ -50,12 +54,15 @@ export default function DealsCarousel({ allRestaurants }: { allRestaurants: Rest
     .filter(r => r.isSeeded)
     .flatMap(r => {
       const deal = getAddressDeal(deliveryAddress, r.id);
-      if (!deal) return [];
+      if (!deal || r.menu_items.length === 0) return [];
+      // Use same seeded selection as RestaurantMenuWithDeals
+      const featuredRng = seededRng(`${deliveryAddress}|${r.id}|featured`);
+      const featured = r.menu_items[Math.floor(featuredRng() * r.menu_items.length)];
       return [{
         restaurant_id: r.id,
         restaurant_name: r.name,
         restaurant_image_url: r.image_url,
-        menu_item_name: r.menu_item_name,
+        menu_item_name: featured.menu_item_name,
         deal,
       }];
     })
@@ -69,32 +76,33 @@ export default function DealsCarousel({ allRestaurants }: { allRestaurants: Rest
   const totalPages = pages.length;
 
   return (
-    <section className="mb-10">
-      {/* Nav buttons — top right */}
-      {totalPages > 1 && (
-        <div className="flex justify-end gap-2 mb-3">
-          <button
-            onClick={() => goTo(Math.max(0, page - 1))}
-            disabled={page === 0}
-            className="w-8 h-8 rounded-full border border-gray-200 hover:border-gray-300 hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-colors disabled:opacity-30 cursor-pointer disabled:cursor-default"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <button
-            onClick={() => goTo(Math.min(totalPages - 1, page + 1))}
-            disabled={page === totalPages - 1}
-            className="w-8 h-8 rounded-full border border-gray-200 hover:border-gray-300 hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-colors disabled:opacity-30 cursor-pointer disabled:cursor-default"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
-            </svg>
-          </button>
-        </div>
-      )}
+    <section className="mb-5">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-lg font-bold text-gray-900">Featured Deals</h2>
+        {totalPages > 1 && (
+          <div className="flex gap-2">
+            <button
+              onClick={() => goTo(Math.max(0, page - 1))}
+              disabled={page === 0}
+              className="w-8 h-8 rounded-full border border-gray-200 hover:border-gray-300 hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-colors disabled:opacity-30 cursor-pointer disabled:cursor-default"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <button
+              onClick={() => goTo(Math.min(totalPages - 1, page + 1))}
+              disabled={page === totalPages - 1}
+              className="w-8 h-8 rounded-full border border-gray-200 hover:border-gray-300 hover:bg-gray-50 flex items-center justify-center text-gray-600 transition-colors disabled:opacity-30 cursor-pointer disabled:cursor-default"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        )}
+      </div>
 
-      {/* Scroll track — each page is a full-width 3-col grid */}
       <div
         ref={trackRef}
         className="flex overflow-x-scroll"
@@ -132,7 +140,7 @@ export default function DealsCarousel({ allRestaurants }: { allRestaurants: Rest
                     </span>
                   </div>
                 </div>
-                <div className="bg-white px-3 py-1.5">
+                <div className="bg-white px-3 py-1.5 border-t-2 border-[#FF3008]">
                   <p className="font-bold text-gray-900 text-lg leading-tight group-hover:text-[#FF3008] transition-colors truncate">
                     {d.restaurant_name}
                   </p>

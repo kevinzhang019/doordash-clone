@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Order, OrderItem, Review } from '@/lib/types';
 import OrderChat from '@/components/orders/OrderChat';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useCart } from '@/components/providers/CartProvider';
 
 // ── Status progress bar ───────────────────────────────────────────────────────
 
@@ -210,11 +211,29 @@ export default function OrderDetailPage() {
   const params = useParams();
   const orderId = params.id;
   const { user } = useAuth();
+  const { refreshCart, openSidebar, setReorderSkipped } = useCart();
   const [order, setOrder] = useState<Order | null>(null);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [reordering, setReordering] = useState(false);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleReorder = async () => {
+    if (!orderId || reordering) return;
+    setReordering(true);
+    try {
+      const res = await fetch(`/api/orders/${orderId}/reorder`, { method: 'POST' });
+      const data = await res.json();
+      if (res.ok) {
+        await refreshCart();
+        setReorderSkipped(data.skipped ?? []);
+        openSidebar();
+      }
+    } catch { /* ignore */ } finally {
+      setReordering(false);
+    }
+  };
 
   const fetchOrder = async () => {
     if (!orderId) return;
@@ -317,9 +336,13 @@ export default function OrderDetailPage() {
             Your order from <span className="font-semibold">{order.restaurant_name}</span>{' '}
             {order.status === 'delivered' ? 'has been delivered.' : 'is on its way.'}
           </p>
-          {isActive && etaMins !== null && (
+          {isActive && (
             <p className="text-sm font-medium text-blue-700 mt-1">
-              {etaMins <= 1 ? 'Arriving any moment' : `Estimated arrival: ~${etaMins} min`}
+              {displayStatus(order.status, order.driver_user_id) === 'placed'
+                ? 'Estimating arrival...'
+                : etaMins !== null
+                  ? etaMins <= 1 ? 'Arriving any moment' : `Estimated arrival: ~${etaMins} min`
+                  : null}
             </p>
           )}
         </div>
@@ -414,9 +437,13 @@ export default function OrderDetailPage() {
       )}
 
       <div className="flex gap-3">
-        <Link href="/" className="flex-1 bg-[#FF3008] text-white text-center font-semibold py-3 rounded-xl hover:bg-red-600 transition-colors cursor-pointer">
-          Order Again
-        </Link>
+        <button
+          onClick={handleReorder}
+          disabled={reordering}
+          className="flex-1 bg-[#FF3008] text-white text-center font-semibold py-3 rounded-xl hover:bg-red-600 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          {reordering ? 'Adding to cart...' : 'Order Again'}
+        </button>
         <Link href="/orders" className="flex-1 bg-gray-100 text-gray-700 text-center font-semibold py-3 rounded-xl hover:bg-gray-200 transition-colors cursor-pointer">
           View All Orders
         </Link>

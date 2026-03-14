@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import getDb from '@/db/database';
+import { getVirtualRestaurantCoords } from '@/lib/restaurantDistance';
 import type { DriverJob } from '@/lib/types';
 
 // ── Geo helpers ──────────────────────────────────────────────────────────────
@@ -97,9 +98,10 @@ async function geocodeWithCache(address: string): Promise<{ lat: number; lng: nu
 // ── Build a DriverJob from an order row ──────────────────────────────────────
 
 type OrderRow = {
-  id: number; delivery_address: string; subtotal: number; tip: number;
+  id: number; restaurant_id: number; delivery_address: string; subtotal: number; tip: number;
   restaurant_name: string; restaurant_address: string;
   r_lat: number | null; r_lng: number | null;
+  delivery_lat: number | null; delivery_lng: number | null;
 };
 
 async function buildJobFromOrder(
@@ -107,10 +109,23 @@ async function buildJobFromOrder(
   driverPos: { lat: number; lng: number } | null,
   db: ReturnType<typeof getDb>,
 ): Promise<DriverJob | null> {
-  const restaurantCoords = order.r_lat && order.r_lng
-    ? { lat: order.r_lat, lng: order.r_lng }
-    : await geocodeWithCache(order.restaurant_address);
-  const customerCoords = await geocodeWithCache(order.delivery_address);
+  const customerCoords = order.delivery_lat && order.delivery_lng
+    ? { lat: order.delivery_lat, lng: order.delivery_lng }
+    : await geocodeWithCache(order.delivery_address);
+
+  let restaurantCoords: { lat: number; lng: number } | null;
+  let restaurantAddress: string;
+  if (order.r_lat && order.r_lng) {
+    restaurantCoords = { lat: order.r_lat, lng: order.r_lng };
+    restaurantAddress = order.restaurant_address;
+  } else if (customerCoords) {
+    restaurantCoords = getVirtualRestaurantCoords(order.restaurant_id, customerCoords.lat, customerCoords.lng);
+    restaurantAddress = await reverseGeocode(restaurantCoords.lat, restaurantCoords.lng);
+  } else {
+    restaurantCoords = await geocodeWithCache(order.restaurant_address);
+    restaurantAddress = order.restaurant_address;
+  }
+
   if (!restaurantCoords || !customerCoords) return null;
 
   const d1 = driverPos ? haversineMiles(driverPos, restaurantCoords) : 1.5;
@@ -123,7 +138,7 @@ async function buildJobFromOrder(
     isSimulated: false,
     orderId: order.id,
     restaurantName: order.restaurant_name,
-    restaurantAddress: order.restaurant_address,
+    restaurantAddress,
     restaurantCoords,
     deliveryAddress: order.delivery_address,
     customerCoords,
@@ -156,7 +171,7 @@ export async function GET(request: NextRequest) {
 
   // ── 1. Check if driver already has an active (non-expired) dispatched offer ──
   const existingDispatch = db.prepare(`
-    SELECT o.id, o.delivery_address, o.subtotal, o.tip,
+    SELECT o.id, o.restaurant_id, o.delivery_address, o.delivery_lat, o.delivery_lng, o.subtotal, o.tip,
            r.name as restaurant_name, r.address as restaurant_address,
            r.lat as r_lat, r.lng as r_lng
     FROM orders o
@@ -164,8 +179,12 @@ export async function GET(request: NextRequest) {
     WHERE o.dispatched_to = ? AND o.dispatch_expires_at > datetime('now')
       AND o.driver_user_id IS NULL
       AND o.status IN ('placed', 'preparing', 'ready')
+      AND NOT EXISTS (
+        SELECT 1 FROM driver_available_jobs
+        WHERE driver_user_id = ? AND order_id = o.id
+      )
     LIMIT 1
-  `).get(userId) as OrderRow | undefined;
+  `).get(userId, userId) as OrderRow | undefined;
 
   if (existingDispatch) {
     const job = await buildJobFromOrder(existingDispatch, driverPos, db);
@@ -174,7 +193,7 @@ export async function GET(request: NextRequest) {
 
   // ── 2. Find candidate orders this driver hasn't declined ──────────────────
   const candidates = db.prepare(`
-    SELECT o.id, o.delivery_address, o.subtotal, o.tip,
+    SELECT o.id, o.restaurant_id, o.delivery_address, o.delivery_lat, o.delivery_lng, o.subtotal, o.tip,
            r.name as restaurant_name, r.address as restaurant_address,
            r.lat as r_lat, r.lng as r_lng
     FROM orders o
@@ -186,9 +205,13 @@ export async function GET(request: NextRequest) {
         SELECT 1 FROM driver_job_declines
         WHERE driver_user_id = ? AND order_id = o.id
       )
+      AND NOT EXISTS (
+        SELECT 1 FROM driver_available_jobs
+        WHERE driver_user_id = ? AND order_id = o.id
+      )
     ORDER BY o.placed_at ASC
     LIMIT 5
-  `).all(userId) as OrderRow[];
+  `).all(userId, userId) as OrderRow[];
 
   // ── 3. Atomically lock one candidate ─────────────────────────────────────
   let lockedOrder: OrderRow | null = null;

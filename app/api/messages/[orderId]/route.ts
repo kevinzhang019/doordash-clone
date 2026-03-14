@@ -4,8 +4,8 @@ import type { Message } from '@/lib/types';
 
 function getOrder(orderId: number) {
   const db = getDb();
-  return db.prepare('SELECT user_id, driver_user_id FROM orders WHERE id = ?').get(orderId) as
-    { user_id: number; driver_user_id: number | null } | undefined;
+  return db.prepare('SELECT user_id, driver_user_id, status FROM orders WHERE id = ?').get(orderId) as
+    { user_id: number; driver_user_id: number | null; status: string } | undefined;
 }
 
 export async function GET(
@@ -24,6 +24,8 @@ export async function GET(
   if (order.user_id !== userId && order.driver_user_id !== userId) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
   }
+
+  if (order.status === 'delivered') return Response.json({ messages: [] });
 
   const db = getDb();
   const messages = db.prepare(`

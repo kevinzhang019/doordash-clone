@@ -4,9 +4,11 @@ import { AuthProvider } from '@/components/providers/AuthProvider';
 import { CartProvider } from '@/components/providers/CartProvider';
 import { LocationProvider } from '@/components/providers/LocationProvider';
 import { SearchProvider } from '@/components/providers/SearchProvider';
+import { ChatSeenProvider } from '@/components/providers/ChatSeenProvider';
 import Navbar from '@/components/layout/Navbar';
 import CartSidebar from '@/components/cart/CartSidebar';
 import OnboardingModal from '@/components/ui/OnboardingModal';
+import FloatingDriverChat from '@/components/chat/FloatingDriverChat';
 
 export const metadata: Metadata = {
   title: 'DoorDash - Food Delivery',
@@ -25,12 +27,15 @@ export default function RootLayout({
           <LocationProvider>
             <SearchProvider>
               <CartProvider>
-                <OnboardingModal />
-                <Navbar />
-                <CartSidebar />
-                <main className="min-h-screen bg-gray-50">
-                  {children}
-                </main>
+                <ChatSeenProvider>
+                  <OnboardingModal />
+                  <Navbar />
+                  <CartSidebar />
+                  <FloatingDriverChat />
+                  <main className="min-h-screen bg-gray-50">
+                    {children}
+                  </main>
+                </ChatSeenProvider>
               </CartProvider>
             </SearchProvider>
           </LocationProvider>

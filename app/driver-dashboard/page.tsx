@@ -601,16 +601,8 @@ export default function DriverDashboardPage() {
             )}
           </div>
 
-          {/* Right — Go Offline + History + Avatar */}
+          {/* Right — History + Avatar */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            {session && phase !== 'job_accepted_pickup' && phase !== 'job_accepted_deliver' && (
-              <button
-                onClick={handleGoOffline}
-                className="border border-[#2a2a2a] text-gray-300 hover:text-white hover:border-gray-500 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer"
-              >
-                Go Offline
-              </button>
-            )}
 
             <Link
               href="/driver-dashboard/history"
@@ -664,6 +656,19 @@ export default function DriverDashboardPage() {
             onRouteReady={handleRouteReady}
           />
         </div>
+
+        {/* Floating stop button */}
+        {session && phase !== 'job_accepted_pickup' && phase !== 'job_accepted_deliver' && phase !== 'delivery_complete' && (
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20">
+            <button
+              onClick={handleGoOffline}
+              aria-label="Go offline"
+              className="w-20 h-20 rounded-full bg-[#e02a07] hover:bg-[#b82006] border-4 border-[#e02a07] hover:border-[#b82006] shadow-2xl flex items-center justify-center active:scale-95 transition-all cursor-pointer group"
+            >
+              <span className="w-7 h-7 rounded-sm bg-black group-hover:bg-[#1a1a1a] transition-colors block" />
+            </button>
+          </div>
+        )}
 
         {/* Waiting indicator */}
         {phase === 'active_waiting' && (

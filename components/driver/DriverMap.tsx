@@ -103,16 +103,18 @@ export default function DriverMap({ phase, restaurantCoords, customerCoords, onR
     if (locationDenied || !mapRef.current || !driverPos || mapInitializedRef.current) return;
     mapInitializedRef.current = true;
     injectPulseStyle();
-    let active = true;
     initMaps();
 
+    const containerEl = mapRef.current;
     importLibrary('maps').then(async () => {
-      if (!active || !mapRef.current) return;
+      // Guard against unmount only — do NOT use a cleanup `active` flag here,
+      // because GPS position changes trigger effect cleanup mid-load, canceling init.
+      if (!containerEl.isConnected) return;
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const google = (window as any).google;
       const { Map } = await google.maps.importLibrary('maps');
 
-      mapInstanceRef.current = new Map(mapRef.current, {
+      mapInstanceRef.current = new Map(containerEl, {
         center: driverPos,
         zoom: 15,
         styles: DARK_MAP_STYLES,
@@ -182,8 +184,6 @@ export default function DriverMap({ phase, restaurantCoords, customerCoords, onR
       overlay.setMap(mapInstanceRef.current);
       pulsingOverlayRef.current = overlay;
     });
-
-    return () => { active = false; };
   }, [locationDenied, driverPos]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Update pulsing dot position as driver moves

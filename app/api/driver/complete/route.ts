@@ -15,9 +15,10 @@ export async function POST(request: NextRequest) {
       // Mark delivery complete
       db.prepare("UPDATE driver_deliveries SET status = 'delivered', delivered_at = datetime('now') WHERE id = ?").run(deliveryId);
 
-      // If real order, mark as delivered
+      // If real order, mark as delivered and clear chat
       if (!isSimulated && orderId) {
-        db.prepare("UPDATE orders SET status = 'delivered' WHERE id = ?").run(orderId);
+        db.prepare("UPDATE orders SET status = 'delivered', delivered_at = datetime('now') WHERE id = ?").run(orderId);
+        db.prepare('DELETE FROM messages WHERE order_id = ?').run(orderId);
       }
 
       // Get delivery pay info
