@@ -553,32 +553,47 @@ export default function DriverDashboardPage() {
       {/* Header */}
       <header className="bg-black border-b border-[#2a2a2a] h-14 flex items-center px-4 flex-shrink-0 z-40">
         <div className="w-full flex items-center justify-between gap-4">
-          {/* Left — branding or session stats */}
-          {session ? (
-            <div className="flex gap-5">
-              <div>
-                <p className="text-gray-400 text-xs">Earnings</p>
-                <p className="text-[#22c55e] font-bold text-base leading-tight">${session.total_earnings.toFixed(2)}</p>
+          {/* Left — Jobs button + branding or session stats */}
+          <div className="flex items-center gap-3">
+            {phase === 'active_waiting' && (
+              <button
+                onClick={openJobSidebar}
+                className="relative border border-[#2a2a2a] text-gray-400 hover:text-white hover:border-gray-500 px-3 py-1.5 rounded-lg text-sm transition-colors cursor-pointer flex-shrink-0"
+              >
+                Jobs
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 bg-[#FF3008] text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+            )}
+            {session ? (
+              <div className="flex gap-5">
+                <div>
+                  <p className="text-gray-400 text-xs">Earnings</p>
+                  <p className="text-[#22c55e] font-bold text-base leading-tight">${session.total_earnings.toFixed(2)}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400 text-xs">Deliveries</p>
+                  <p className="text-white font-bold text-base leading-tight">{session.deliveries_completed}</p>
+                </div>
+                <div>
+                  <p className="text-gray-400 text-xs">Time</p>
+                  <p className="text-white font-bold text-base leading-tight">
+                    {sessionMinutes < 60 ? `${sessionMinutes}m` : `${Math.floor(sessionMinutes / 60)}h ${sessionMinutes % 60}m`}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-gray-400 text-xs">Deliveries</p>
-                <p className="text-white font-bold text-base leading-tight">{session.deliveries_completed}</p>
+            ) : (
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 bg-[#FF3008] rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-white font-bold text-xs">D</span>
+                </div>
+                <span className="text-white font-semibold text-sm">Driver Mode</span>
               </div>
-              <div>
-                <p className="text-gray-400 text-xs">Time</p>
-                <p className="text-white font-bold text-base leading-tight">
-                  {sessionMinutes < 60 ? `${sessionMinutes}m` : `${Math.floor(sessionMinutes / 60)}h ${sessionMinutes % 60}m`}
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="flex items-center gap-2.5">
-              <div className="w-7 h-7 bg-[#FF3008] rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-white font-bold text-xs">D</span>
-              </div>
-              <span className="text-white font-semibold text-sm">Driver Mode</span>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Right — Go Offline + History + Avatar */}
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -588,20 +603,6 @@ export default function DriverDashboardPage() {
                 className="border border-[#2a2a2a] text-gray-300 hover:text-white hover:border-gray-500 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer"
               >
                 Go Offline
-              </button>
-            )}
-
-            {phase === 'active_waiting' && (
-              <button
-                onClick={openJobSidebar}
-                className="relative border border-[#2a2a2a] text-gray-400 hover:text-white hover:border-gray-500 px-3 py-1.5 rounded-lg text-sm transition-colors cursor-pointer"
-              >
-                Jobs
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 bg-[#FF3008] text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
               </button>
             )}
 
