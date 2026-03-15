@@ -86,6 +86,7 @@ interface CartContextType {
   addItem: (menuItemId: number, selections?: SelectionDraft[], specialRequests?: string) => Promise<{ error?: string; conflictingRestaurant?: string }>;
   removeItem: (cartItemId: number) => Promise<void>;
   updateQuantity: (cartItemId: number, quantity: number) => Promise<void>;
+  updateCartItemSelections: (cartItemId: number, selections: SelectionDraft[], specialRequests: string) => Promise<{ error?: string }>;
   clearCart: () => Promise<void>;
   clearCartAndAdd: (menuItemId: number, selections?: SelectionDraft[], specialRequests?: string) => Promise<{ error?: string }>;
   refreshCart: () => Promise<CartItem[]>;
@@ -103,6 +104,48 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   // Tracks whether auth resolved with no user (confirmed guest session)
   const wasGuestRef = useRef(false);
+
+  // Cross-tab sync: BroadcastChannel for auth'd users, storage event for guests
+  const cartChannelRef = useRef<BroadcastChannel | null>(null);
+
+  const broadcastCartChange = useCallback(() => {
+    cartChannelRef.current?.postMessage({ type: 'cart_changed' });
+  }, []);
+
+  // Open/close the BroadcastChannel whenever auth state changes
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      // Close auth channel if user logs out
+      cartChannelRef.current?.close();
+      cartChannelRef.current = null;
+      return;
+    }
+    if (typeof BroadcastChannel === 'undefined') return;
+    const ch = new BroadcastChannel('cart-sync');
+    cartChannelRef.current = ch;
+    ch.onmessage = () => {
+      // Another tab mutated the cart — re-fetch from server (source of truth)
+      fetch('/api/cart')
+        .then(r => r.ok ? r.json() : null)
+        .then(data => { if (data) setCartItems(data.cartItems || []); })
+        .catch(() => {});
+    };
+    return () => { ch.close(); cartChannelRef.current = null; };
+  }, [user, authLoading]);
+
+  // For guest users: sync across tabs via the native storage event
+  // (fires on *other* tabs automatically when localStorage changes)
+  useEffect(() => {
+    if (authLoading || user) return;
+    const handler = (e: StorageEvent) => {
+      if (e.key === GUEST_CART_KEY) {
+        setCartItems(guestToCartItems(readGuestCart()));
+      }
+    };
+    window.addEventListener('storage', handler);
+    return () => window.removeEventListener('storage', handler);
+  }, [user, authLoading]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -138,6 +181,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
             });
           }
           writeGuestCart([]);
+          broadcastCartChange();
         }
       }
 
@@ -256,6 +300,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       const updatedItems = await refreshCart();
       const added = [...updatedItems].reverse().find(item => item.menu_item_id === menuItemId);
       if (added) setLastAddedItem(added);
+      broadcastCartChange();
       return {};
     } catch {
       return { error: 'Failed to add item' };
@@ -272,6 +317,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     try {
       await fetch(`/api/cart/items/${cartItemId}`, { method: 'DELETE' });
       await refreshCart();
+      broadcastCartChange();
     } catch {
       // silent fail
     }
@@ -303,6 +349,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         body: JSON.stringify({ quantity }),
       });
       await refreshCart();
+      broadcastCartChange();
     } catch {
       // silent fail
     }
@@ -317,8 +364,39 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     try {
       await fetch('/api/cart', { method: 'DELETE' });
       setCartItems([]);
+      broadcastCartChange();
     } catch {
       // silent fail
+    }
+  };
+
+  const updateCartItemSelections = async (cartItemId: number, selections: SelectionDraft[], specialRequests: string): Promise<{ error?: string }> => {
+    if (!user) {
+      const guestCart = readGuestCart();
+      const idx = guestCart.findIndex(item => item.id === cartItemId);
+      if (idx >= 0) {
+        guestCart[idx].selections = normalizeSels(selections);
+        guestCart[idx].special_requests = specialRequests.trim();
+        writeGuestCart(guestCart);
+        setCartItems(guestToCartItems(guestCart));
+      }
+      return {};
+    }
+    try {
+      const res = await fetch(`/api/cart/items/${cartItemId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ selections, specialRequests }),
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        return { error: data.error };
+      }
+      await refreshCart();
+      broadcastCartChange();
+      return {};
+    } catch {
+      return { error: 'Failed to update item' };
     }
   };
 
@@ -334,7 +412,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       lastAddedItem, reorderSkipped,
       clearLastAdded, setReorderSkipped,
       openSidebar, closeSidebar,
-      addItem, removeItem, updateQuantity, clearCart, clearCartAndAdd,
+      addItem, removeItem, updateQuantity, updateCartItemSelections, clearCart, clearCartAndAdd,
       refreshCart,
     }}>
       {children}
