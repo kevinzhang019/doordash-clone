@@ -19,19 +19,21 @@ interface Props {
   /** Real lat/lng from DB — if present, this is a non-default restaurant and we use storedAddress directly. */
   restaurantLat?: number | null;
   restaurantLng?: number | null;
+  /** If true, always show the stored address without virtual addressing. */
+  isOwned?: boolean;
   /** Shown before the address text — only rendered when an address is available. */
   prefix?: string;
   className?: string;
 }
 
-export default function VirtualRestaurantAddress({ restaurantId, storedAddress, restaurantLat, restaurantLng, prefix = '', className }: Props) {
+export default function VirtualRestaurantAddress({ restaurantId, storedAddress, restaurantLat, restaurantLng, isOwned = false, prefix = '', className }: Props) {
   const { getRestaurantDeliveryInfo } = useLocation();
-  const isDefault = restaurantLat == null || restaurantLng == null;
+  const isDefault = !isOwned && (restaurantLat == null || restaurantLng == null);
   const info = isDefault ? getRestaurantDeliveryInfo(restaurantId) : null;
   const [address, setAddress] = useState<string | null>(null);
 
   useEffect(() => {
-    // Non-default restaurants: use their stored address directly
+    // User-owned or geocoded restaurants: use their stored address directly
     if (!isDefault) {
       setAddress(storedAddress ?? null);
       return;

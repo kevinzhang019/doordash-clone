@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { useCart } from '@/components/providers/CartProvider';
+import { useAuth } from '@/components/providers/AuthProvider';
 import { useLocation } from '@/components/providers/LocationProvider';
 import { getAddressDeal, dealSavings } from '@/lib/dealUtils';
 
@@ -150,6 +151,7 @@ function SidebarCartItem({
 
 export default function CartSidebar() {
   const { cartItems, cartTotal, isSidebarOpen, closeSidebar, removeItem, updateQuantity, clearCart, reorderSkipped, setReorderSkipped } = useCart();
+  const { user } = useAuth();
   const { getRestaurantDeliveryInfo, deliveryAddress } = useLocation();
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [removingIds, setRemovingIds] = useState<number[]>([]);
@@ -318,13 +320,13 @@ export default function CartSidebar() {
               ) : (
                 <>
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-[11px] text-gray-400 select-none">← swipe to remove</p>
                     <button
                       onClick={clearCart}
                       className="text-[11px] text-gray-400 hover:text-red-500 transition-colors cursor-pointer select-none"
                     >
                       Clear cart
                     </button>
+                    <p className="text-[11px] text-gray-400 select-none">swipe to remove →</p>
                   </div>
                   <AnimatePresence initial={false}>
                     {visibleItems.map((item) => (
@@ -397,7 +399,7 @@ export default function CartSidebar() {
 
                   <motion.div whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.98 }} className="pt-1">
                     <Link
-                      href="/checkout"
+                      href={user ? '/checkout' : '/login?redirect=/checkout'}
                       onClick={closeSidebar}
                       className="block w-full bg-[#FF3008] text-white text-center font-semibold py-3 rounded-xl hover:bg-red-600 transition-colors cursor-pointer shadow-lg shadow-red-200"
                     >

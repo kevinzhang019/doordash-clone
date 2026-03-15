@@ -23,6 +23,8 @@ export default function RestaurantDashboardPage() {
   const [hours, setHours] = useState<RestaurantHours[]>([]);
   const [itemCount, setItemCount] = useState(0);
   const [categoryCount, setCategoryCount] = useState(0);
+  const [reviewCount, setReviewCount] = useState(0);
+  const [avgRating, setAvgRating] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [noRestaurant, setNoRestaurant] = useState(false);
   const [setupDismissed, setSetupDismissed] = useState(false);
@@ -37,10 +39,11 @@ export default function RestaurantDashboardPage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const [rRes, hRes, mRes] = await Promise.all([
+        const [rRes, hRes, mRes, rvRes] = await Promise.all([
           fetch('/api/restaurant-dashboard'),
           fetch('/api/restaurant-dashboard/hours'),
           fetch('/api/restaurant-dashboard/menu'),
+          fetch('/api/restaurant-dashboard/reviews'),
         ]);
 
         if (rRes.status === 404) {
@@ -52,6 +55,7 @@ export default function RestaurantDashboardPage() {
         const rData = await rRes.json();
         const hData = await hRes.json();
         const mData = await mRes.json();
+        const rvData = rvRes.ok ? await rvRes.json() : { reviews: [] };
 
         setRestaurant(rData.restaurant);
         setHours(hData.hours || []);
@@ -59,6 +63,11 @@ export default function RestaurantDashboardPage() {
         setItemCount(items.length);
         const cats = new Set(items.map((i: { category: string }) => i.category));
         setCategoryCount(cats.size);
+        const reviews: { rating: number }[] = rvData.reviews || [];
+        setReviewCount(reviews.length);
+        if (reviews.length > 0) {
+          setAvgRating(reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length);
+        }
       } catch {
         // ignore
       } finally {
@@ -215,7 +224,7 @@ export default function RestaurantDashboardPage() {
         {[
           { label: 'Menu Items', value: itemCount, icon: '🍽️', href: '/restaurant-dashboard/menu' },
           { label: 'Categories', value: categoryCount, icon: '📂', href: '/restaurant-dashboard/menu' },
-          { label: 'Rating', value: `${restaurant.rating.toFixed(1)} ★`, icon: '⭐', href: null },
+          { label: `Rating${reviewCount > 0 ? ` (${reviewCount})` : ''}`, value: `${(avgRating ?? restaurant.rating).toFixed(1)} ★`, icon: '⭐', href: '/restaurant-dashboard/reviews' },
           { label: 'Status', value: open ? 'Open' : 'Closed', icon: open ? '🟢' : '🔴', href: '/restaurant-dashboard/hours' },
         ].map(({ label, value, icon, href }) => (
           <div key={label} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm">

@@ -22,7 +22,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (!session) return Response.json({ error: 'Not found' }, { status: 404 });
 
   const deliveries = db.prepare(`
-    SELECT id, pay_amount, tip, miles, estimated_minutes, accepted_at, delivered_at, status
+    SELECT id, pay_amount, tip, miles, estimated_minutes, accepted_at, delivered_at, status, restaurant_name
     FROM driver_deliveries
     WHERE session_id = ? AND status = 'delivered'
     ORDER BY accepted_at ASC
@@ -30,6 +30,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     id: number; pay_amount: number; tip: number;
     miles: number; estimated_minutes: number;
     accepted_at: string; delivered_at: string | null; status: string;
+    restaurant_name: string;
   }[];
 
   const start = new Date(session.started_at + 'Z');
@@ -51,6 +52,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     },
     deliveries: deliveries.map((d, i) => ({
       number: i + 1,
+      restaurantName: d.restaurant_name,
       estimatedMinutes: d.estimated_minutes,
       miles: Math.round(d.miles * 10) / 10,
       pay: d.pay_amount,

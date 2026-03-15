@@ -47,6 +47,9 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
 
   const { restaurant, menu, reviews } = data;
 
+  const db = getDb();
+  const isOwned = !!db.prepare('SELECT 1 FROM restaurant_owners WHERE restaurant_id = ?').get(restaurantId);
+
   const avgRating = reviews.length > 0
     ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
     : restaurant.rating;
@@ -69,7 +72,7 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
           <h1 className="text-3xl font-bold">{restaurant.name}</h1>
           <p className="text-gray-200 mt-1">
             {restaurant.cuisine}
-            <VirtualRestaurantAddress restaurantId={restaurant.id} storedAddress={restaurant.address} restaurantLat={restaurant.lat} restaurantLng={restaurant.lng} prefix=" • " />
+            <VirtualRestaurantAddress restaurantId={restaurant.id} storedAddress={restaurant.address} restaurantLat={restaurant.lat} restaurantLng={restaurant.lng} isOwned={isOwned} prefix=" • " />
           </p>
         </div>
       </div>
@@ -105,7 +108,7 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
           </svg>
           <div>
             <p className="font-bold text-gray-900 text-sm">
-              <VirtualRestaurantAddress restaurantId={restaurant.id} storedAddress={restaurant.address} restaurantLat={restaurant.lat} restaurantLng={restaurant.lng} />
+              <VirtualRestaurantAddress restaurantId={restaurant.id} storedAddress={restaurant.address} restaurantLat={restaurant.lat} restaurantLng={restaurant.lng} isOwned={isOwned} />
             </p>
             <RestaurantDistance restaurantId={restaurant.id} />
           </div>
@@ -119,6 +122,8 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
           name={restaurant.name}
           fallbackLat={restaurant.lat}
           fallbackLng={restaurant.lng}
+          isOwned={isOwned}
+          storedAddress={restaurant.address}
         />
       </div>
 

@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
   if (!userId) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const { deliveryAddress, tip = 0, deliveryFee: clientDeliveryFee, deliveryLat, deliveryLng } = await request.json();
+    const { deliveryAddress, tip = 0, deliveryFee: clientDeliveryFee, deliveryLat, deliveryLng, discountSaved = 0 } = await request.json();
 
     if (!deliveryAddress || !deliveryAddress.trim()) {
       return Response.json({ error: 'Delivery address is required' }, { status: 400 });
@@ -89,10 +89,11 @@ export async function POST(request: NextRequest) {
       // Insert order
       const lat = typeof deliveryLat === 'number' && isFinite(deliveryLat) ? deliveryLat : null;
       const lng = typeof deliveryLng === 'number' && isFinite(deliveryLng) ? deliveryLng : null;
+      const discountAmount = Math.max(0, parseFloat(discountSaved) || 0);
       const orderResult = db.prepare(`
-        INSERT INTO orders (user_id, restaurant_id, status, delivery_address, delivery_lat, delivery_lng, subtotal, delivery_fee, total)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(userId, restaurantId, initialStatus, deliveryAddress.trim(), lat, lng, Math.round(subtotal * 100) / 100, deliveryFee, Math.round(total * 100) / 100);
+        INSERT INTO orders (user_id, restaurant_id, status, delivery_address, delivery_lat, delivery_lng, subtotal, delivery_fee, total, discount_saved)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(userId, restaurantId, initialStatus, deliveryAddress.trim(), lat, lng, Math.round(subtotal * 100) / 100, deliveryFee, Math.round(total * 100) / 100, Math.round(discountAmount * 100) / 100);
 
       const orderId = orderResult.lastInsertRowid as number;
 

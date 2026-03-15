@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Link from 'next/link';
+import { useSearch } from '@/components/providers/SearchProvider';
+import { useCuisine } from '@/components/providers/CuisineProvider';
 
 type ActiveOrder = {
   id: number;
@@ -17,7 +19,7 @@ type ActiveOrder = {
 };
 
 function displayStatus(status: string, driverUserId: number | null | undefined): string {
-  if (!driverUserId && (status === 'ready' || status === 'preparing' || status === 'picked_up')) return 'placed';
+  if (!driverUserId && (status === 'ready' || status === 'preparing' || status === 'picked_up')) return 'preparing';
   return status;
 }
 
@@ -47,7 +49,7 @@ function calcEtaMinutes(order: ActiveOrder): number {
   const placedMs = new Date(order.placed_at).getTime();
   const { delivery_min, delivery_max } = order;
   const effective = displayStatus(order.status, order.driver_user_id);
-  if (effective === 'placed' || effective === 'preparing') {
+  if (effective === 'preparing') {
     return Math.max(0, Math.round((placedMs + delivery_max * 60000 - Date.now()) / 60000)) + 5;
   }
   if (effective === 'ready') return Math.round(delivery_min / 2) + 5;
@@ -58,9 +60,12 @@ function calcEtaMinutes(order: ActiveOrder): number {
 export default function ActiveOrderCarousel() {
   const [orders, setOrders] = useState<ActiveOrder[]>([]);
   const [loaded, setLoaded] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [page, setPage] = useState(0);
   const trackRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { search } = useSearch();
+  const { selectedCuisine } = useCuisine();
 
   const goTo = useCallback((newPage: number) => {
     setPage(newPage);
@@ -96,14 +101,31 @@ export default function ActiveOrderCarousel() {
     return () => { if (pollRef.current) clearTimeout(pollRef.current); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!loaded || orders.length === 0) return null;
+  useEffect(() => {
+    let id1: number, id2: number;
+    id1 = requestAnimationFrame(() => { id2 = requestAnimationFrame(() => setMounted(true)); });
+    return () => { cancelAnimationFrame(id1); cancelAnimationFrame(id2); };
+  }, []);
+
+  const hasContent = loaded && orders.length > 0;
+  const isVisible = mounted && hasContent && !search && selectedCuisine === 'All';
 
   // Chunk orders into pages of 4
   const pages: ActiveOrder[][] = [];
   for (let i = 0; i < orders.length; i += 4) pages.push(orders.slice(i, i + 4));
   const totalPages = pages.length;
 
+  if (!hasContent) return null;
+
   return (
+    <div
+      style={{
+        overflow: 'hidden',
+        maxHeight: isVisible ? '400px' : '0',
+        opacity: isVisible ? 1 : 0,
+        transition: 'max-height 0.5s ease, opacity 0.5s ease',
+      }}
+    >
     <section className="mb-5">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-lg font-bold text-gray-900">Your Orders</h2>
@@ -196,5 +218,6 @@ export default function ActiveOrderCarousel() {
         ))}
       </div>
     </section>
+    </div>
   );
 }

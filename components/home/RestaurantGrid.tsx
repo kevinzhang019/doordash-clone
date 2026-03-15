@@ -5,12 +5,11 @@ import { Restaurant } from '@/lib/types';
 import RestaurantCard from './RestaurantCard';
 import { useLocation } from '@/components/providers/LocationProvider';
 import { useSearch } from '@/components/providers/SearchProvider';
+import { useCuisine, SortOption } from '@/components/providers/CuisineProvider';
 
 interface RestaurantGridProps {
   restaurants: (Restaurant & { review_count: number })[];
 }
-
-type SortOption = 'relevance' | 'rating' | 'distance';
 
 const CUISINES = ['All', 'Italian', 'Japanese', 'Mexican', 'Indian', 'Chinese', 'French', 'Mediterranean', 'Korean', 'Thai', 'American'];
 
@@ -36,8 +35,7 @@ function SkeletonCard() {
 }
 
 export default function RestaurantGrid({ restaurants }: RestaurantGridProps) {
-  const [selectedCuisine, setSelectedCuisine] = useState('All');
-  const [sortBy, setSortBy] = useState<SortOption>('relevance');
+  const { selectedCuisine, setSelectedCuisine, sortBy, setSortBy } = useCuisine();
   const [isLoading, setIsLoading] = useState(false);
   const [visible, setVisible] = useState(false);
   const { getRestaurantDeliveryInfo, deliveryCoords } = useLocation();

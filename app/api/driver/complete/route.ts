@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
 
       // If real order, mark as delivered and clear chat
       if (!isSimulated && orderId) {
-        db.prepare("UPDATE orders SET status = 'delivered', delivered_at = datetime('now') WHERE id = ?").run(orderId);
+        db.prepare("UPDATE orders SET status = 'delivered', updated_at = datetime('now'), delivered_at = datetime('now') WHERE id = ?").run(orderId);
         db.prepare('DELETE FROM messages WHERE order_id = ?').run(orderId);
       }
 

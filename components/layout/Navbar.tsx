@@ -4,6 +4,7 @@ import { useAuth } from '@/components/providers/AuthProvider';
 import { useCart } from '@/components/providers/CartProvider';
 import { useLocation } from '@/components/providers/LocationProvider';
 import { useSearch } from '@/components/providers/SearchProvider';
+import { useCuisine } from '@/components/providers/CuisineProvider';
 import { useModeContext } from '@/components/providers/ModeProvider';
 import AddressAutocomplete, { AddressAutocompleteHandle } from '@/components/ui/AddressAutocomplete';
 import Image from 'next/image';
@@ -290,6 +291,7 @@ export default function Navbar() {
   const { cartCount, openSidebar } = useCart();
   const { deliveryAddress } = useLocation();
   const { search, setSearch } = useSearch();
+  const { setSelectedCuisine, setSortBy } = useCuisine();
   const { openMode } = useModeContext();
   const router = useRouter();
   const pathname = usePathname();
@@ -325,8 +327,8 @@ export default function Navbar() {
     router.refresh();
   };
 
-  // Drivers and restaurant owners have their own dedicated layouts
-  if (user?.role === 'driver' || user?.role === 'restaurant') return null;
+  // Driver and restaurant dashboards have their own dedicated layouts
+  if (pathname.startsWith('/driver-dashboard') || pathname.startsWith('/restaurant-dashboard') || pathname.startsWith('/restaurant-setup')) return null;
 
   return (
     <nav className="bg-white shadow-md sticky top-0 z-40">
@@ -347,7 +349,7 @@ export default function Navbar() {
           {/* Logo */}
           <Link
             href="/"
-            onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}
+            onClick={() => { setSearch(''); setSelectedCuisine('All'); setSortBy('relevance'); window.scrollTo({ top: 0, behavior: 'instant' }); }}
             className="flex items-center gap-2 flex-shrink-0"
           >
             <div className="w-8 h-8 bg-[#FF3008] rounded-full flex items-center justify-center">
@@ -519,7 +521,7 @@ export default function Navbar() {
                   <CartPopup />
                 </div>
                 <Link
-                  href="/login"
+                  href={isCheckout ? '/login?redirect=/checkout' : '/login'}
                   className="text-gray-600 hover:text-gray-900 text-sm font-medium border border-gray-300 rounded-lg px-3 py-1.5 hover:bg-gray-50 transition-colors"
                 >
                   Log In

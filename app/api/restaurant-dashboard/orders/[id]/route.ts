@@ -29,7 +29,7 @@ export async function PUT(
 
   const db = getDb();
   const result = db.prepare(`
-    UPDATE orders SET status = ?
+    UPDATE orders SET status = ?, updated_at = datetime('now')
     WHERE id = ? AND restaurant_id = ? AND status NOT IN ('picked_up', 'delivered')
   `).run(status, orderId, restaurantId);
 

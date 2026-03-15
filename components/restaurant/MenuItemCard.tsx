@@ -55,6 +55,7 @@ export default function MenuItemCard({ item, isExpanded, onExpand, onCollapse, d
     const wasExpanded = prevExpandedRef.current;
     prevExpandedRef.current = isExpanded;
     if (wasExpanded && !isExpanded) {
+      setShowErrors(false);
       setIsClosing(true);
       // Scroll back simultaneously with the close animation (only when explicitly cancelled/added)
       if (restoreScrollOnClose.current) {
@@ -93,6 +94,22 @@ export default function MenuItemCard({ item, isExpanded, onExpand, onCollapse, d
         }
       }
     });
+    // After animation completes, scroll down if the expanded card is out of view
+    setTimeout(() => {
+      if (!cardRef.current) return;
+      const rect = cardRef.current.getBoundingClientRect();
+      const viewportH = window.innerHeight;
+      const navbarH = 80;
+      if (rect.height > viewportH - navbarH) {
+        // Card taller than viewport — scroll to top of card
+        const targetY = window.scrollY + rect.top - navbarH;
+        window.scrollTo({ top: targetY, behavior: 'smooth' });
+      } else if (rect.bottom > viewportH) {
+        // Bottom cut off — scroll down to reveal it with a bit of padding
+        const targetY = window.scrollY + (rect.bottom - viewportH) + 16;
+        window.scrollTo({ top: targetY, behavior: 'smooth' });
+      }
+    }, ANIM_MS);
   };
 
   // Collapse with scroll-back (used for explicit cancel / add-to-cart)
@@ -156,8 +173,13 @@ export default function MenuItemCard({ item, isExpanded, onExpand, onCollapse, d
   return (
     <div
       ref={cardRef}
-      className={`bg-white rounded-xl border shadow-sm overflow-hidden transition-shadow duration-200 ${
-        isExpanded ? 'border-[#FF3008]/30 shadow-md' : 'border-gray-100 hover:shadow-md'
+      onClick={!isExpanded && !isClosing ? handleAddClick : undefined}
+      className={`bg-white rounded-xl border overflow-hidden transition-shadow duration-200 ${
+        showErrors && unfilledRequired.length > 0
+          ? 'border-[#FF3008]/40 shadow-[0_0_0_3px_rgba(255,48,8,0.15),0_4px_16px_rgba(255,48,8,0.25)]'
+          : isExpanded
+          ? 'border-[#FF3008]/30 shadow-md'
+          : 'border-gray-100 shadow-sm hover:shadow-md cursor-pointer'
       }`}
     >
       {/* Item header row */}
@@ -188,7 +210,7 @@ export default function MenuItemCard({ item, isExpanded, onExpand, onCollapse, d
           </div>
           {!isExpanded && (
             <button
-              onClick={handleAddClick}
+              onClick={e => { e.stopPropagation(); handleAddClick(); }}
               className="w-24 py-1.5 rounded-lg text-sm font-semibold bg-[#FF3008] text-white hover:bg-red-600 transition-colors cursor-pointer"
             >
               Add
@@ -207,7 +229,7 @@ export default function MenuItemCard({ item, isExpanded, onExpand, onCollapse, d
       >
         <div style={{ overflow: 'hidden' }}>
           {showPanel && (
-            <div className="border-t border-gray-100 px-4 pb-4">
+            <div className="border-t border-gray-100 px-4 pb-4" onClick={e => e.stopPropagation()}>
               {/* Deal banner inside expanded panel */}
               {deal && (
                 <div className="mt-3 bg-red-50 border border-[#FF3008]/20 rounded-lg px-3 py-2 flex items-center gap-2">
@@ -326,6 +348,13 @@ export default function MenuItemCard({ item, isExpanded, onExpand, onCollapse, d
                       Keep current
                     </button>
                   </div>
+                </div>
+              )}
+
+              {/* Required fields error banner */}
+              {showErrors && unfilledRequired.length > 0 && (
+                <div className="mt-4 px-3 py-2 bg-red-50 border border-[#FF3008]/30 rounded-lg text-[#FF3008] text-xs font-semibold">
+                  Fill out all required fields.
                 </div>
               )}
 

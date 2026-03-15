@@ -102,6 +102,7 @@ type OrderRow = {
   restaurant_name: string; restaurant_address: string;
   r_lat: number | null; r_lng: number | null;
   delivery_lat: number | null; delivery_lng: number | null;
+  is_owned: number;
 };
 
 async function buildJobFromOrder(
@@ -118,6 +119,14 @@ async function buildJobFromOrder(
   if (order.r_lat && order.r_lng) {
     restaurantCoords = { lat: order.r_lat, lng: order.r_lng };
     restaurantAddress = order.restaurant_address;
+  } else if (order.is_owned) {
+    // User-created restaurant: always use the real stored address
+    restaurantAddress = order.restaurant_address;
+    restaurantCoords = await geocodeWithCache(order.restaurant_address);
+    if (!restaurantCoords && customerCoords) {
+      // Geocoding unavailable — estimate coords near customer for distance calc
+      restaurantCoords = getVirtualRestaurantCoords(order.restaurant_id, customerCoords.lat, customerCoords.lng);
+    }
   } else if (customerCoords) {
     restaurantCoords = getVirtualRestaurantCoords(order.restaurant_id, customerCoords.lat, customerCoords.lng);
     restaurantAddress = await reverseGeocode(restaurantCoords.lat, restaurantCoords.lng);
@@ -173,7 +182,8 @@ export async function GET(request: NextRequest) {
   const existingDispatch = db.prepare(`
     SELECT o.id, o.restaurant_id, o.delivery_address, o.delivery_lat, o.delivery_lng, o.subtotal, o.tip,
            r.name as restaurant_name, r.address as restaurant_address,
-           r.lat as r_lat, r.lng as r_lng
+           r.lat as r_lat, r.lng as r_lng,
+           EXISTS(SELECT 1 FROM restaurant_owners WHERE restaurant_id = r.id) as is_owned
     FROM orders o
     JOIN restaurants r ON r.id = o.restaurant_id
     WHERE o.dispatched_to = ? AND o.dispatch_expires_at > datetime('now')
@@ -195,7 +205,8 @@ export async function GET(request: NextRequest) {
   const candidates = db.prepare(`
     SELECT o.id, o.restaurant_id, o.delivery_address, o.delivery_lat, o.delivery_lng, o.subtotal, o.tip,
            r.name as restaurant_name, r.address as restaurant_address,
-           r.lat as r_lat, r.lng as r_lng
+           r.lat as r_lat, r.lng as r_lng,
+           EXISTS(SELECT 1 FROM restaurant_owners WHERE restaurant_id = r.id) as is_owned
     FROM orders o
     JOIN restaurants r ON r.id = o.restaurant_id
     WHERE o.status IN ('placed', 'preparing', 'ready')

@@ -61,6 +61,9 @@ export default function DriverHistoryPage() {
   }, []);
 
   const grouped = groupByMonthDay(sessions);
+  const totalEarnings = sessions.reduce((sum, s) => sum + s.total_earnings, 0);
+  const totalMinutes = sessions.reduce((sum, s) => sum + s.durationMinutes, 0);
+  const totalDeliveries = sessions.reduce((sum, s) => sum + s.deliveries_completed, 0);
 
   return (
     <div className="flex flex-col h-screen bg-black">
@@ -87,6 +90,21 @@ export default function DriverHistoryPage() {
           </div>
         ) : (
           <div className="max-w-xl mx-auto px-4 py-6 space-y-8">
+            {/* Summary stats */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-4">
+                <p className="text-gray-500 text-xs mb-1">Total Earned</p>
+                <p className="text-[#22c55e] font-bold text-xl">${totalEarnings.toFixed(2)}</p>
+              </div>
+              <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-4">
+                <p className="text-gray-500 text-xs mb-1">Total Time</p>
+                <p className="text-white font-bold text-xl">{formatDuration(totalMinutes)}</p>
+              </div>
+              <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-4">
+                <p className="text-gray-500 text-xs mb-1">Deliveries</p>
+                <p className="text-white font-bold text-xl">{totalDeliveries}</p>
+              </div>
+            </div>
             {grouped.map(month => (
               <div key={month.label}>
                 <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest mb-4">

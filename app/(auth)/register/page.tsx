@@ -34,7 +34,6 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
 
   const current = ROLES.find(r => r.role === role)!;
-  const others = ROLES.filter(r => r.role !== role);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +49,8 @@ export default function RegisterPage() {
 
     if (role === 'customer') {
       await refreshCart();
-      router.push('/');
+      const redirect = searchParams.get('redirect');
+      router.push(redirect || '/');
     } else if (role === 'driver') {
       router.push('/driver-dashboard');
     } else if (result.needsRestaurantSetup) {
@@ -59,11 +59,6 @@ export default function RegisterPage() {
       router.push('/restaurant-dashboard');
     }
     router.refresh();
-  };
-
-  const switchRole = (r: UserRole) => {
-    setRole(r);
-    setError('');
   };
 
   return (
@@ -145,28 +140,12 @@ export default function RegisterPage() {
 
           <p className="text-center text-sm text-gray-500 mt-6">
             Already have an account?{' '}
-            <Link href={`/login?role=${role}`} className="text-[#FF3008] font-medium hover:underline">
+            <Link href={`/login?role=${role}${searchParams.get('redirect') ? `&redirect=${searchParams.get('redirect')}` : ''}`} className="text-[#FF3008] font-medium hover:underline">
               Sign in
             </Link>
           </p>
         </div>
 
-        {/* Switch mode */}
-        <div className="mt-5 space-y-2">
-          {others.map(({ role: r, label, icon }) => (
-            <button
-              key={r}
-              onClick={() => switchRole(r)}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50 transition-colors text-sm text-gray-600 cursor-pointer"
-            >
-              <span>{icon}</span>
-              <span>Sign up as <span className="font-medium text-gray-800">{label}</span></span>
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400 ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          ))}
-        </div>
       </div>
     </div>
   );

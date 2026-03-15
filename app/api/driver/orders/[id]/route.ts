@@ -65,7 +65,7 @@ export async function PUT(
 
   const db = getDb();
   const result = db.prepare(
-    "UPDATE orders SET status = 'picked_up' WHERE id = ? AND status = 'ready' AND driver_user_id = ?"
+    "UPDATE orders SET status = 'picked_up', updated_at = datetime('now') WHERE id = ? AND status = 'ready' AND driver_user_id = ?"
   ).run(orderId, userId);
 
   if (result.changes === 0) {

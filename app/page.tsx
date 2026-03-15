@@ -60,8 +60,8 @@ export default async function HomePage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-      <ActiveOrderCarousel />
       <DealsCarousel allRestaurants={carouselRestaurants} />
+      <ActiveOrderCarousel />
       <RestaurantGrid restaurants={restaurants} />
     </div>
   );

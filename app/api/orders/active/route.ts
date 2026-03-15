@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     JOIN restaurants r ON r.id = o.restaurant_id
     LEFT JOIN users u ON u.id = o.driver_user_id
     WHERE o.user_id = ?
-    ORDER BY o.placed_at DESC
+    ORDER BY COALESCE(o.updated_at, o.placed_at) DESC
     LIMIT 20
   `).all(userId) as {
     id: number; status: string; placed_at: string; total: number;

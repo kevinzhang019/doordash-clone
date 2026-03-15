@@ -71,7 +71,10 @@ export default function JobNotification({ job, onAccept, onDecline, isAccepting 
             <span className="text-[#FF3008] mt-0.5 flex-shrink-0">📍</span>
             <div>
               <p className="text-gray-400 text-xs mb-0.5">Pickup</p>
-              <p className="text-white font-semibold text-sm">{job.restaurantAddress}</p>
+              {job.restaurantName && (
+                <p className="text-white font-semibold text-sm">{job.restaurantName}</p>
+              )}
+              <p className="text-gray-400 text-xs mt-0.5">{job.restaurantAddress}</p>
             </div>
           </div>
 

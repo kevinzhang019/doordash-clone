@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useLocation } from '@/components/providers/LocationProvider';
+import { useSearch } from '@/components/providers/SearchProvider';
+import { useCuisine } from '@/components/providers/CuisineProvider';
 import { getAddressDeal, seededRng, dealLabel, AddressDeal } from '@/lib/dealUtils';
 
 interface MenuItemStub {
@@ -30,7 +32,10 @@ interface DisplayDeal {
 
 export default function DealsCarousel({ allRestaurants }: { allRestaurants: RestaurantStub[] }) {
   const { deliveryAddress } = useLocation();
+  const { search } = useSearch();
+  const { selectedCuisine } = useCuisine();
   const [page, setPage] = useState(0);
+  const [mounted, setMounted] = useState(false);
   const trackRef = useRef<HTMLDivElement>(null);
 
   const goTo = useCallback((newPage: number) => {
@@ -44,6 +49,12 @@ export default function DealsCarousel({ allRestaurants }: { allRestaurants: Rest
     setPage(0);
     if (trackRef.current) trackRef.current.scrollLeft = 0;
   }, [deliveryAddress]);
+
+  useEffect(() => {
+    let id1: number, id2: number;
+    id1 = requestAnimationFrame(() => { id2 = requestAnimationFrame(() => setMounted(true)); });
+    return () => { cancelAnimationFrame(id1); cancelAnimationFrame(id2); };
+  }, []);
 
   if (!deliveryAddress) return null;
 
@@ -75,7 +86,17 @@ export default function DealsCarousel({ allRestaurants }: { allRestaurants: Rest
   for (let i = 0; i < deals.length; i += 3) pages.push(deals.slice(i, i + 3));
   const totalPages = pages.length;
 
+  const isVisible = mounted && !search && selectedCuisine === 'All';
+
   return (
+    <div
+      style={{
+        overflow: 'hidden',
+        maxHeight: isVisible ? '400px' : '0',
+        opacity: isVisible ? 1 : 0,
+        transition: 'max-height 0.5s ease, opacity 0.5s ease',
+      }}
+    >
     <section className="mb-5">
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-lg font-bold text-gray-900">Featured Deals</h2>
@@ -151,5 +172,6 @@ export default function DealsCarousel({ allRestaurants }: { allRestaurants: Rest
         ))}
       </div>
     </section>
+    </div>
   );
 }

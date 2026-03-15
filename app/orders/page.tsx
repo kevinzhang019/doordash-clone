@@ -42,9 +42,27 @@ export default function OrdersPage() {
     );
   }
 
+  const totalSpent = orders.reduce((sum, o) => sum + o.total, 0);
+  const totalSaved = orders.reduce((sum, o) => sum + (o.discount_saved ?? 0), 0);
+
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Order History</h1>
+
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Total Spent</p>
+          <p className="text-2xl font-bold text-gray-900">${totalSpent.toFixed(2)}</p>
+          <p className="text-xs text-gray-400 mt-0.5">{orders.length} order{orders.length !== 1 ? 's' : ''}</p>
+        </div>
+        {totalSaved > 0 && (
+          <div className="bg-[#FF3008]/5 rounded-2xl border border-[#FF3008]/20 p-5">
+            <p className="text-xs font-medium text-[#FF3008] uppercase tracking-wide mb-1">Total Saved</p>
+            <p className="text-2xl font-bold text-[#FF3008]">${totalSaved.toFixed(2)}</p>
+            <p className="text-xs text-[#FF3008]/60 mt-0.5">from deals</p>
+          </div>
+        )}
+      </div>
 
       <div className="space-y-4">
         {orders.map((order) => (
@@ -73,7 +91,7 @@ export default function OrdersPage() {
                       ? 'bg-blue-100 text-blue-700'
                       : 'bg-yellow-100 text-yellow-700'
                   }`}>
-                    {!order.driver_user_id && (order.status === 'ready' || order.status === 'preparing' || order.status === 'picked_up') ? 'placed' : order.status}
+                    {!order.driver_user_id && (order.status === 'ready' || order.status === 'preparing' || order.status === 'picked_up') ? 'Preparing' : order.status === 'placed' ? 'Placed' : order.status}
                   </span>
                 </div>
               </div>

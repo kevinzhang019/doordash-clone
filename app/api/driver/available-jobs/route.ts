@@ -77,6 +77,7 @@ export async function GET(request: NextRequest) {
     SELECT o.id, o.restaurant_id, o.delivery_address, o.delivery_lat, o.delivery_lng, o.subtotal, o.tip,
            r.name as restaurant_name, r.address as restaurant_address,
            r.lat as r_lat, r.lng as r_lng,
+           EXISTS(SELECT 1 FROM restaurant_owners WHERE restaurant_id = r.id) as is_owned,
            daj.added_at
     FROM driver_available_jobs daj
     JOIN orders o ON o.id = daj.order_id
@@ -89,7 +90,7 @@ export async function GET(request: NextRequest) {
     id: number; restaurant_id: number; delivery_address: string; delivery_lat: number | null; delivery_lng: number | null;
     subtotal: number; tip: number;
     restaurant_name: string; restaurant_address: string;
-    r_lat: number | null; r_lng: number | null; added_at: string;
+    r_lat: number | null; r_lng: number | null; is_owned: number; added_at: string;
   }[];
 
   const jobs: DriverJob[] = [];
@@ -104,6 +105,13 @@ export async function GET(request: NextRequest) {
     if (row.r_lat && row.r_lng) {
       restaurantCoords = { lat: row.r_lat, lng: row.r_lng };
       restaurantAddress = row.restaurant_address;
+    } else if (row.is_owned) {
+      // User-created restaurant: always use the real stored address
+      restaurantAddress = row.restaurant_address;
+      restaurantCoords = await geocodeWithCache(row.restaurant_address);
+      if (!restaurantCoords && customerCoords) {
+        restaurantCoords = getVirtualRestaurantCoords(row.restaurant_id, customerCoords.lat, customerCoords.lng);
+      }
     } else if (customerCoords) {
       restaurantCoords = getVirtualRestaurantCoords(row.restaurant_id, customerCoords.lat, customerCoords.lng);
       restaurantAddress = await reverseGeocode(restaurantCoords.lat, restaurantCoords.lng);

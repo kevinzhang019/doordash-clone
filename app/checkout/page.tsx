@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useCart } from '@/components/providers/CartProvider';
@@ -13,134 +13,10 @@ const TAX_RATE = 0.085;
 
 const roundToHalf = (n: number) => Math.round(n / 0.5) * 0.5;
 
-function CheckoutAuthGate({ cartTotal }: { cartTotal: number }) {
-  const { login, register } = useAuth();
-  const [mode, setMode] = useState<'login' | 'register'>('login');
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    if (mode === 'login') {
-      const result = await login(email, password, 'customer');
-      if (result.error) {
-        setError(result.error);
-        setLoading(false);
-      }
-      // On success, user state updates → CartProvider migrates guest cart → component re-renders
-    } else {
-      const result = await register(name, email, password, 'customer');
-      if (result.error) {
-        setError(result.error);
-        setLoading(false);
-      }
-    }
-  };
-
-  return (
-    <div className="max-w-2xl mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Checkout</h1>
-      <p className="text-gray-500 mb-6">
-        Your cart total is <span className="font-semibold text-gray-800">${cartTotal.toFixed(2)}</span>. Sign in to complete your order.
-      </p>
-
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        {/* Tabs */}
-        <div className="flex border-b border-gray-100">
-          <button
-            type="button"
-            onClick={() => { setMode('login'); setError(''); }}
-            className={`flex-1 py-4 text-sm font-semibold transition-colors cursor-pointer ${
-              mode === 'login'
-                ? 'text-[#FF3008] border-b-2 border-[#FF3008]'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Sign In
-          </button>
-          <button
-            type="button"
-            onClick={() => { setMode('register'); setError(''); }}
-            className={`flex-1 py-4 text-sm font-semibold transition-colors cursor-pointer ${
-              mode === 'register'
-                ? 'text-[#FF3008] border-b-2 border-[#FF3008]'
-                : 'text-gray-500 hover:text-gray-700'
-            }`}
-          >
-            Create Account
-          </button>
-        </div>
-
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-4 py-3">
-              {error}
-            </div>
-          )}
-
-          {mode === 'register' && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Full name</label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={e => setName(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm"
-                placeholder="Your name"
-              />
-            </div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Email address</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm"
-              placeholder="you@example.com"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
-            <input
-              type="password"
-              required
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm"
-              placeholder={mode === 'register' ? 'At least 6 characters' : 'Enter your password'}
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-[#FF3008] text-white font-semibold py-3 rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-          >
-            {loading
-              ? mode === 'login' ? 'Signing in...' : 'Creating account...'
-              : mode === 'login' ? 'Sign In & Continue' : 'Create Account & Continue'}
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-}
-
 export default function CheckoutPage() {
   const { cartItems, cartTotal, clearCart } = useCart();
   const { deliveryAddress, deliveryCoords, getRestaurantDeliveryInfo } = useLocation();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -174,6 +50,12 @@ export default function CheckoutPage() {
   const taxAmount = discountedSubtotal * TAX_RATE;
   const estimatedTotal = discountedSubtotal + deliveryFee + tipAmount + taxAmount;
 
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace('/login?redirect=/checkout');
+    }
+  }, [authLoading, user, router]);
+
   const handleTipPreset = (pct: number) => {
     setIsCustomTip(false);
     setCustomTip('');
@@ -206,6 +88,7 @@ export default function CheckoutPage() {
           deliveryLng: deliveryCoords?.lng ?? null,
           tip: tipAmount,
           deliveryFee,
+          discountSaved: totalDealSavings,
           deliveryInstructions: deliveryInstructions.trim() || null,
           handoffOption,
         }),
@@ -239,10 +122,7 @@ export default function CheckoutPage() {
     );
   }
 
-  // Guest: show login/register gate
-  if (!user) {
-    return <CheckoutAuthGate cartTotal={cartTotal} />;
-  }
+  if (!user) return null;
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">

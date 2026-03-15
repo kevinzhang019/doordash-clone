@@ -9,9 +9,10 @@ interface MenuItemEditorProps {
   existingCategories: string[];
   onSave: () => void;
   onClose: () => void;
+  variant?: 'panel' | 'inline';
 }
 
-export default function MenuItemEditor({ item, existingCategories, onSave, onClose }: MenuItemEditorProps) {
+export default function MenuItemEditor({ item, existingCategories, onSave, onClose, variant = 'panel' }: MenuItemEditorProps) {
   const [name, setName] = useState(item?.name || '');
   const [category, setCategory] = useState(item?.category || '');
   const [categoryInput, setCategoryInput] = useState(item?.category || '');
@@ -105,6 +106,129 @@ export default function MenuItemEditor({ item, existingCategories, onSave, onClo
     }
   };
 
+  const formFields = (
+    <>
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-4 py-3">{error}</div>
+      )}
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">Name</label>
+        <input
+          type="text"
+          required
+          value={name}
+          onChange={e => setName(e.target.value)}
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent"
+          placeholder="e.g. Margherita Pizza"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">Category</label>
+        <input
+          type="text"
+          required
+          value={categoryInput}
+          onChange={e => setCategoryInput(e.target.value)}
+          list="category-suggestions"
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent"
+          placeholder="e.g. Appetizers"
+        />
+        <datalist id="category-suggestions">
+          {existingCategories.map(c => <option key={c} value={c} />)}
+        </datalist>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">Description</label>
+        <textarea
+          value={description}
+          onChange={e => setDescription(e.target.value)}
+          rows={2}
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent resize-none"
+          placeholder="Briefly describe the item..."
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">Price ($)</label>
+        <input
+          type="number"
+          min="0"
+          step="0.01"
+          required
+          value={price}
+          onChange={e => setPrice(e.target.value)}
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent"
+          placeholder="0.00"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">Image URL</label>
+        <input
+          type="url"
+          value={imageUrl}
+          onChange={e => setImageUrl(e.target.value)}
+          className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent"
+          placeholder="https://..."
+        />
+        {imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={imageUrl}
+            alt="preview"
+            className="mt-2 w-full h-28 object-cover rounded-lg border border-gray-200"
+            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
+        )}
+      </div>
+
+      <div className="flex gap-4">
+        <label className="flex items-center gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={isAvailable}
+            onChange={e => setIsAvailable(e.target.checked)}
+            className="w-4 h-4 accent-[#FF3008]"
+          />
+          <span className="text-sm text-gray-700">Available</span>
+        </label>
+      </div>
+
+      {groupError && (
+        <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-4 py-3">{groupError}</div>
+      )}
+      <OptionGroupEditor groups={groups} onChange={setGroups} />
+
+      <div className="flex gap-3 pt-2 pb-6">
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex-1 border border-gray-200 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          disabled={loading}
+          className="flex-1 bg-[#FF3008] text-white font-semibold py-3 rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {loading ? 'Saving...' : 'Save Item'}
+        </button>
+      </div>
+    </>
+  );
+
+  if (variant === 'inline') {
+    return (
+      <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5 border-t border-gray-100 bg-gray-50">
+        {formFields}
+      </form>
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex">
       {/* Backdrop */}
@@ -122,116 +246,7 @@ export default function MenuItemEditor({ item, existingCategories, onSave, onClo
         </div>
 
         <form onSubmit={handleSubmit} className="flex-1 px-6 py-5 space-y-5">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-4 py-3">{error}</div>
-          )}
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Name</label>
-            <input
-              type="text"
-              required
-              value={name}
-              onChange={e => setName(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent"
-              placeholder="e.g. Margherita Pizza"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Category</label>
-            <input
-              type="text"
-              required
-              value={categoryInput}
-              onChange={e => setCategoryInput(e.target.value)}
-              list="category-suggestions"
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent"
-              placeholder="e.g. Appetizers"
-            />
-            <datalist id="category-suggestions">
-              {existingCategories.map(c => <option key={c} value={c} />)}
-            </datalist>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Description</label>
-            <textarea
-              value={description}
-              onChange={e => setDescription(e.target.value)}
-              rows={2}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent resize-none"
-              placeholder="Briefly describe the item..."
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Price ($)</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              required
-              value={price}
-              onChange={e => setPrice(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent"
-              placeholder="0.00"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">Image URL</label>
-            <input
-              type="url"
-              value={imageUrl}
-              onChange={e => setImageUrl(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent"
-              placeholder="https://..."
-            />
-            {imageUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={imageUrl}
-                alt="preview"
-                className="mt-2 w-full h-28 object-cover rounded-lg border border-gray-200"
-                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-              />
-            )}
-          </div>
-
-          <div className="flex gap-4">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isAvailable}
-                onChange={e => setIsAvailable(e.target.checked)}
-                className="w-4 h-4 accent-[#FF3008]"
-              />
-              <span className="text-sm text-gray-700">Available</span>
-            </label>
-          </div>
-
-          {groupError && (
-            <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-4 py-3">{groupError}</div>
-          )}
-          <OptionGroupEditor groups={groups} onChange={setGroups} />
-
-          <div className="flex gap-3 pt-2 pb-6">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 border border-gray-200 text-gray-700 font-semibold py-3 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="flex-1 bg-[#FF3008] text-white font-semibold py-3 rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Saving...' : 'Save Item'}
-            </button>
-          </div>
+          {formFields}
         </form>
       </div>
     </div>

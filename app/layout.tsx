@@ -4,6 +4,7 @@ import { AuthProvider } from '@/components/providers/AuthProvider';
 import { CartProvider } from '@/components/providers/CartProvider';
 import { LocationProvider } from '@/components/providers/LocationProvider';
 import { SearchProvider } from '@/components/providers/SearchProvider';
+import { CuisineProvider } from '@/components/providers/CuisineProvider';
 import { ChatSeenProvider } from '@/components/providers/ChatSeenProvider';
 import { ModeProvider } from '@/components/providers/ModeProvider';
 import Navbar from '@/components/layout/Navbar';
@@ -29,6 +30,7 @@ export default function RootLayout({
           <ModeProvider>
             <LocationProvider>
               <SearchProvider>
+                <CuisineProvider>
                 <CartProvider>
                   <ChatSeenProvider>
                     <ModeSidebar />
@@ -41,6 +43,7 @@ export default function RootLayout({
                     </main>
                   </ChatSeenProvider>
                 </CartProvider>
+                </CuisineProvider>
               </SearchProvider>
             </LocationProvider>
           </ModeProvider>

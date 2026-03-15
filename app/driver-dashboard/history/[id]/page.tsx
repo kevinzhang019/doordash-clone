@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 
 interface DeliveryDetail {
   number: number;
+  restaurantName: string;
   estimatedMinutes: number;
   miles: number;
   pay: number;
@@ -107,10 +108,13 @@ export default function SessionDetailPage() {
                 <h2 className="text-gray-400 text-xs font-semibold uppercase tracking-widest">Deliveries</h2>
                 {deliveries.map(d => (
                   <div key={d.number} className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-4">
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center justify-between mb-1">
                       <span className="text-gray-400 text-xs font-medium">Delivery #{d.number}</span>
                       <span className="text-[#22c55e] font-bold">${d.total.toFixed(2)}</span>
                     </div>
+                    {d.restaurantName && (
+                      <p className="text-white text-sm font-medium mb-3">{d.restaurantName}</p>
+                    )}
                     <div className="grid grid-cols-3 gap-3 text-sm">
                       <div>
                         <p className="text-gray-500 text-xs mb-0.5">Est. Time</p>

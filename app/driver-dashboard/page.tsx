@@ -552,7 +552,7 @@ export default function DriverDashboardPage() {
   const pickupReady = !isRealJob || orderStatus === 'ready' || orderStatus === 'picked_up';
 
   return (
-    <div className="flex flex-col h-screen bg-black">
+    <div className="flex flex-col flex-1 min-h-0 bg-black">
       {/* Header */}
       <header className="bg-black border-b border-[#2a2a2a] h-14 flex items-center px-4 flex-shrink-0 z-40">
         <div className="w-full flex items-center justify-between gap-4">
@@ -733,7 +733,10 @@ export default function DriverDashboardPage() {
           <div className="absolute bottom-0 left-0 right-0 px-4 pb-4 z-20">
             <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-4 max-w-md mx-auto shadow-2xl">
               <p className="text-gray-400 text-xs mb-1">Picking up from</p>
-              <p className="text-white font-semibold">{currentJob.restaurantAddress}</p>
+              {currentJob.restaurantName && (
+                <p className="text-white font-semibold">{currentJob.restaurantName}</p>
+              )}
+              <p className="text-gray-400 text-sm">{currentJob.restaurantAddress}</p>
               {isRealJob && !pickupReady && (
                 <div className="mt-3 flex items-center gap-2">
                   <span className="inline-block w-2 h-2 rounded-full bg-yellow-400 animate-pulse" />
@@ -779,6 +782,9 @@ export default function DriverDashboardPage() {
         {phase === 'job_accepted_deliver' && currentJob && (
           <div className="absolute bottom-0 left-0 right-0 px-4 pb-4 z-20">
             <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl p-4 max-w-md mx-auto shadow-2xl">
+              {currentJob.restaurantName && (
+                <p className="text-gray-500 text-xs mb-2">From {currentJob.restaurantName}</p>
+              )}
               <p className="text-gray-400 text-xs mb-1">Delivering to</p>
               <p className="text-white font-semibold">{currentJob.deliveryAddress}</p>
               <div className="flex items-center mt-2">
