@@ -149,7 +149,7 @@ function SidebarCartItem({
 }
 
 export default function CartSidebar() {
-  const { cartItems, cartTotal, isSidebarOpen, closeSidebar, removeItem, updateQuantity, reorderSkipped, setReorderSkipped } = useCart();
+  const { cartItems, cartTotal, isSidebarOpen, closeSidebar, removeItem, updateQuantity, clearCart, reorderSkipped, setReorderSkipped } = useCart();
   const { getRestaurantDeliveryInfo, deliveryAddress } = useLocation();
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [removingIds, setRemovingIds] = useState<number[]>([]);
@@ -317,7 +317,15 @@ export default function CartSidebar() {
                 </motion.div>
               ) : (
                 <>
-                  <p className="text-[11px] text-gray-400 text-right mb-2 select-none">← swipe to remove</p>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[11px] text-gray-400 select-none">← swipe to remove</p>
+                    <button
+                      onClick={clearCart}
+                      className="text-[11px] text-gray-400 hover:text-red-500 transition-colors cursor-pointer select-none"
+                    >
+                      Clear cart
+                    </button>
+                  </div>
                   <AnimatePresence initial={false}>
                     {visibleItems.map((item) => (
                       <SidebarCartItem
