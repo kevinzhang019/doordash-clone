@@ -125,6 +125,7 @@ export interface Order {
   driver_name?: string;
   delivery_min?: number;
   delivery_max?: number;
+  discount_saved?: number;
 }
 
 export interface Message {
@@ -146,6 +147,8 @@ export interface Review {
   comment: string;
   reviewer_name: string;
   created_at: string;
+  owner_reply: string | null;
+  owner_reply_at: string | null;
 }
 
 export interface OrderItem {

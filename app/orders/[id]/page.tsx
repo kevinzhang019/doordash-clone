@@ -22,7 +22,7 @@ const STATUS_LABELS: Record<string, string> = {
 // Any in-progress status without a driver means the order lost its driver and is waiting
 // for a new one — show it at the 'placed' step so the customer isn't confused.
 function displayStatus(status: string, driverUserId: number | null): string {
-  if (!driverUserId && (status === 'ready' || status === 'preparing' || status === 'picked_up')) return 'placed';
+  if (!driverUserId && (status === 'ready' || status === 'preparing' || status === 'picked_up')) return 'preparing';
   return status;
 }
 
@@ -138,7 +138,7 @@ function ReviewSection({ orderId, restaurantName, restaurantId }: { orderId: num
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Failed to submit review'); return; }
       setSubmitted(true);
-      setExistingReview({ id: data.reviewId, user_id: null, restaurant_id: 0, order_id: orderId, rating, comment, reviewer_name: 'You', created_at: new Date().toISOString() });
+      setExistingReview({ id: data.reviewId, user_id: null, restaurant_id: 0, order_id: orderId, rating, comment, reviewer_name: 'You', created_at: new Date().toISOString(), owner_reply: null, owner_reply_at: null });
     } catch {
       setError('Something went wrong. Please try again.');
     } finally {
@@ -338,7 +338,7 @@ export default function OrderDetailPage() {
           </p>
           {isActive && (
             <p className="text-sm font-medium text-blue-700 mt-1">
-              {displayStatus(order.status, order.driver_user_id) === 'placed'
+              {displayStatus(order.status, order.driver_user_id) === 'preparing'
                 ? 'Estimating arrival...'
                 : etaMins !== null
                   ? etaMins <= 1 ? 'Arriving any moment' : `Estimated arrival: ~${etaMins} min`
@@ -380,7 +380,7 @@ export default function OrderDetailPage() {
           </div>
           <span className={`px-3 py-1 rounded-full text-sm font-medium capitalize ${
             order.status === 'delivered' ? 'bg-green-100 text-green-700'
-            : displayStatus(order.status, order.driver_user_id) === 'placed' ? 'bg-blue-100 text-blue-700'
+            : displayStatus(order.status, order.driver_user_id) === 'preparing' ? 'bg-blue-100 text-blue-700'
             : order.status === 'picked_up' ? 'bg-purple-100 text-purple-700'
             : 'bg-yellow-100 text-yellow-700'
           }`}>

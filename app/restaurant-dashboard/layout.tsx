@@ -5,13 +5,13 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { useModeContext } from '@/components/providers/ModeProvider';
 
 const NAV_ITEMS = [
   { href: '/restaurant-dashboard', label: 'Overview', icon: '📊' },
   { href: '/restaurant-dashboard/orders', label: 'Orders', icon: '🛒' },
   { href: '/restaurant-dashboard/menu', label: 'Menu', icon: '🍽️' },
   { href: '/restaurant-dashboard/deals', label: 'Deals', icon: '🏷️' },
+  { href: '/restaurant-dashboard/reviews', label: 'Reviews', icon: '⭐' },
   { href: '/restaurant-dashboard/analytics', label: 'Analytics', icon: '📈' },
   { href: '/restaurant-dashboard/hours', label: 'Hours', icon: '🕐' },
   { href: '/restaurant-dashboard/settings', label: 'Settings', icon: '⚙️' },
@@ -19,7 +19,6 @@ const NAV_ITEMS = [
 
 export default function RestaurantDashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
-  const { openMode } = useModeContext();
   const pathname = usePathname();
   const router = useRouter();
   const [profileOpen, setProfileOpen] = useState(false);
@@ -48,15 +47,6 @@ export default function RestaurantDashboardLayout({ children }: { children: Reac
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button
-              onClick={openMode}
-              className="p-2 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0 cursor-pointer"
-              aria-label="Switch mode"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
             <div className="w-8 h-8 bg-[#FF3008] rounded-full flex items-center justify-center">
               <span className="text-white font-bold text-sm">D</span>
             </div>

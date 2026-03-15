@@ -7,6 +7,7 @@ import RestaurantDistance from '@/components/restaurant/RestaurantDistance';
 import RestaurantDeliveryStats from '@/components/restaurant/RestaurantDeliveryStats';
 import VirtualRestaurantAddress from '@/components/restaurant/VirtualRestaurantAddress';
 import VirtualRestaurantMap from '@/components/restaurant/VirtualRestaurantMap';
+import ScrollToTop from '@/components/ui/ScrollToTop';
 
 export const dynamic = 'force-dynamic';
 
@@ -52,6 +53,7 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <ScrollToTop />
       {/* Restaurant Header */}
       <div className="relative w-full h-40 sm:h-52 rounded-2xl overflow-hidden mb-6">
         <Image
@@ -163,6 +165,19 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
                   </div>
                 </div>
                 <p className="text-gray-700 leading-relaxed">{review.comment}</p>
+                {review.owner_reply && (
+                  <div className="mt-4 bg-gray-50 rounded-xl p-4 border border-gray-100">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-xs font-semibold text-[#FF3008] uppercase tracking-wide">Owner Reply</span>
+                      {review.owner_reply_at && (
+                        <span className="text-xs text-gray-400">
+                          · {new Date(review.owner_reply_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-gray-700 text-sm leading-relaxed">{review.owner_reply}</p>
+                  </div>
+                )}
               </div>
             ))}
           </div>

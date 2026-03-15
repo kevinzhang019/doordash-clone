@@ -263,10 +263,22 @@ function runMigrations(db: Database.Database) {
   if (!orderCols.includes('delivered_at')) {
     db.exec('ALTER TABLE orders ADD COLUMN delivered_at TEXT');
   }
+  if (!orderCols.includes('discount_saved')) {
+    db.exec('ALTER TABLE orders ADD COLUMN discount_saved REAL NOT NULL DEFAULT 0');
+  }
+
 
 const restCols = (db.prepare("PRAGMA table_info(restaurants)").all() as { name: string }[]).map(c => c.name);
   if (!restCols.includes('is_accepting_orders')) {
     db.exec('ALTER TABLE restaurants ADD COLUMN is_accepting_orders INTEGER NOT NULL DEFAULT 1');
+  }
+
+  const reviewCols = (db.prepare("PRAGMA table_info(reviews)").all() as { name: string }[]).map(c => c.name);
+  if (!reviewCols.includes('owner_reply')) {
+    db.exec('ALTER TABLE reviews ADD COLUMN owner_reply TEXT');
+  }
+  if (!reviewCols.includes('owner_reply_at')) {
+    db.exec('ALTER TABLE reviews ADD COLUMN owner_reply_at TEXT');
   }
 
   // --- New tables for option groups and selections ---
