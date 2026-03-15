@@ -90,6 +90,7 @@ interface CartContextType {
   clearCart: () => Promise<void>;
   clearCartAndAdd: (menuItemId: number, selections?: SelectionDraft[], specialRequests?: string) => Promise<{ error?: string }>;
   refreshCart: () => Promise<CartItem[]>;
+  broadcastCartChange: () => void;
 }
 
 const CartContext = createContext<CartContextType | null>(null);
@@ -413,7 +414,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       clearLastAdded, setReorderSkipped,
       openSidebar, closeSidebar,
       addItem, removeItem, updateQuantity, updateCartItemSelections, clearCart, clearCartAndAdd,
-      refreshCart,
+      refreshCart, broadcastCartChange,
     }}>
       {children}
     </CartContext.Provider>

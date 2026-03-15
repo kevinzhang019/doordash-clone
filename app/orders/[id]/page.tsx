@@ -211,7 +211,7 @@ export default function OrderDetailPage() {
   const params = useParams();
   const orderId = params.id;
   const { user } = useAuth();
-  const { refreshCart, openSidebar, setReorderSkipped } = useCart();
+  const { refreshCart, openSidebar, setReorderSkipped, broadcastCartChange } = useCart();
   const [order, setOrder] = useState<Order | null>(null);
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -227,6 +227,7 @@ export default function OrderDetailPage() {
       const data = await res.json();
       if (res.ok) {
         await refreshCart();
+        broadcastCartChange();
         setReorderSkipped(data.skipped ?? []);
         openSidebar();
       }
@@ -448,6 +449,11 @@ export default function OrderDetailPage() {
                       })}
                     </div>
                   )}
+                  {item.special_requests && (
+                    <p className="mt-1 text-xs text-gray-500 italic">
+                      &ldquo;{item.special_requests}&rdquo;
+                    </p>
+                  )}
                 </div>
                 <span className="font-medium text-gray-900 tabular-nums flex-shrink-0">${(item.price * item.quantity).toFixed(2)}</span>
               </div>
@@ -509,6 +515,14 @@ export default function OrderDetailPage() {
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
         <h3 className="font-semibold text-gray-900 mb-2">Delivery Address</h3>
         <p className="text-gray-600">{order.delivery_address}</p>
+        {order.handoff_option && (
+          <p className="text-sm text-gray-500 mt-2">
+            {order.handoff_option === 'leave_at_door' ? '🚪 Leave at door' : '🤝 Hand it to me'}
+          </p>
+        )}
+        {order.delivery_instructions && (
+          <p className="text-sm text-gray-500 mt-1 italic">&ldquo;{order.delivery_instructions}&rdquo;</p>
+        )}
       </div>
 
       {/* Chat — only when driver is assigned and not yet delivered */}
