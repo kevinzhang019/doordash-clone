@@ -266,6 +266,9 @@ function runMigrations(db: Database.Database) {
   if (!orderCols.includes('discount_saved')) {
     db.exec('ALTER TABLE orders ADD COLUMN discount_saved REAL NOT NULL DEFAULT 0');
   }
+  if (!orderCols.includes('tax')) {
+    db.exec('ALTER TABLE orders ADD COLUMN tax REAL NOT NULL DEFAULT 0');
+  }
 
 
 const restCols = (db.prepare("PRAGMA table_info(restaurants)").all() as { name: string }[]).map(c => c.name);
@@ -404,6 +407,67 @@ const restCols = (db.prepare("PRAGMA table_info(restaurants)").all() as { name: 
       created_at TEXT DEFAULT (datetime('now'))
     );
   `);
+
+  // --- Promo codes ---
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS promo_codes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT NOT NULL UNIQUE,
+      discount_type TEXT NOT NULL CHECK(discount_type IN ('percentage', 'flat')),
+      discount_value REAL NOT NULL,
+      max_uses INTEGER,
+      uses_count INTEGER NOT NULL DEFAULT 0,
+      min_order_amount REAL NOT NULL DEFAULT 0,
+      expires_at TEXT,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS promo_code_uses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      promo_code_id INTEGER NOT NULL REFERENCES promo_codes(id),
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      order_id INTEGER REFERENCES orders(id),
+      used_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(promo_code_id, user_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS driver_ratings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      driver_user_id INTEGER NOT NULL REFERENCES users(id),
+      customer_user_id INTEGER NOT NULL REFERENCES users(id),
+      order_id INTEGER NOT NULL UNIQUE REFERENCES orders(id),
+      rating INTEGER NOT NULL CHECK(rating BETWEEN 1 AND 5),
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+  `);
+
+  // Seed promo codes if empty
+  const promoCount = (db.prepare('SELECT COUNT(*) as count FROM promo_codes').get() as { count: number }).count;
+  if (promoCount === 0) {
+    const insertPromo = db.prepare(`
+      INSERT INTO promo_codes (code, discount_type, discount_value, max_uses, min_order_amount)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    insertPromo.run('WELCOME10', 'percentage', 10, 100, 0);
+    insertPromo.run('SAVE5', 'flat', 5, null, 20);
+    insertPromo.run('DOORDASH25', 'percentage', 25, 50, 0);
+  }
+
+  // Add payment columns to orders if not present
+  const orderColsCheck2 = (db.prepare("PRAGMA table_info(orders)").all() as { name: string }[]).map(c => c.name);
+  if (!orderColsCheck2.includes('payment_intent_id')) {
+    db.exec('ALTER TABLE orders ADD COLUMN payment_intent_id TEXT');
+  }
+  if (!orderColsCheck2.includes('payment_status')) {
+    db.exec("ALTER TABLE orders ADD COLUMN payment_status TEXT NOT NULL DEFAULT 'pending'");
+  }
+  if (!orderColsCheck2.includes('promo_code_id')) {
+    db.exec('ALTER TABLE orders ADD COLUMN promo_code_id INTEGER REFERENCES promo_codes(id)');
+  }
+  if (!orderColsCheck2.includes('promo_discount')) {
+    db.exec('ALTER TABLE orders ADD COLUMN promo_discount REAL NOT NULL DEFAULT 0');
+  }
 
   // --- New tables for dispatch queue, available jobs, and messaging ---
   db.exec(`

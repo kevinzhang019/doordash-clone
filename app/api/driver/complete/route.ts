@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server';
 import getDb from '@/db/database';
+import { sendDeliveryReceipt } from '@/lib/email';
+import { Order, OrderItem } from '@/lib/types';
 
 export async function POST(request: NextRequest) {
   const userId = parseInt(request.headers.get('x-user-id') ?? '');
@@ -17,7 +19,7 @@ export async function POST(request: NextRequest) {
 
       // If real order, mark as delivered and clear chat
       if (!isSimulated && orderId) {
-        db.prepare("UPDATE orders SET status = 'delivered', updated_at = datetime('now'), delivered_at = datetime('now') WHERE id = ?").run(orderId);
+        db.prepare("UPDATE orders SET status = 'delivered', delivered_at = datetime('now') WHERE id = ?").run(orderId);
         db.prepare('DELETE FROM messages WHERE order_id = ?').run(orderId);
       }
 
@@ -34,6 +36,23 @@ export async function POST(request: NextRequest) {
     const earned = txn();
 
     const session = db.prepare('SELECT * FROM driver_sessions WHERE id = ?').get(sessionId);
+
+    // Fire-and-forget delivery receipt email
+    if (!isSimulated && orderId) {
+      const orderWithUser = db.prepare(`
+        SELECT o.*, r.name as restaurant_name, u.email, u.name as user_name
+        FROM orders o
+        JOIN restaurants r ON o.restaurant_id = r.id
+        JOIN users u ON o.user_id = u.id
+        WHERE o.id = ?
+      `).get(orderId) as (Order & { restaurant_name: string; email: string; user_name: string }) | undefined;
+      if (orderWithUser) {
+        const items = db.prepare('SELECT * FROM order_items WHERE order_id = ?').all(orderId) as OrderItem[];
+        sendDeliveryReceipt(orderWithUser, items, orderWithUser.email, orderWithUser.user_name)
+          .catch(err => console.error('Delivery receipt email failed:', err));
+      }
+    }
+
     return Response.json({ success: true, earned, session });
   } catch (error) {
     console.error('Complete delivery error:', error);

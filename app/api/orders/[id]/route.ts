@@ -40,7 +40,11 @@ export async function GET(
       'SELECT * FROM reviews WHERE order_id = ?'
     ).get(orderId) as Review | undefined;
 
-    return Response.json({ order, orderItems, existingReview: existingReview || null });
+    const existingDriverRating = order.driver_user_id
+      ? (db.prepare('SELECT rating FROM driver_ratings WHERE order_id = ?').get(orderId) as { rating: number } | undefined)?.rating ?? null
+      : null;
+
+    return Response.json({ order, orderItems, existingReview: existingReview || null, existingDriverRating });
   } catch (error) {
     console.error('Get order error:', error);
     return Response.json({ error: 'Internal server error' }, { status: 500 });

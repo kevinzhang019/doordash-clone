@@ -116,6 +116,7 @@ export interface Order {
   subtotal: number;
   delivery_fee: number;
   tip: number;
+  tax: number;
   total: number;
   placed_at: string;
   driver_user_id?: number | null;
@@ -126,6 +127,11 @@ export interface Order {
   delivery_min?: number;
   delivery_max?: number;
   discount_saved?: number;
+  payment_intent_id?: string;
+  payment_status?: string;
+  promo_code_id?: number | null;
+  promo_discount?: number;
+  existing_driver_rating?: number | null;
 }
 
 export interface Message {

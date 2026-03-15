@@ -19,6 +19,7 @@ export default function DriverSettingsPage() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
+  const [driverRatingInfo, setDriverRatingInfo] = useState<{ averageRating: number | null; totalRatings: number } | null>(null);
 
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -41,6 +42,14 @@ export default function DriverSettingsPage() {
     const stored = parseInt(localStorage.getItem('driverRange') ?? '');
     if (!isNaN(stored)) setRange(stored);
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    fetch(`/api/driver-ratings/${user.id}`)
+      .then(r => r.json())
+      .then(d => setDriverRatingInfo(d))
+      .catch(() => {});
+  }, [user?.id]);
 
   const handleProfileSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -117,6 +126,20 @@ export default function DriverSettingsPage() {
 
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-md mx-auto px-4 py-6">
+
+          {/* Driver rating summary */}
+          {driverRatingInfo && driverRatingInfo.totalRatings > 0 && (
+            <div className={section + ' flex items-center gap-4'}>
+              <div className="text-3xl font-bold text-white leading-none">
+                ★ {driverRatingInfo.averageRating?.toFixed(1)}
+              </div>
+              <div>
+                <p className="text-white font-semibold">Driver Rating</p>
+                <p className="text-gray-400 text-sm">{driverRatingInfo.totalRatings} {driverRatingInfo.totalRatings === 1 ? 'rating' : 'ratings'}</p>
+              </div>
+            </div>
+          )}
+
           <div className={section}>
             <h2 className="text-white font-semibold mb-4">Personal Info</h2>
 

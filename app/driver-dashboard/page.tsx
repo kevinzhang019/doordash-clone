@@ -40,6 +40,7 @@ export default function DriverDashboardPage() {
   const [sessionMinutes, setSessionMinutes] = useState(0);
   const [loadingActive, setLoadingActive] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
+  const [driverAvgRating, setDriverAvgRating] = useState<number | null>(null);
   const [orderStatus, setOrderStatus] = useState<string | null>(null);
   const orderStatusRef = useRef<string | null>(null);
   const [availableJobs, setAvailableJobs] = useState<DriverJob[]>([]);
@@ -61,6 +62,15 @@ export default function DriverDashboardPage() {
   const phaseRef = useRef<Phase>('idle');
   const deliveryIdRef = useRef<number | null>(null);
   const currentJobRef = useRef<DriverJob | null>(null);
+
+  // Fetch driver rating on mount
+  useEffect(() => {
+    if (!user?.id) return;
+    fetch(`/api/driver-ratings/${user.id}`)
+      .then(r => r.json())
+      .then(d => { if (d.averageRating) setDriverAvgRating(d.averageRating); })
+      .catch(() => {});
+  }, [user?.id]);
 
   // Register simulation console commands (one-time)
   useEffect(() => {
@@ -590,6 +600,12 @@ export default function DriverDashboardPage() {
                     {sessionMinutes < 60 ? `${sessionMinutes}m` : `${Math.floor(sessionMinutes / 60)}h ${sessionMinutes % 60}m`}
                   </p>
                 </div>
+                {driverAvgRating && (
+                  <div>
+                    <p className="text-gray-400 text-xs">Rating</p>
+                    <p className="text-yellow-400 font-bold text-base leading-tight">★ {driverAvgRating.toFixed(1)}</p>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex items-center gap-2.5">

@@ -1,23 +1,39 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useCart } from '@/components/providers/CartProvider';
 import { useLocation } from '@/components/providers/LocationProvider';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { getAddressDeal, dealSavings } from '@/lib/dealUtils';
+import { getItemDeal, dealSavings } from '@/lib/dealUtils';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+
+const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+  : null;
 
 const TIP_PRESET_RATES = [0.15, 0.18, 0.20, 0.25];
 const TAX_RATE = 0.085;
 
 const roundToHalf = (n: number) => Math.round(n / 0.5) * 0.5;
 
-export default function CheckoutPage() {
+interface AppliedPromo {
+  id: number;
+  code: string;
+  discount_type: 'percentage' | 'flat';
+  discount_value: number;
+  savings: number;
+}
+
+function CheckoutForm() {
   const { cartItems, cartTotal, clearCart } = useCart();
   const { deliveryAddress, deliveryCoords, getRestaurantDeliveryInfo } = useLocation();
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const stripe = useStripe();
+  const elements = useElements();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [tipPercent, setTipPercent] = useState<number | null>(0.18);
@@ -26,17 +42,33 @@ export default function CheckoutPage() {
   const [deliveryInstructions, setDeliveryInstructions] = useState('');
   const [handoffOption, setHandoffOption] = useState<'hand_off' | 'leave_at_door'>('hand_off');
 
+  // Promo code state
+  const [promoInput, setPromoInput] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState<AppliedPromo | null>(null);
+  const [promoError, setPromoError] = useState('');
+  const [promoLoading, setPromoLoading] = useState(false);
+
   const restaurantId = cartItems[0]?.restaurant_id;
   const restaurantName = cartItems[0]?.restaurant_name;
 
   const info = restaurantId ? getRestaurantDeliveryInfo(restaurantId) : null;
   const deliveryFee = info?.deliveryFee ?? 2.99;
 
-  const addressDeal = restaurantId && deliveryAddress ? getAddressDeal(deliveryAddress, restaurantId) : null;
+  const [restaurantIsSeeded, setRestaurantIsSeeded] = useState(false);
+  const fetchedRestaurantIdRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!restaurantId || fetchedRestaurantIdRef.current === restaurantId) return;
+    fetchedRestaurantIdRef.current = restaurantId;
+    fetch(`/api/restaurants/${restaurantId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setRestaurantIsSeeded(data.isSeeded ?? false); })
+      .catch(() => {});
+  }, [restaurantId]);
 
-  const totalDealSavings = addressDeal
+  const totalDealSavings = restaurantIsSeeded && deliveryAddress
     ? cartItems.reduce((sum, item) => {
-        return sum + dealSavings(addressDeal, item.effective_price ?? item.price ?? 0, item.quantity);
+        const deal = getItemDeal(item.menu_item_id, deliveryAddress);
+        return sum + (deal ? dealSavings(deal, item.effective_price ?? item.price ?? 0, item.quantity) : 0);
       }, 0)
     : 0;
 
@@ -46,9 +78,12 @@ export default function CheckoutPage() {
     ? Math.max(0, parseFloat(customTip) || 0)
     : tipPercent !== null ? roundToHalf(cartTotal * tipPercent) : 0;
 
-  const discountedSubtotal = cartTotal - totalDealSavings;
+  const discountedSubtotal = cartTotal - totalDealSavings - (appliedPromo?.savings ?? 0);
   const taxAmount = discountedSubtotal * TAX_RATE;
   const estimatedTotal = discountedSubtotal + deliveryFee + tipAmount + taxAmount;
+
+  const stripeEnabled = !!stripePromise && !!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY &&
+    !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.includes('placeholder');
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -73,12 +108,85 @@ export default function CheckoutPage() {
     setTipPercent(null);
   };
 
+  const handleApplyPromo = async () => {
+    if (!promoInput.trim()) return;
+    setPromoError('');
+    setPromoLoading(true);
+    try {
+      const res = await fetch('/api/promo/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: promoInput.trim(), cartTotal }),
+      });
+      const data = await res.json();
+      if (data.valid) {
+        setAppliedPromo(data.promo);
+        setPromoInput('');
+      } else {
+        setPromoError(data.error || 'Invalid promo code');
+      }
+    } catch {
+      setPromoError('Failed to validate promo code');
+    } finally {
+      setPromoLoading(false);
+    }
+  };
+
+  const handleRemovePromo = () => {
+    setAppliedPromo(null);
+    setPromoError('');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
+      let paymentIntentId: string | undefined;
+
+      // Stripe payment flow (only when real keys configured)
+      if (stripeEnabled && stripe && elements) {
+        const cardElement = elements.getElement(CardElement);
+        if (!cardElement) {
+          setError('Payment form not ready. Please try again.');
+          setLoading(false);
+          return;
+        }
+
+        // Create payment intent
+        const piRes = await fetch('/api/stripe/create-payment-intent', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ amount: Math.round(estimatedTotal * 100) }),
+        });
+        const piData = await piRes.json();
+        if (!piRes.ok) {
+          setError(piData.error || 'Failed to initialize payment');
+          setLoading(false);
+          return;
+        }
+
+        const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(
+          piData.clientSecret,
+          { payment_method: { card: cardElement } }
+        );
+
+        if (stripeError) {
+          setError(stripeError.message || 'Payment failed');
+          setLoading(false);
+          return;
+        }
+
+        if (paymentIntent?.status !== 'succeeded') {
+          setError('Payment was not completed. Please try again.');
+          setLoading(false);
+          return;
+        }
+
+        paymentIntentId = paymentIntent.id;
+      }
+
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -89,6 +197,8 @@ export default function CheckoutPage() {
           tip: tipAmount,
           deliveryFee,
           discountSaved: totalDealSavings,
+          promoCodeId: appliedPromo?.id ?? null,
+          paymentIntentId: paymentIntentId ?? null,
           deliveryInstructions: deliveryInstructions.trim() || null,
           handoffOption,
         }),
@@ -167,16 +277,21 @@ export default function CheckoutPage() {
                 <span className="text-sm font-bold">-${totalDealSavings.toFixed(2)}</span>
               </div>
             )}
+            {appliedPromo && (
+              <div className="flex items-center justify-between bg-green-600 text-white rounded-lg px-3 py-2 mb-2">
+                <div className="flex items-center gap-1.5 text-sm font-semibold">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5 2V4a2 2 0 00-2-2H5zm2.5 3a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm6.207.293a1 1 0 00-1.414 0l-6 6a1 1 0 101.414 1.414l6-6a1 1 0 000-1.414zM12.5 10a1.5 1.5 0 100 3 1.5 1.5 0 000-3z" clipRule="evenodd" />
+                  </svg>
+                  Promo: {appliedPromo.code}
+                </div>
+                <span className="text-sm font-bold">-${appliedPromo.savings.toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-gray-600 text-sm">
               <span>Subtotal</span>
               <span>${cartTotal.toFixed(2)}</span>
             </div>
-            {totalDealSavings > 0 && (
-              <div className="flex justify-between text-[#FF3008] text-sm font-medium">
-                <span>Deal savings</span>
-                <span>-${totalDealSavings.toFixed(2)}</span>
-              </div>
-            )}
             <div className="flex justify-between text-gray-600 text-sm">
               <span>Delivery fee</span>
               <span>{deliveryFee === 0 ? 'Free' : `$${deliveryFee.toFixed(2)}`}</span>
@@ -211,7 +326,7 @@ export default function CheckoutPage() {
                   key={rate}
                   type="button"
                   onClick={() => handleTipPreset(rate)}
-                  className={`flex-1 min-w-[60px] py-2.5 rounded-xl text-sm font-semibold border transition-all cursor-pointer ${
+                  className={`flex-1 min-w-[60px] py-2.5 rounded-xl text-sm font-semibold border transition-colors cursor-pointer ${
                     isSelected
                       ? 'bg-[#FF3008] text-white border-[#FF3008]'
                       : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400'
@@ -224,7 +339,7 @@ export default function CheckoutPage() {
             <button
               type="button"
               onClick={handleCustomTip}
-              className={`flex-1 min-w-[60px] py-2.5 rounded-xl text-sm font-semibold border transition-all cursor-pointer ${
+              className={`flex-1 min-w-[60px] py-2.5 rounded-xl text-sm font-semibold border transition-colors cursor-pointer ${
                 isCustomTip
                   ? 'bg-[#FF3008] text-white border-[#FF3008]'
                   : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400'
@@ -235,7 +350,7 @@ export default function CheckoutPage() {
             <button
               type="button"
               onClick={handleNoTip}
-              className={`flex-1 min-w-[60px] py-2.5 rounded-xl text-sm font-semibold border transition-all cursor-pointer ${
+              className={`flex-1 min-w-[60px] py-2.5 rounded-xl text-sm font-semibold border transition-colors cursor-pointer ${
                 !isCustomTip && tipPercent === 0
                   ? 'bg-gray-800 text-white border-gray-800'
                   : 'bg-white text-gray-700 border-gray-200 hover:border-gray-400'
@@ -262,6 +377,51 @@ export default function CheckoutPage() {
           )}
         </div>
 
+        {/* Promo Code */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <h2 className="font-semibold text-gray-900 mb-3">Promo Code</h2>
+          {appliedPromo ? (
+            <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+              <div>
+                <p className="font-semibold text-green-800 text-sm">{appliedPromo.code}</p>
+                <p className="text-green-600 text-xs mt-0.5">
+                  {appliedPromo.discount_type === 'percentage'
+                    ? `${appliedPromo.discount_value}% off`
+                    : `$${appliedPromo.discount_value.toFixed(2)} off`}
+                  {' '}— saving ${appliedPromo.savings.toFixed(2)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleRemovePromo}
+                className="text-green-700 hover:text-green-900 text-sm font-medium transition-colors cursor-pointer"
+              >
+                Remove
+              </button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={promoInput}
+                onChange={e => setPromoInput(e.target.value.toUpperCase())}
+                onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleApplyPromo())}
+                placeholder="Enter promo code"
+                className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm uppercase placeholder-normal"
+              />
+              <button
+                type="button"
+                onClick={handleApplyPromo}
+                disabled={promoLoading || !promoInput.trim()}
+                className="px-4 py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              >
+                {promoLoading ? '...' : 'Apply'}
+              </button>
+            </div>
+          )}
+          {promoError && <p className="text-red-600 text-sm mt-2">{promoError}</p>}
+        </div>
+
         {/* Delivery Address */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
           <h2 className="font-semibold text-gray-900 mb-3">Delivery Address</h2>
@@ -285,7 +445,7 @@ export default function CheckoutPage() {
             <button
               type="button"
               onClick={() => setHandoffOption('hand_off')}
-              className={`flex-1 flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium transition-all cursor-pointer ${
+              className={`flex-1 flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium transition-colors cursor-pointer ${
                 handoffOption === 'hand_off'
                   ? 'border-[#FF3008] bg-red-50 text-[#FF3008]'
                   : 'border-gray-200 text-gray-600 hover:border-gray-400'
@@ -299,7 +459,7 @@ export default function CheckoutPage() {
             <button
               type="button"
               onClick={() => setHandoffOption('leave_at_door')}
-              className={`flex-1 flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium transition-all cursor-pointer ${
+              className={`flex-1 flex items-center gap-3 px-4 py-3 rounded-xl border text-sm font-medium transition-colors cursor-pointer ${
                 handoffOption === 'leave_at_door'
                   ? 'border-[#FF3008] bg-red-50 text-[#FF3008]'
                   : 'border-gray-200 text-gray-600 hover:border-gray-400'
@@ -328,6 +488,27 @@ export default function CheckoutPage() {
           </div>
         </div>
 
+        {/* Payment — Stripe card element (only when real keys configured) */}
+        {stripeEnabled && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <h2 className="font-semibold text-gray-900 mb-4">Payment</h2>
+            <div className="border border-gray-200 rounded-xl px-4 py-3">
+              <CardElement
+                options={{
+                  style: {
+                    base: {
+                      fontSize: '14px',
+                      color: '#111827',
+                      '::placeholder': { color: '#9ca3af' },
+                    },
+                  },
+                }}
+              />
+            </div>
+            <p className="text-xs text-gray-400 mt-2">Test card: 4242 4242 4242 4242 · Any future expiry · Any CVC</p>
+          </div>
+        )}
+
         {/* Place Order */}
         <div>
           {error && (
@@ -348,4 +529,15 @@ export default function CheckoutPage() {
       </div>
     </div>
   );
+}
+
+export default function CheckoutPage() {
+  if (stripePromise) {
+    return (
+      <Elements stripe={stripePromise}>
+        <CheckoutForm />
+      </Elements>
+    );
+  }
+  return <CheckoutForm />;
 }

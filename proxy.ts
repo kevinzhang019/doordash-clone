@@ -118,5 +118,9 @@ export const config = {
     '/settings',
     '/api/settings/:path*',
     '/api/messages/:path*',
+    '/api/promo/:path*',
+    '/api/stripe/:path*',
+    '/api/driver-ratings',
+    '/api/driver-ratings/:path*',
   ],
 };

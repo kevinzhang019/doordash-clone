@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server';
 import getDb from '@/db/database';
+import { sendStatusUpdate } from '@/lib/email';
+import { Order } from '@/lib/types';
 
 function getRestaurantId(userId: number) {
   const db = getDb();
@@ -29,12 +31,29 @@ export async function PUT(
 
   const db = getDb();
   const result = db.prepare(`
-    UPDATE orders SET status = ?, updated_at = datetime('now')
+    UPDATE orders SET status = ?
     WHERE id = ? AND restaurant_id = ? AND status NOT IN ('picked_up', 'delivered')
   `).run(status, orderId, restaurantId);
 
   if (result.changes === 0) {
     return Response.json({ error: 'Order not found or already completed' }, { status: 403 });
+  }
+
+  // Fire-and-forget status email
+  if (status === 'preparing' || status === 'picked_up') {
+    const orderWithUser = db.prepare(`
+      SELECT o.*, r.name as restaurant_name, u.email, u.name as user_name,
+             du.name as driver_name
+      FROM orders o
+      JOIN restaurants r ON o.restaurant_id = r.id
+      JOIN users u ON o.user_id = u.id
+      LEFT JOIN users du ON du.id = o.driver_user_id
+      WHERE o.id = ?
+    `).get(orderId) as (Order & { restaurant_name: string; email: string; user_name: string }) | undefined;
+    if (orderWithUser) {
+      sendStatusUpdate(orderWithUser, orderWithUser.email, orderWithUser.user_name, status)
+        .catch(err => console.error('Status email failed:', err));
+    }
   }
 
   return Response.json({ ok: true });

@@ -21,12 +21,12 @@ const STATUS_LABELS: Record<string, string> = {
 
 // Any in-progress status without a driver means the order lost its driver and is waiting
 // for a new one — show it at the 'placed' step so the customer isn't confused.
-function displayStatus(status: string, driverUserId: number | null): string {
+function displayStatus(status: string, driverUserId: number | null | undefined): string {
   if (!driverUserId && (status === 'ready' || status === 'preparing' || status === 'picked_up')) return 'preparing';
   return status;
 }
 
-function OrderStatusProgress({ status, driverUserId }: { status: string; driverUserId: number | null }) {
+function OrderStatusProgress({ status, driverUserId }: { status: string; driverUserId: number | null | undefined }) {
   const effectiveStatus = displayStatus(status, driverUserId);
   const currentIndex = STATUS_STEPS.indexOf(effectiveStatus as (typeof STATUS_STEPS)[number]);
   return (
@@ -235,6 +235,12 @@ export default function OrderDetailPage() {
     }
   };
 
+  const [existingDriverRating, setExistingDriverRating] = useState<number | null>(null);
+  const [driverRating, setDriverRating] = useState<number>(5);
+  const [driverRatingSubmitted, setDriverRatingSubmitted] = useState(false);
+  const [driverRatingError, setDriverRatingError] = useState('');
+  const [driverRatingSubmitting, setDriverRatingSubmitting] = useState(false);
+
   const fetchOrder = async () => {
     if (!orderId) return;
     try {
@@ -245,11 +251,38 @@ export default function OrderDetailPage() {
       } else {
         setOrder(data.order);
         setOrderItems(data.orderItems);
+        if (data.existingDriverRating !== undefined) {
+          setExistingDriverRating(data.existingDriverRating);
+        }
       }
     } catch {
       setError('Failed to load order');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDriverRatingSubmit = async () => {
+    if (!orderId || driverRatingSubmitting) return;
+    setDriverRatingError('');
+    setDriverRatingSubmitting(true);
+    try {
+      const res = await fetch('/api/driver-ratings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId: Number(orderId), rating: driverRating }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setDriverRatingError(data.error || 'Failed to submit rating');
+      } else {
+        setDriverRatingSubmitted(true);
+        setExistingDriverRating(driverRating);
+      }
+    } catch {
+      setDriverRatingError('Something went wrong. Please try again.');
+    } finally {
+      setDriverRatingSubmitting(false);
     }
   };
 
@@ -338,7 +371,7 @@ export default function OrderDetailPage() {
           </p>
           {isActive && (
             <p className="text-sm font-medium text-blue-700 mt-1">
-              {displayStatus(order.status, order.driver_user_id) === 'preparing'
+              {(displayStatus(order.status, order.driver_user_id) === 'preparing' || order.status === 'placed')
                 ? 'Estimating arrival...'
                 : etaMins !== null
                   ? etaMins <= 1 ? 'Arriving any moment' : `Estimated arrival: ~${etaMins} min`
@@ -400,15 +433,49 @@ export default function OrderDetailPage() {
           ))}
         </div>
 
-        <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 space-y-2">
+        <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 space-y-1.5">
+          {(order.promo_discount ?? 0) > 0 && (
+            <div className="flex items-center justify-between bg-green-600 text-white rounded-lg px-3 py-2 mb-1">
+              <div className="flex items-center gap-1.5 text-sm font-semibold">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M5 2a2 2 0 00-2 2v14l3.5-2 3.5 2 3.5-2 3.5 2V4a2 2 0 00-2-2H5zm2.5 3a1.5 1.5 0 100 3 1.5 1.5 0 000-3zm6.207.293a1 1 0 00-1.414 0l-6 6a1 1 0 101.414 1.414l6-6a1 1 0 000-1.414zM12.5 10a1.5 1.5 0 100 3 1.5 1.5 0 000-3z" clipRule="evenodd" />
+                </svg>
+                Promo discount
+              </div>
+              <span className="text-sm font-bold">-${(order.promo_discount ?? 0).toFixed(2)}</span>
+            </div>
+          )}
+          {(order.discount_saved ?? 0) > 0 && (
+            <div className="flex items-center justify-between bg-[#FF3008] text-white rounded-lg px-3 py-2 mb-1">
+              <div className="flex items-center gap-1.5 text-sm font-semibold">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                </svg>
+                Deals applied!
+              </div>
+              <span className="text-sm font-bold">-${(order.discount_saved ?? 0).toFixed(2)}</span>
+            </div>
+          )}
           <div className="flex justify-between text-gray-600 text-sm">
             <span>Subtotal</span>
             <span>${order.subtotal.toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-gray-600 text-sm">
             <span>Delivery fee</span>
-            <span>${order.delivery_fee.toFixed(2)}</span>
+            <span>{order.delivery_fee === 0 ? 'Free' : `$${order.delivery_fee.toFixed(2)}`}</span>
           </div>
+          {(order.tip ?? 0) > 0 && (
+            <div className="flex justify-between text-gray-600 text-sm">
+              <span>Tip</span>
+              <span>${(order.tip ?? 0).toFixed(2)}</span>
+            </div>
+          )}
+          {(order.tax ?? 0) > 0 && (
+            <div className="flex justify-between text-gray-600 text-sm">
+              <span>Tax (8.5%)</span>
+              <span>${(order.tax ?? 0).toFixed(2)}</span>
+            </div>
+          )}
           <div className="flex justify-between font-bold text-gray-900 pt-2 border-t border-gray-200">
             <span>Total</span>
             <span>${order.total.toFixed(2)}</span>
@@ -434,6 +501,52 @@ export default function OrderDetailPage() {
       {/* Review Section — only when delivered */}
       {order.status === 'delivered' && (
         <ReviewSection orderId={order.id} restaurantName={order.restaurant_name || ''} restaurantId={order.restaurant_id} />
+      )}
+
+      {/* Driver Rating — only when delivered and had a real driver */}
+      {order.status === 'delivered' && order.driver_user_id && (
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
+          <h3 className="font-semibold text-gray-900 mb-1">Rate your driver</h3>
+          {existingDriverRating !== null ? (
+            <div>
+              {driverRatingSubmitted && (
+                <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-3 mb-3">
+                  Thanks for rating your driver!
+                </div>
+              )}
+              <p className="text-sm text-gray-500 mb-2">You rated {order.driver_name || 'your driver'}:</p>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map(s => (
+                  <span key={s} className={`text-2xl ${existingDriverRating >= s ? 'text-yellow-400' : 'text-gray-300'}`}>★</span>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div>
+              <p className="text-sm text-gray-500 mb-3">How was {order.driver_name || 'your driver'}?</p>
+              <div className="flex gap-1 mb-3">
+                {[1, 2, 3, 4, 5].map(star => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setDriverRating(star)}
+                    className="text-3xl transition-transform hover:scale-110 cursor-pointer leading-none"
+                  >
+                    <span className={driverRating >= star ? 'text-yellow-400' : 'text-gray-300'}>★</span>
+                  </button>
+                ))}
+              </div>
+              {driverRatingError && <p className="text-red-600 text-sm mb-2">{driverRatingError}</p>}
+              <button
+                onClick={handleDriverRatingSubmit}
+                disabled={driverRatingSubmitting}
+                className="bg-[#FF3008] text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer text-sm"
+              >
+                {driverRatingSubmitting ? 'Submitting...' : 'Submit Rating'}
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
       <div className="flex gap-3">
