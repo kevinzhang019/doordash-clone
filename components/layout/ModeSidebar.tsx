@@ -104,10 +104,10 @@ export default function ModeSidebar() {
           {/* Panel */}
           <motion.div
             key="panel"
-            initial={{ x: -280 }}
+            initial={{ x: '-100%' }}
             animate={{ x: 0 }}
-            exit={{ x: -280 }}
-            transition={{ type: 'tween', duration: 0.25, ease: 'easeOut' }}
+            exit={{ x: '-100%' }}
+            transition={{ type: 'spring', stiffness: 420, damping: 38, mass: 0.9 }}
             className="fixed top-0 left-0 h-full w-[270px] bg-[#FF3008] z-50 flex flex-col shadow-2xl"
           >
             {/* Header */}
