@@ -28,6 +28,16 @@ declare global {
   }
 }
 
+type SyncMessage =
+  | { type: 'went_active'; session: DriverSession }
+  | { type: 'went_offline' }
+  | { type: 'job_offered'; job: DriverJob }
+  | { type: 'job_accepted'; job: DriverJob; deliveryId: number }
+  | { type: 'job_declined' }
+  | { type: 'job_cancelled' }
+  | { type: 'picked_up'; estimatedMinutes: number }
+  | { type: 'delivery_complete'; earned: number; session: DriverSession | null };
+
 export default function DriverDashboardPage() {
   const { user, logout } = useAuth();
   const router = useRouter();
@@ -62,6 +72,11 @@ export default function DriverDashboardPage() {
   const phaseRef = useRef<Phase>('idle');
   const deliveryIdRef = useRef<number | null>(null);
   const currentJobRef = useRef<DriverJob | null>(null);
+
+  // Cross-tab sync via BroadcastChannel
+  const syncChannelRef = useRef<BroadcastChannel | null>(null);
+  // Always-fresh handler ref — updated each render so it closes over latest state/fns
+  const syncHandlerRef = useRef<(msg: SyncMessage) => void>(() => {});
 
   // Fetch driver rating on mount
   useEffect(() => {
@@ -109,6 +124,99 @@ export default function DriverDashboardPage() {
   useEffect(() => { deliveryIdRef.current = deliveryId; }, [deliveryId]);
   useEffect(() => { currentJobRef.current = currentJob; }, [currentJob]);
   useEffect(() => { jobSidebarOpenRef.current = jobSidebarOpen; }, [jobSidebarOpen]);
+
+  // Update sync handler every render so it always captures latest state and refs
+  syncHandlerRef.current = (msg: SyncMessage) => {
+    switch (msg.type) {
+      case 'went_active':
+        // Another tab started a session — sync immediately without waiting for a poll
+        setSession(msg.session);
+        setPhase('active_waiting');
+        break;
+
+      case 'went_offline':
+        // Another tab went offline — clear everything
+        if (pollTimerRef.current) { clearTimeout(pollTimerRef.current); pollTimerRef.current = null; }
+        if (orderStatusPollRef.current) { clearTimeout(orderStatusPollRef.current); orderStatusPollRef.current = null; }
+        if (availableJobsPollRef.current) { clearTimeout(availableJobsPollRef.current); availableJobsPollRef.current = null; }
+        setSession(null); setCurrentJob(null); setDeliveryId(null);
+        setAvailableJobs([]); setJobSidebarOpen(false); setUnreadCount(0);
+        seenJobIdsRef.current = new Set();
+        setOrderStatus(null); setSessionMinutes(0); setPhase('idle');
+        break;
+
+      case 'job_offered':
+        // Another tab received a job offer — show the same offer here so the driver
+        // can accept from any open tab
+        if (phaseRef.current === 'active_waiting') {
+          setCurrentJob(msg.job);
+          setPhase('job_offered');
+        }
+        break;
+
+      case 'job_accepted':
+        // Another tab accepted — stop our polling and enter pickup phase
+        if (pollTimerRef.current) { clearTimeout(pollTimerRef.current); pollTimerRef.current = null; }
+        if (availableJobsPollRef.current) { clearTimeout(availableJobsPollRef.current); availableJobsPollRef.current = null; }
+        setCurrentJob(msg.job);
+        setDeliveryId(msg.deliveryId);
+        setRouteInfo(null);
+        setAvailableJobs([]); setJobSidebarOpen(false);
+        setUnreadCount(0); seenJobIdsRef.current = new Set();
+        setPhase('job_accepted_pickup');
+        break;
+
+      case 'job_declined':
+        // Another tab declined — if we're showing the same offer, go back to waiting
+        if (phaseRef.current === 'job_offered') {
+          setCurrentJob(null);
+          setPhase('active_waiting');
+        }
+        break;
+
+      case 'job_cancelled':
+        // Another tab cancelled the delivery
+        if (orderStatusPollRef.current) { clearTimeout(orderStatusPollRef.current); orderStatusPollRef.current = null; }
+        if (pollTimerRef.current) { clearTimeout(pollTimerRef.current); pollTimerRef.current = null; }
+        setCurrentJob(null); setDeliveryId(null);
+        setRouteInfo(null); setOrderStatus(null);
+        setPhase('active_waiting');
+        break;
+
+      case 'picked_up':
+        // Another tab marked the order picked up
+        if (orderStatusPollRef.current) { clearTimeout(orderStatusPollRef.current); orderStatusPollRef.current = null; }
+        setOrderStatus(null); setRouteInfo(null);
+        setPhase('job_accepted_deliver');
+        setSessionMinutes(m => m + Math.round(msg.estimatedMinutes / 2));
+        break;
+
+      case 'delivery_complete':
+        // Another tab completed a delivery
+        setJustEarned(msg.earned);
+        if (msg.session) setSession(msg.session);
+        setPhase('delivery_complete');
+        setTimeout(() => {
+          setCurrentJob(null);
+          setDeliveryId(null);
+          setPhase('active_waiting');
+        }, 3000);
+        break;
+    }
+  };
+
+  // Open the BroadcastChannel once on mount; handler is always-fresh via ref
+  useEffect(() => {
+    if (typeof BroadcastChannel === 'undefined') return;
+    const ch = new BroadcastChannel('driver-sync');
+    syncChannelRef.current = ch;
+    ch.onmessage = (e: MessageEvent<SyncMessage>) => syncHandlerRef.current(e.data);
+    return () => { ch.close(); syncChannelRef.current = null; };
+  }, []);
+
+  const broadcast = useCallback((msg: SyncMessage) => {
+    syncChannelRef.current?.postMessage(msg);
+  }, []);
 
   // Track unread jobs when sidebar is closed
   useEffect(() => {
@@ -185,6 +293,7 @@ export default function DriverDashboardPage() {
         if (data.jobs?.length > 0) {
           setCurrentJob(data.jobs[0]);
           setPhase('job_offered');
+          broadcast({ type: 'job_offered', job: data.jobs[0] });
         } else {
           pollForJob();
         }
@@ -192,7 +301,7 @@ export default function DriverDashboardPage() {
         pollForJob();
       }
     }, delay);
-  }, [stopPolling]);
+  }, [stopPolling, broadcast]);
 
   // Poll available jobs during active_waiting
   const pollAvailableJobs = useCallback(() => {
@@ -269,10 +378,11 @@ export default function DriverDashboardPage() {
       const data = await res.json();
       setSession(data.session);
       setPhase('active_waiting');
+      broadcast({ type: 'went_active', session: data.session });
     } finally {
       setLoadingActive(false);
     }
-  }, []);
+  }, [broadcast]);
 
   const openJobSidebar = () => {
     setJobSidebarOpen(true);
@@ -312,7 +422,8 @@ export default function DriverDashboardPage() {
     setOrderStatus(null);
     setSessionMinutes(0);
     setPhase('idle');
-  }, [stopPolling, stopAvailableJobsPoll, stopOrderStatusPoll]);
+    broadcast({ type: 'went_offline' });
+  }, [stopPolling, stopAvailableJobsPoll, stopOrderStatusPoll, broadcast]);
 
   const handleLogout = async () => {
     await logout();
@@ -353,6 +464,7 @@ export default function DriverDashboardPage() {
       setDeliveryId(data.deliveryId);
       setRouteInfo(null);
       setPhase('job_accepted_pickup');
+      broadcast({ type: 'job_accepted', job: currentJob!, deliveryId: data.deliveryId });
     } catch {
       setCurrentJob(null);
       setPhase('active_waiting');
@@ -365,6 +477,7 @@ export default function DriverDashboardPage() {
     const job = currentJobRef.current;
     setCurrentJob(null);
     setPhase('active_waiting');
+    broadcast({ type: 'job_declined' });
     // For real orders, record the decline server-side
     if (job && !job.isSimulated && job.orderId) {
       try {
@@ -428,6 +541,7 @@ export default function DriverDashboardPage() {
       setUnreadCount(0);
       seenJobIdsRef.current = new Set();
       setPhase('job_accepted_pickup');
+      broadcast({ type: 'job_accepted', job, deliveryId: data.deliveryId });
     } catch { /* ignore */ } finally {
       setAcceptingAvailableId(null);
     }
@@ -464,6 +578,15 @@ export default function DriverDashboardPage() {
     setRouteInfo(null);
     setOrderStatus(null);
     setPhase('active_waiting');
+    broadcast({ type: 'job_cancelled' });
+    // Refresh available jobs so the cancelled order appears in the sidebar
+    try {
+      const coords = driverCoordsRef.current;
+      const qs = coords ? `?lat=${coords.lat}&lng=${coords.lng}` : '';
+      const res = await fetch(`/api/driver/available-jobs${qs}`);
+      const data = await res.json();
+      setAvailableJobs(data.jobs ?? []);
+    } catch { /* ignore */ }
   };
 
   const handlePickedUp = async () => {
@@ -483,6 +606,7 @@ export default function DriverDashboardPage() {
     setPhase('job_accepted_deliver');
     if (currentJob) {
       setSessionMinutes(m => m + Math.round(currentJob.estimatedMinutes / 2));
+      broadcast({ type: 'picked_up', estimatedMinutes: currentJob.estimatedMinutes });
     }
   };
 
@@ -504,6 +628,7 @@ export default function DriverDashboardPage() {
       if (data.session) setSession(data.session);
       setSessionMinutes(m => m + (currentJob.estimatedMinutes - Math.round(currentJob.estimatedMinutes / 2)));
       setPhase('delivery_complete');
+      broadcast({ type: 'delivery_complete', earned: data.earned || 0, session: data.session ?? null });
       setTimeout(() => {
         setCurrentJob(null);
         setDeliveryId(null);
@@ -612,26 +737,29 @@ export default function DriverDashboardPage() {
                 <div className="w-7 h-7 bg-[#FF3008] rounded-full flex items-center justify-center flex-shrink-0">
                   <span className="text-white font-bold text-xs">D</span>
                 </div>
-                <span className="text-white font-semibold text-sm">Driver Mode</span>
+                <span className="text-white font-semibold text-sm">Welcome Dasher</span>
               </div>
             )}
           </div>
 
-          {/* Right — History + Avatar */}
+          {/* Right — History + Avatar (hidden when active) */}
           <div className="flex items-center gap-2 flex-shrink-0">
 
-            <Link
-              href="/driver-dashboard/history"
-              className="border border-[#2a2a2a] text-gray-400 hover:text-white hover:border-gray-500 px-3 py-1.5 rounded-lg text-sm transition-colors"
-            >
-              History
-            </Link>
+            {phase === 'idle' && (
+              <Link
+                href="/driver-dashboard/history"
+                className="border border-[#2a2a2a] text-gray-400 hover:text-white hover:border-gray-500 px-3 py-1.5 rounded-lg text-sm transition-colors"
+              >
+                History
+              </Link>
+            )}
 
             {/* Avatar dropdown */}
+            {phase === 'idle' && (
             <div ref={avatarRef} className="relative">
               <button
                 onClick={() => setAvatarOpen(o => !o)}
-                className="w-8 h-8 rounded-full bg-[#FF3008] flex items-center justify-center text-white font-bold text-sm cursor-pointer hover:opacity-90 transition-opacity overflow-hidden"
+                className="w-8 h-8 rounded-full bg-[#FF3008] flex items-center justify-center text-white font-bold text-sm transition-opacity overflow-hidden cursor-pointer hover:opacity-90"
               >
                 {user?.avatar_url ? (
                   <Image src={user.avatar_url} alt={user.name} width={32} height={32} className="object-cover w-full h-full" unoptimized />
@@ -658,6 +786,7 @@ export default function DriverDashboardPage() {
                 </div>
               )}
             </div>
+            )}
           </div>
         </div>
       </header>
@@ -803,6 +932,18 @@ export default function DriverDashboardPage() {
               )}
               <p className="text-gray-400 text-xs mb-1">Delivering to</p>
               <p className="text-white font-semibold">{currentJob.deliveryAddress}</p>
+              {(currentJob.handoffOption || currentJob.deliveryInstructions) && (
+                <div className="mt-2 bg-[#2a2a2a] rounded-xl px-3 py-2 space-y-0.5">
+                  {currentJob.handoffOption && (
+                    <p className="text-gray-300 text-xs">
+                      {currentJob.handoffOption === 'leave_at_door' ? '🚪 Leave at door' : '🤝 Hand it to customer'}
+                    </p>
+                  )}
+                  {currentJob.deliveryInstructions && (
+                    <p className="text-gray-400 text-xs italic">&ldquo;{currentJob.deliveryInstructions}&rdquo;</p>
+                  )}
+                </div>
+              )}
               <div className="flex items-center mt-2">
                 <span className="text-[#22c55e] font-bold">${(currentJob.payAmount + currentJob.tip).toFixed(2)}</span>
               </div>
