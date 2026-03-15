@@ -1,10 +1,12 @@
 import { NextRequest } from 'next/server';
 import getDb from '@/db/database';
+import { isCurrentlyOpen, HoursRow } from '@/lib/hours';
 
 interface SelectionDraft {
   option_id?: number | null;
   name: string;
   price_modifier?: number;
+  quantity?: number;
 }
 
 export async function POST(request: NextRequest) {
@@ -22,11 +24,20 @@ export async function POST(request: NextRequest) {
 
     // Get menu item with restaurant info
     const menuItem = db.prepare(
-      'SELECT mi.*, r.name as restaurant_name FROM menu_items mi JOIN restaurants r ON mi.restaurant_id = r.id WHERE mi.id = ? AND mi.is_available = 1'
-    ).get(menuItemId) as { id: number; restaurant_id: number; restaurant_name: string } | undefined;
+      'SELECT mi.*, r.name as restaurant_name, r.is_accepting_orders FROM menu_items mi JOIN restaurants r ON mi.restaurant_id = r.id WHERE mi.id = ? AND mi.is_available = 1'
+    ).get(menuItemId) as { id: number; restaurant_id: number; restaurant_name: string; is_accepting_orders: number } | undefined;
 
     if (!menuItem) {
       return Response.json({ error: 'Menu item not found' }, { status: 404 });
+    }
+
+    const isOwned = !!db.prepare('SELECT 1 FROM restaurant_owners WHERE restaurant_id = ?').get(menuItem.restaurant_id);
+    const restaurantHours = isOwned
+      ? db.prepare('SELECT day_of_week, open_time, close_time, is_closed FROM restaurant_hours WHERE restaurant_id = ? ORDER BY day_of_week').all(menuItem.restaurant_id) as HoursRow[]
+      : [];
+
+    if (!menuItem.is_accepting_orders || (isOwned && !isCurrentlyOpen(restaurantHours))) {
+      return Response.json({ error: 'This restaurant is not accepting orders right now' }, { status: 503 });
     }
 
     // Check for cart conflicts (different restaurant)
@@ -50,7 +61,7 @@ export async function POST(request: NextRequest) {
 
     // Normalize selections for comparison
     const normalizeSelections = (sels: SelectionDraft[]) =>
-      sels.map(s => ({ option_id: s.option_id ?? null, name: s.name?.trim() ?? '', price_modifier: s.price_modifier ?? 0 }))
+      sels.map(s => ({ option_id: s.option_id ?? null, name: s.name?.trim() ?? '', price_modifier: s.price_modifier ?? 0, quantity: s.quantity ?? 1 }))
           .sort((a, b) => (a.option_id ?? 0) - (b.option_id ?? 0) || a.name.localeCompare(b.name));
 
     const newSels = normalizeSelections(selectionList);
@@ -67,11 +78,11 @@ export async function POST(request: NextRequest) {
       if (rowSpecialRequests !== specialRequestsStr) continue;
 
       const rowSels = db.prepare(
-        'SELECT option_id, name, price_modifier FROM cart_item_selections WHERE cart_item_id = ?'
-      ).all(row.id) as { option_id: number | null; name: string; price_modifier: number }[];
+        'SELECT option_id, name, price_modifier, quantity FROM cart_item_selections WHERE cart_item_id = ?'
+      ).all(row.id) as { option_id: number | null; name: string; price_modifier: number; quantity: number }[];
 
       const normalizedRowSels = rowSels
-        .map(s => ({ option_id: s.option_id, name: s.name, price_modifier: s.price_modifier }))
+        .map(s => ({ option_id: s.option_id, name: s.name, price_modifier: s.price_modifier, quantity: s.quantity ?? 1 }))
         .sort((a, b) => (a.option_id ?? 0) - (b.option_id ?? 0) || a.name.localeCompare(b.name));
 
       if (JSON.stringify(normalizedRowSels) === JSON.stringify(newSels)) {
@@ -94,10 +105,10 @@ export async function POST(request: NextRequest) {
 
         // Insert selections
         const insertSel = db.prepare(
-          'INSERT INTO cart_item_selections (cart_item_id, option_id, name, price_modifier) VALUES (?, ?, ?, ?)'
+          'INSERT INTO cart_item_selections (cart_item_id, option_id, name, price_modifier, quantity) VALUES (?, ?, ?, ?, ?)'
         );
         for (const sel of newSels) {
-          insertSel.run(cartItemId, sel.option_id, sel.name, sel.price_modifier);
+          insertSel.run(cartItemId, sel.option_id, sel.name, sel.price_modifier, sel.quantity);
         }
       }
     });

@@ -12,7 +12,8 @@ export async function GET(request: NextRequest) {
   try {
     const db = getDb();
     const orders = db.prepare(`
-      SELECT o.*, r.name as restaurant_name
+      SELECT o.*, r.name as restaurant_name,
+        (SELECT SUM(oi.quantity) FROM order_items oi WHERE oi.order_id = o.id) as item_count
       FROM orders o
       JOIN restaurants r ON o.restaurant_id = r.id
       WHERE o.user_id = ?
@@ -84,7 +85,7 @@ export async function POST(request: NextRequest) {
       const allSelections = cartItemIds.length > 0
         ? db.prepare(
             `SELECT * FROM cart_item_selections WHERE cart_item_id IN (${cartItemIds.map(() => '?').join(',')})`
-          ).all(...cartItemIds) as { id: number; cart_item_id: number; option_id: number | null; name: string; price_modifier: number }[]
+          ).all(...cartItemIds) as { id: number; cart_item_id: number; option_id: number | null; name: string; price_modifier: number; quantity: number }[]
         : [];
 
       // Use client-supplied delivery fee (calculated from distance) or fall back to restaurant default
@@ -99,7 +100,7 @@ export async function POST(request: NextRequest) {
 
       const subtotal = cartItems.reduce((sum, item) => {
         const itemSelections = allSelections.filter(s => s.cart_item_id === item.id);
-        const selTotal = itemSelections.reduce((s, sel) => s + sel.price_modifier, 0);
+        const selTotal = itemSelections.reduce((s, sel) => s + sel.price_modifier * (sel.quantity ?? 1), 0);
         return sum + (item.price + selTotal) * item.quantity;
       }, 0);
       const deliveryFee =
@@ -153,19 +154,19 @@ export async function POST(request: NextRequest) {
         VALUES (?, ?, ?, ?, ?)
       `);
       const insertOrderItemSelection = db.prepare(`
-        INSERT INTO order_item_selections (order_item_id, option_id, name, price_modifier) VALUES (?, ?, ?, ?)
+        INSERT INTO order_item_selections (order_item_id, option_id, name, price_modifier, quantity) VALUES (?, ?, ?, ?, ?)
       `);
 
       for (const item of cartItems) {
         const itemSelections = allSelections.filter(s => s.cart_item_id === item.id);
-        const selTotal = itemSelections.reduce((s, sel) => s + sel.price_modifier, 0);
+        const selTotal = itemSelections.reduce((s, sel) => s + sel.price_modifier * (sel.quantity ?? 1), 0);
         const effectivePrice = Math.round((item.price + selTotal) * 100) / 100;
 
         const orderItemResult = insertOrderItem.run(orderId, item.menu_item_id, item.name, effectivePrice, item.quantity);
         const orderItemId = orderItemResult.lastInsertRowid as number;
 
         for (const sel of itemSelections) {
-          insertOrderItemSelection.run(orderItemId, sel.option_id, sel.name, sel.price_modifier);
+          insertOrderItemSelection.run(orderItemId, sel.option_id, sel.name, sel.price_modifier, sel.quantity ?? 1);
         }
       }
 

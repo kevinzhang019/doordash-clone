@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
+import { LazyMotion, domAnimation, m, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { useCart } from '@/components/providers/CartProvider';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useLocation } from '@/components/providers/LocationProvider';
-import { getAddressDeal, dealSavings } from '@/lib/dealUtils';
+import { getItemDeal, dealSavings } from '@/lib/dealUtils';
 
 const TAX_RATE = 0.085;
 
@@ -24,7 +24,7 @@ function SidebarCartItem({
     quantity: number;
     image_url?: string;
     special_requests?: string | null;
-    selections?: { name: string }[];
+    selections?: { name: string; price_modifier: number; quantity?: number; group_name?: string | null }[];
   };
   onRemove: (id: number) => void;
   onUpdateQty: (id: number, qty: number) => void;
@@ -38,7 +38,7 @@ function SidebarCartItem({
   const lineTotal = effectivePrice * item.quantity;
 
   return (
-    <motion.div
+    <m.div
       layout
       initial={{ opacity: 0, x: 36, scale: 0.97 }}
       animate={{ opacity: 1, x: 0, scale: 1 }}
@@ -47,7 +47,7 @@ function SidebarCartItem({
       className="relative overflow-hidden rounded-xl mb-3"
     >
       {/* Delete hint behind card */}
-      <motion.div
+      <m.div
         style={{ opacity: deleteOpacity }}
         className="absolute inset-0 flex items-center justify-end pr-4 bg-red-50 pointer-events-none select-none rounded-xl"
       >
@@ -57,10 +57,10 @@ function SidebarCartItem({
           </svg>
           <span className="text-[10px] font-bold text-red-500 uppercase tracking-wide">Remove</span>
         </div>
-      </motion.div>
+      </m.div>
 
       {/* Draggable card */}
-      <motion.div
+      <m.div
         style={{ x, background: bg }}
         drag="x"
         dragConstraints={{ left: -110, right: 0 }}
@@ -79,17 +79,31 @@ function SidebarCartItem({
             src={item.image_url || ''}
             alt={item.name || ''}
             fill
+            sizes="56px"
             className="object-cover"
-            unoptimized
+            loading="lazy"
           />
         </div>
 
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-gray-900 text-sm line-clamp-1 leading-tight">{item.name}</p>
           {item.selections && item.selections.length > 0 && (
-            <p className="text-gray-400 text-xs mt-0.5 line-clamp-1">
-              {item.selections.map((s) => s.name).join(', ')}
-            </p>
+            <div className="mt-1 space-y-0.5">
+              {item.selections.map((s, i) => {
+                const qty = s.quantity ?? 1;
+                const totalMod = s.price_modifier * qty;
+                return (
+                  <div key={i} className="flex items-center justify-between text-xs text-gray-400">
+                    <span>{qty > 1 ? `${qty}x ` : ''}{s.name}</span>
+                    {totalMod !== 0 && (
+                      <span className="ml-2 tabular-nums flex-shrink-0 font-semibold">
+                        {totalMod > 0 ? `+$${totalMod.toFixed(2)}` : `-$${Math.abs(totalMod).toFixed(2)}`}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           )}
           {item.special_requests && (
             <p className="text-xs text-gray-400 mt-0.5 italic line-clamp-1">"{item.special_requests}"</p>
@@ -98,14 +112,14 @@ function SidebarCartItem({
           <div className="flex items-center justify-between mt-2">
             {/* Qty stepper + delete */}
             <div className="flex items-center gap-1.5">
-              <motion.button
+              <m.button
                 whileTap={{ scale: 0.8 }}
                 onClick={() => onUpdateQty(item.id, item.quantity - 1)}
                 className="w-6 h-6 rounded-full bg-gray-100 hover:bg-red-50 hover:text-[#FF3008] flex items-center justify-center text-gray-700 font-bold text-base transition-colors cursor-pointer"
               >
                 −
-              </motion.button>
-              <motion.span
+              </m.button>
+              <m.span
                 key={item.quantity}
                 initial={{ scale: 1.4, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
@@ -113,15 +127,15 @@ function SidebarCartItem({
                 className="text-sm font-bold w-5 text-center tabular-nums"
               >
                 {item.quantity}
-              </motion.span>
-              <motion.button
+              </m.span>
+              <m.button
                 whileTap={{ scale: 0.8 }}
                 onClick={() => onUpdateQty(item.id, item.quantity + 1)}
                 className="w-6 h-6 rounded-full bg-gray-100 hover:bg-red-50 hover:text-[#FF3008] flex items-center justify-center text-gray-700 font-bold text-base transition-colors cursor-pointer"
               >
                 +
-              </motion.button>
-              <motion.button
+              </m.button>
+              <m.button
                 whileHover={{ scale: 1.2 }}
                 whileTap={{ scale: 0.85 }}
                 onClick={() => onRemove(item.id)}
@@ -130,22 +144,22 @@ function SidebarCartItem({
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
-              </motion.button>
+              </m.button>
             </div>
 
             {/* Price */}
-            <motion.span
+            <m.span
               key={lineTotal}
               initial={{ opacity: 0.4 }}
               animate={{ opacity: 1 }}
               className="text-sm font-bold text-gray-900 tabular-nums"
             >
               ${lineTotal.toFixed(2)}
-            </motion.span>
+            </m.span>
           </div>
         </div>
-      </motion.div>
-    </motion.div>
+      </m.div>
+    </m.div>
   );
 }
 
@@ -155,6 +169,8 @@ export default function CartSidebar() {
   const { getRestaurantDeliveryInfo, deliveryAddress } = useLocation();
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [removingIds, setRemovingIds] = useState<number[]>([]);
+  const [restaurantIsSeeded, setRestaurantIsSeeded] = useState(false);
+  const fetchedRestaurantIdRef = useRef<number | null>(null);
 
   const handleRemove = (id: number) => {
     if (removingIds.includes(id)) return;
@@ -187,11 +203,19 @@ export default function CartSidebar() {
   const deliveryFee = deliveryInfo?.deliveryFee ?? 2.99;
   const visibleItems = cartItems.filter((item) => !removingIds.includes(item.id));
 
-  const addressDeal = restaurantId && deliveryAddress ? getAddressDeal(deliveryAddress, restaurantId) : null;
+  useEffect(() => {
+    if (!restaurantId || fetchedRestaurantIdRef.current === restaurantId) return;
+    fetchedRestaurantIdRef.current = restaurantId;
+    fetch(`/api/restaurants/${restaurantId}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setRestaurantIsSeeded(data.isSeeded ?? false); })
+      .catch(() => {});
+  }, [restaurantId]);
 
-  const totalDealSavings = addressDeal
+  const totalDealSavings = restaurantIsSeeded && deliveryAddress
     ? cartItems.reduce((sum, item) => {
-        return sum + dealSavings(addressDeal, item.effective_price ?? item.price ?? 0, item.quantity);
+        const deal = getItemDeal(item.menu_item_id, deliveryAddress);
+        return sum + (deal ? dealSavings(deal, item.effective_price ?? item.price ?? 0, item.quantity) : 0);
       }, 0)
     : 0;
 
@@ -200,32 +224,33 @@ export default function CartSidebar() {
   const estimatedTotal = discountedSubtotal + deliveryFee + taxAmount;
 
   return (
+    <LazyMotion features={domAnimation}>
     <AnimatePresence>
       {isSidebarOpen && (
         <div className="fixed inset-0 z-50 flex justify-end">
           {/* Backdrop */}
-          <motion.div
+          <m.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.25 }}
-            className="absolute inset-0 bg-black/40"
+            className="absolute inset-0 bg-black/40 will-change-[opacity]"
           />
 
           {/* Panel */}
-          <motion.div
+          <m.div
             ref={sidebarRef}
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}
             transition={{ type: 'spring', stiffness: 420, damping: 38, mass: 0.9 }}
-            className="relative bg-white w-full max-w-md h-full flex flex-col shadow-2xl"
+            className="relative bg-white w-full max-w-md h-full flex flex-col shadow-2xl will-change-transform"
           >
             {/* Header */}
             <div className="border-b">
               <div className="flex items-center justify-between px-4 pt-4 pb-3">
                 <h2 className="text-lg font-bold text-gray-900">Your Cart</h2>
-                <motion.button
+                <m.button
                   whileHover={{ scale: 1.1 }}
                   whileTap={{ scale: 0.9 }}
                   onClick={closeSidebar}
@@ -234,7 +259,7 @@ export default function CartSidebar() {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
-                </motion.button>
+                </m.button>
               </div>
 
               {restaurantName && (
@@ -268,7 +293,7 @@ export default function CartSidebar() {
               {/* Reorder unavailable items notice */}
               <AnimatePresence>
                 {reorderSkipped.length > 0 && (
-                  <motion.div
+                  <m.div
                     initial={{ opacity: 0, y: -8 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -8 }}
@@ -296,27 +321,27 @@ export default function CartSidebar() {
                         </svg>
                       </button>
                     </div>
-                  </motion.div>
+                  </m.div>
                 )}
               </AnimatePresence>
 
               {visibleItems.length === 0 ? (
-                <motion.div
+                <m.div
                   initial={{ opacity: 0, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
                   className="flex flex-col items-center justify-center h-full text-center py-12"
                 >
-                  <motion.div
+                  <m.div
                     animate={{ rotate: [0, -8, 8, -4, 4, 0] }}
                     transition={{ delay: 0.2, duration: 0.6 }}
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-gray-200 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
                     </svg>
-                  </motion.div>
+                  </m.div>
                   <p className="text-gray-500 font-medium">Your cart is empty</p>
                   <p className="text-gray-400 text-sm mt-1">Add items from a restaurant to get started</p>
-                </motion.div>
+                </m.div>
               ) : (
                 <>
                   <div className="flex items-center justify-between mb-2">
@@ -345,7 +370,7 @@ export default function CartSidebar() {
             {/* Footer */}
             <AnimatePresence>
               {visibleItems.length > 0 && (
-                <motion.div
+                <m.div
                   layout
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -354,7 +379,7 @@ export default function CartSidebar() {
                 >
                   {/* Deals savings banner */}
                   {totalDealSavings > 0 && (
-                    <motion.div
+                    <m.div
                       initial={{ opacity: 0, scale: 0.97 }}
                       animate={{ opacity: 1, scale: 1 }}
                       className="bg-[#FF3008] text-white rounded-xl px-4 py-2.5 flex items-center justify-between text-sm font-semibold mb-1"
@@ -366,15 +391,15 @@ export default function CartSidebar() {
                         <span>Deals applied!</span>
                       </div>
                       <span>-${totalDealSavings.toFixed(2)}</span>
-                    </motion.div>
+                    </m.div>
                   )}
 
                   {/* Price breakdown */}
                   <div className="flex justify-between text-gray-600 text-sm">
                     <span>Subtotal</span>
-                    <motion.span key={cartTotal} initial={{ opacity: 0.4 }} animate={{ opacity: 1 }}>
+                    <m.span key={cartTotal} initial={{ opacity: 0.4 }} animate={{ opacity: 1 }}>
                       ${cartTotal.toFixed(2)}
-                    </motion.span>
+                    </m.span>
                   </div>
                   {totalDealSavings > 0 && (
                     <div className="flex justify-between text-[#FF3008] text-sm font-medium">
@@ -392,12 +417,12 @@ export default function CartSidebar() {
                   </div>
                   <div className="flex justify-between text-gray-900 font-semibold pt-1.5 border-t border-gray-100">
                     <span>Est. total</span>
-                    <motion.span key={estimatedTotal} initial={{ opacity: 0.4 }} animate={{ opacity: 1 }}>
+                    <m.span key={estimatedTotal} initial={{ opacity: 0.4 }} animate={{ opacity: 1 }}>
                       ${estimatedTotal.toFixed(2)}
-                    </motion.span>
+                    </m.span>
                   </div>
 
-                  <motion.div whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.98 }} className="pt-1">
+                  <m.div whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.98 }} className="pt-1">
                     <Link
                       href={user ? '/checkout' : '/login?redirect=/checkout'}
                       onClick={closeSidebar}
@@ -405,13 +430,14 @@ export default function CartSidebar() {
                     >
                       Checkout · ${estimatedTotal.toFixed(2)}
                     </Link>
-                  </motion.div>
-                </motion.div>
+                  </m.div>
+                </m.div>
               )}
             </AnimatePresence>
-          </motion.div>
+          </m.div>
         </div>
       )}
     </AnimatePresence>
+    </LazyMotion>
   );
 }

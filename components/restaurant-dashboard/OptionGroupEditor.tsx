@@ -11,6 +11,7 @@ export interface OptionGroupDraft {
   name: string;
   required: boolean;
   max_selections: number | null;
+  selection_type: 'check' | 'quantity';
   options: OptionDraft[];
   collapsed?: boolean;
 }
@@ -37,7 +38,7 @@ export default function OptionGroupEditor({ groups, onChange }: OptionGroupEdito
   };
 
   const addGroup = () => {
-    onChange([...groups, { name: '', required: false, max_selections: null, options: [] }]);
+    onChange([...groups, { name: '', required: false, max_selections: null, selection_type: 'check', options: [] }]);
     setCollapsed(prev => [...prev, false]);
   };
 
@@ -109,7 +110,24 @@ export default function OptionGroupEditor({ groups, onChange }: OptionGroupEdito
           {!collapsed[gi] && (
             <div className="px-3 pb-3 pt-2 space-y-2">
               {/* Group settings */}
-              <div className="flex items-center gap-4 text-xs text-gray-600">
+              <div className="flex flex-wrap items-center gap-4 text-xs text-gray-600">
+                <div className="flex items-center gap-1.5">
+                  <span>Type:</span>
+                  <select
+                    value={group.selection_type}
+                    onChange={e => {
+                      const type = e.target.value as 'check' | 'quantity';
+                      updateGroup(gi, {
+                        selection_type: type,
+                        max_selections: type === 'quantity' ? (group.max_selections ?? 6) : group.max_selections,
+                      });
+                    }}
+                    className="border border-gray-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#FF3008] bg-white"
+                  >
+                    <option value="check">Check / Radio</option>
+                    <option value="quantity">Quantity pick</option>
+                  </select>
+                </div>
                 <label className="flex items-center gap-1.5 cursor-pointer">
                   <input
                     type="checkbox"
@@ -119,24 +137,39 @@ export default function OptionGroupEditor({ groups, onChange }: OptionGroupEdito
                   />
                   Required
                 </label>
-                <div className="flex items-center gap-1.5">
-                  <span>Max selections:</span>
-                  <select
-                    value={group.max_selections === null ? 'any' : group.max_selections === 1 ? '1' : String(group.max_selections)}
-                    onChange={e => {
-                      const v = e.target.value;
-                      updateGroup(gi, { max_selections: v === 'any' ? null : parseInt(v) });
-                    }}
-                    className="border border-gray-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#FF3008] bg-white"
-                  >
-                    <option value="any">Any</option>
-                    <option value="1">Pick 1</option>
-                    <option value="2">Up to 2</option>
-                    <option value="3">Up to 3</option>
-                    <option value="4">Up to 4</option>
-                    <option value="5">Up to 5</option>
-                  </select>
-                </div>
+                {group.selection_type === 'quantity' ? (
+                  <div className="flex items-center gap-1.5">
+                    <span>Max total qty:</span>
+                    <input
+                      type="number"
+                      min="1"
+                      max="99"
+                      value={group.max_selections ?? ''}
+                      onChange={e => updateGroup(gi, { max_selections: parseInt(e.target.value) || null })}
+                      className="w-14 px-2 py-0.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-[#FF3008]"
+                      placeholder="e.g. 6"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1.5">
+                    <span>Max selections:</span>
+                    <select
+                      value={group.max_selections === null ? 'any' : group.max_selections === 1 ? '1' : String(group.max_selections)}
+                      onChange={e => {
+                        const v = e.target.value;
+                        updateGroup(gi, { max_selections: v === 'any' ? null : parseInt(v) });
+                      }}
+                      className="border border-gray-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#FF3008] bg-white"
+                    >
+                      <option value="any">Any</option>
+                      <option value="1">Pick 1</option>
+                      <option value="2">Up to 2</option>
+                      <option value="3">Up to 3</option>
+                      <option value="4">Up to 4</option>
+                      <option value="5">Up to 5</option>
+                    </select>
+                  </div>
+                )}
               </div>
 
               {/* Options */}

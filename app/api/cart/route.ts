@@ -37,12 +37,17 @@ export async function GET(request: NextRequest) {
     if (cartItems.length > 0) {
       const ids = cartItems.map(ci => ci.id);
       const allSelections = db.prepare(
-        `SELECT * FROM cart_item_selections WHERE cart_item_id IN (${ids.map(() => '?').join(',')}) ORDER BY id`
-      ).all(...ids) as { id: number; cart_item_id: number; option_id: number | null; name: string; price_modifier: number }[];
+        `SELECT cis.*, g.name as group_name
+         FROM cart_item_selections cis
+         LEFT JOIN menu_item_options o ON o.id = cis.option_id
+         LEFT JOIN menu_item_option_groups g ON g.id = o.group_id
+         WHERE cis.cart_item_id IN (${ids.map(() => '?').join(',')})
+         ORDER BY cis.id`
+      ).all(...ids) as { id: number; cart_item_id: number; option_id: number | null; name: string; price_modifier: number; quantity: number; group_name: string | null }[];
 
       for (const item of cartItems) {
         item.selections = allSelections.filter(s => s.cart_item_id === item.id);
-        const selectionTotal = item.selections.reduce((sum, s) => sum + s.price_modifier, 0);
+        const selectionTotal = item.selections.reduce((sum, s) => sum + s.price_modifier * (s.quantity ?? 1), 0);
         item.effective_price = (item.price || 0) + selectionTotal;
       }
     }

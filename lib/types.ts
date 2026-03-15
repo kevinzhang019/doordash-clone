@@ -51,6 +51,7 @@ export interface MenuItemOptionGroup {
   required: number;
   max_selections: number | null;
   sort_order: number;
+  selection_type: 'check' | 'quantity';
   options?: MenuItemOption[];
 }
 
@@ -68,6 +69,8 @@ export interface CartItemSelection {
   option_id: number | null;
   name: string;
   price_modifier: number;
+  quantity: number;
+  group_name?: string | null;
 }
 
 export interface OrderItemSelection {
@@ -76,6 +79,8 @@ export interface OrderItemSelection {
   option_id: number | null;
   name: string;
   price_modifier: number;
+  quantity: number;
+  group_name?: string | null;
 }
 
 export interface AnalyticsData {
@@ -132,6 +137,7 @@ export interface Order {
   promo_code_id?: number | null;
   promo_discount?: number;
   existing_driver_rating?: number | null;
+  item_count?: number;
 }
 
 export interface Message {
@@ -164,6 +170,7 @@ export interface OrderItem {
   name: string;
   price: number;
   quantity: number;
+  selections?: OrderItemSelection[];
 }
 
 export interface RestaurantOwner {

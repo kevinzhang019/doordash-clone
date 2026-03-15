@@ -256,12 +256,39 @@ function CheckoutForm() {
           </div>
           <div className="divide-y divide-gray-100">
             {cartItems.map((item) => (
-              <div key={item.id} className="flex justify-between items-center px-6 py-3">
-                <div>
-                  <span className="text-gray-900 font-medium">{item.name}</span>
-                  <span className="text-gray-500 text-sm ml-2">x{item.quantity}</span>
+              <div key={item.id} className="px-6 py-3">
+                <div className="flex justify-between items-start gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-1.5">
+                      <span className="text-gray-900 font-medium">{item.name}</span>
+                      <span className="text-gray-500 text-sm">x{item.quantity}</span>
+                    </div>
+                    {item.selections && item.selections.length > 0 && (
+                      <div className="mt-1 space-y-0.5">
+                        {item.selections.map((s, i) => {
+                          const qty = (s as { quantity?: number }).quantity ?? 1;
+                          const totalMod = s.price_modifier * qty;
+                          return (
+                            <div key={i} className="flex items-center justify-between text-xs text-gray-500">
+                              <span>{qty > 1 ? `${qty}x ` : ''}{s.name}</span>
+                              {totalMod !== 0 && (
+                                <span className="ml-2 tabular-nums text-gray-400 flex-shrink-0 font-semibold">
+                                  {totalMod > 0 ? `+$${totalMod.toFixed(2)}` : `-$${Math.abs(totalMod).toFixed(2)}`}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {item.special_requests && (
+                      <p className="text-xs text-gray-400 italic mt-0.5">"{item.special_requests}"</p>
+                    )}
+                  </div>
+                  <span className="text-gray-900 font-medium tabular-nums flex-shrink-0">
+                    ${((item.effective_price ?? item.price ?? 0) * item.quantity).toFixed(2)}
+                  </span>
                 </div>
-                <span className="text-gray-900 font-medium">${((item.price || 0) * item.quantity).toFixed(2)}</span>
               </div>
             ))}
           </div>

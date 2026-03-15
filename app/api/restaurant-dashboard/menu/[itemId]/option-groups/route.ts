@@ -60,7 +60,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const txn = db.transaction(() => {
       db.prepare('DELETE FROM menu_item_option_groups WHERE menu_item_id = ?').run(parseInt(itemId));
       const insertGroup = db.prepare(
-        'INSERT INTO menu_item_option_groups (menu_item_id, name, required, max_selections, sort_order) VALUES (?, ?, ?, ?, ?)'
+        'INSERT INTO menu_item_option_groups (menu_item_id, name, required, max_selections, sort_order, selection_type) VALUES (?, ?, ?, ?, ?, ?)'
       );
       const insertOption = db.prepare(
         'INSERT INTO menu_item_options (group_id, name, price_modifier, sort_order) VALUES (?, ?, ?, ?)'
@@ -73,7 +73,8 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
           g.name.trim(),
           g.required ? 1 : 0,
           g.max_selections ?? null,
-          gi
+          gi,
+          g.selection_type === 'quantity' ? 'quantity' : 'check'
         );
         const groupId = groupResult.lastInsertRowid;
         const opts = Array.isArray(g.options) ? g.options : [];

@@ -498,6 +498,23 @@ const restCols = (db.prepare("PRAGMA table_info(restaurants)").all() as { name: 
     CREATE INDEX IF NOT EXISTS idx_messages_order_id ON messages(order_id);
   `);
 
+  // --- Add selection_type to option groups (quantity-based groups) ---
+  const optGroupCols = (db.prepare("PRAGMA table_info(menu_item_option_groups)").all() as { name: string }[]).map(c => c.name);
+  if (!optGroupCols.includes('selection_type')) {
+    db.exec("ALTER TABLE menu_item_option_groups ADD COLUMN selection_type TEXT NOT NULL DEFAULT 'check'");
+  }
+
+  // --- Add quantity to cart_item_selections and order_item_selections ---
+  const cartSelCols = (db.prepare("PRAGMA table_info(cart_item_selections)").all() as { name: string }[]).map(c => c.name);
+  if (!cartSelCols.includes('quantity')) {
+    db.exec('ALTER TABLE cart_item_selections ADD COLUMN quantity INTEGER NOT NULL DEFAULT 1');
+  }
+
+  const orderSelCols = (db.prepare("PRAGMA table_info(order_item_selections)").all() as { name: string }[]).map(c => c.name);
+  if (!orderSelCols.includes('quantity')) {
+    db.exec('ALTER TABLE order_item_selections ADD COLUMN quantity INTEGER NOT NULL DEFAULT 1');
+  }
+
 }
 
 export default getDb;

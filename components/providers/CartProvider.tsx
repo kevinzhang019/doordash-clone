@@ -8,6 +8,8 @@ interface SelectionDraft {
   option_id?: number | null;
   name: string;
   price_modifier?: number;
+  quantity?: number;
+  group_name?: string | null;
 }
 
 interface GuestCartItem {
@@ -19,7 +21,7 @@ interface GuestCartItem {
   price: number;
   image_url?: string | null;
   quantity: number;
-  selections: SelectionDraft[];
+  selections: (SelectionDraft & { group_name?: string | null })[];
   special_requests: string;
 }
 
@@ -55,15 +57,17 @@ function guestToCartItems(items: GuestCartItem[]): CartItem[] {
       option_id: s.option_id ?? null,
       name: s.name,
       price_modifier: s.price_modifier ?? 0,
+      quantity: s.quantity ?? 1,
+      group_name: s.group_name ?? null,
     })),
-    effective_price: item.price + item.selections.reduce((sum, s) => sum + (s.price_modifier ?? 0), 0),
+    effective_price: item.price + item.selections.reduce((sum, s) => sum + (s.price_modifier ?? 0) * (s.quantity ?? 1), 0),
     special_requests: item.special_requests || null,
   }));
 }
 
 function normalizeSels(sels: SelectionDraft[]) {
   return [...sels]
-    .map(s => ({ option_id: s.option_id ?? null, name: s.name?.trim() ?? '', price_modifier: s.price_modifier ?? 0 }))
+    .map(s => ({ option_id: s.option_id ?? null, name: s.name?.trim() ?? '', price_modifier: s.price_modifier ?? 0, quantity: s.quantity ?? 1 }))
     .sort((a, b) => (a.option_id ?? 0) - (b.option_id ?? 0) || a.name.localeCompare(b.name));
 }
 

@@ -149,7 +149,7 @@ function ReviewSection({ orderId, restaurantName, restaurantId }: { orderId: num
   if (existingReview) {
     return (
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
-        <Link href={`/restaurants/${restaurantId}#reviews`} className="flex items-center gap-1 font-semibold text-gray-900 hover:text-[#FF3008] transition-colors mb-4 w-fit group">
+        <Link href={`/restaurants/${restaurantId}#review-${existingReview.id}`} className="flex items-center gap-1 font-semibold text-gray-900 hover:text-[#FF3008] transition-colors mb-4 w-fit group">
           My Review
           <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400 group-hover:text-[#FF3008] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
@@ -423,12 +423,34 @@ export default function OrderDetailPage() {
 
         <div className="divide-y divide-gray-100">
           {orderItems.map((item) => (
-            <div key={item.id} className="flex justify-between items-center px-6 py-3">
-              <div>
-                <span className="text-gray-900">{item.name}</span>
-                <span className="text-gray-500 text-sm ml-2">x{item.quantity}</span>
+            <div key={item.id} className="px-6 py-3">
+              <div className="flex justify-between items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-gray-900 font-medium">{item.name}</span>
+                    <span className="text-gray-500 text-sm">x{item.quantity}</span>
+                  </div>
+                  {item.selections && item.selections.length > 0 && (
+                    <div className="mt-1 space-y-0.5">
+                      {item.selections.map((s, i) => {
+                        const qty = (s as { quantity?: number }).quantity ?? 1;
+                        const totalMod = s.price_modifier * qty;
+                        return (
+                          <div key={i} className="flex items-center justify-between text-xs text-gray-500">
+                            <span>{qty > 1 ? `${qty}x ` : ''}{s.name}</span>
+                            {totalMod !== 0 && (
+                              <span className="ml-2 tabular-nums text-gray-400 flex-shrink-0 font-semibold">
+                                {totalMod > 0 ? `+$${totalMod.toFixed(2)}` : `-$${Math.abs(totalMod).toFixed(2)}`}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+                <span className="font-medium text-gray-900 tabular-nums flex-shrink-0">${(item.price * item.quantity).toFixed(2)}</span>
               </div>
-              <span className="font-medium text-gray-900">${(item.price * item.quantity).toFixed(2)}</span>
             </div>
           ))}
         </div>

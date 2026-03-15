@@ -9,6 +9,8 @@ interface SelectionDraft {
   option_id: number;
   name: string;
   price_modifier: number;
+  quantity: number;
+  group_name?: string;
 }
 
 interface MenuItemCardProps {
@@ -17,6 +19,7 @@ interface MenuItemCardProps {
   onExpand: () => void;
   onCollapse: () => void;
   deal?: Deal | null;
+  isAcceptingOrders?: boolean;
 }
 
 function getDealLabel(deal: Deal): string {
@@ -27,7 +30,7 @@ function getDealLabel(deal: Deal): string {
 
 const ANIM_MS = 300;
 
-export default function MenuItemCard({ item, isExpanded, onExpand, onCollapse, deal }: MenuItemCardProps) {
+export default function MenuItemCard({ item, isExpanded, onExpand, onCollapse, deal, isAcceptingOrders = true }: MenuItemCardProps) {
   const { addItem, clearCartAndAdd } = useCart();
 
   const cardRef = useRef<HTMLDivElement>(null);
@@ -37,6 +40,8 @@ export default function MenuItemCard({ item, isExpanded, onExpand, onCollapse, d
   const [groups, setGroups] = useState<MenuItemOptionGroup[]>([]);
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [selected, setSelected] = useState<Map<number, SelectionDraft[]>>(new Map());
+  // For quantity-based groups: Map<groupId, Map<optionId, quantity>>
+  const [qtySelections, setQtySelections] = useState<Map<number, Map<number, number>>>(new Map());
   const [showErrors, setShowErrors] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [conflictingRestaurant, setConflictingRestaurant] = useState<string | null>(null);
@@ -78,8 +83,10 @@ export default function MenuItemCard({ item, isExpanded, onExpand, onCollapse, d
   }, [isExpanded, item.id]);
 
   const handleAddClick = () => {
+    if (!isAcceptingOrders) return;
     savedScrollY.current = window.scrollY;
     setSelected(new Map());
+    setQtySelections(new Map());
     setShowErrors(false);
     setConflictingRestaurant(null);
     setSpecialRequests('');
@@ -122,7 +129,7 @@ export default function MenuItemCard({ item, isExpanded, onExpand, onCollapse, d
     setSelected(prev => {
       const next = new Map(prev);
       const current = next.get(group.id) || [];
-      const sel: SelectionDraft = { option_id: option.id, name: option.name, price_modifier: option.price_modifier };
+      const sel: SelectionDraft = { option_id: option.id, name: option.name, price_modifier: option.price_modifier, quantity: 1, group_name: group.name };
 
       if (group.max_selections === 1) {
         const alreadySelected = current.some(s => s.option_id === option.id);
@@ -141,17 +148,81 @@ export default function MenuItemCard({ item, isExpanded, onExpand, onCollapse, d
     });
   };
 
+  const updateQtyOption = (group: MenuItemOptionGroup, option: MenuItemOption, delta: number) => {
+    setQtySelections(prev => {
+      const next = new Map(prev);
+      const groupMap = new Map(next.get(group.id) || []);
+      const current = groupMap.get(option.id) || 0;
+      const newQty = Math.max(0, current + delta);
+
+      // Enforce max total
+      if (delta > 0 && group.max_selections) {
+        const currentTotal = Array.from(groupMap.values()).reduce((s, v) => s + v, 0);
+        if (currentTotal >= group.max_selections) return prev;
+      }
+
+      if (newQty === 0) {
+        groupMap.delete(option.id);
+      } else {
+        groupMap.set(option.id, newQty);
+      }
+      next.set(group.id, groupMap);
+      return next;
+    });
+  };
+
   const isSelected = (groupId: number, optionId: number) =>
     (selected.get(groupId) || []).some(s => s.option_id === optionId);
 
-  const selectionTotal = Array.from(selected.values()).flat().reduce((sum, s) => sum + s.price_modifier, 0);
+  // Price from check-based selections
+  const checkSelTotal = Array.from(selected.values()).flat().reduce((sum, s) => sum + s.price_modifier, 0);
+  // Price from quantity-based selections
+  const qtySelTotal = groups
+    .filter(g => g.selection_type === 'quantity')
+    .reduce((sum, g) => {
+      const groupMap = qtySelections.get(g.id);
+      if (!groupMap) return sum;
+      for (const [optId, qty] of groupMap) {
+        const opt = g.options?.find(o => o.id === optId);
+        if (opt) sum += opt.price_modifier * qty;
+      }
+      return sum;
+    }, 0);
+  const selectionTotal = checkSelTotal + qtySelTotal;
   const effectivePrice = item.price + selectionTotal;
-  const unfilledRequired = groups.filter(g => g.required && !(selected.get(g.id)?.length));
+
+  const unfilledRequired = groups.filter(g => {
+    if (!g.required) return false;
+    if (g.selection_type === 'quantity') {
+      const groupMap = qtySelections.get(g.id);
+      const total = groupMap ? Array.from(groupMap.values()).reduce((s, v) => s + v, 0) : 0;
+      return total === 0;
+    }
+    return !(selected.get(g.id)?.length);
+  });
+
+  const buildAllSelections = (): SelectionDraft[] => {
+    const checkSels = Array.from(selected.values()).flat();
+    const qtySels: SelectionDraft[] = [];
+    for (const group of groups) {
+      if (group.selection_type !== 'quantity') continue;
+      const groupMap = qtySelections.get(group.id);
+      if (!groupMap) continue;
+      for (const [optId, qty] of groupMap) {
+        if (qty <= 0) continue;
+        const opt = group.options?.find(o => o.id === optId);
+        if (opt) {
+          qtySels.push({ option_id: opt.id, name: opt.name, price_modifier: opt.price_modifier, quantity: qty, group_name: group.name });
+        }
+      }
+    }
+    return [...checkSels, ...qtySels];
+  };
 
   const handleAddToCart = async () => {
     if (unfilledRequired.length > 0) { setShowErrors(true); return; }
     setSubmitting(true);
-    const allSelections = Array.from(selected.values()).flat();
+    const allSelections = buildAllSelections();
     const result = await addItem(item.id, allSelections, specialRequests);
     setSubmitting(false);
     if (result.conflictingRestaurant) {
@@ -164,7 +235,7 @@ export default function MenuItemCard({ item, isExpanded, onExpand, onCollapse, d
 
   const handleClearAndAdd = async () => {
     setSubmitting(true);
-    const allSelections = Array.from(selected.values()).flat();
+    const allSelections = buildAllSelections();
     await clearCartAndAdd(item.id, allSelections, specialRequests);
     setSubmitting(false);
     collapseWithScroll();
@@ -173,13 +244,15 @@ export default function MenuItemCard({ item, isExpanded, onExpand, onCollapse, d
   return (
     <div
       ref={cardRef}
-      onClick={!isExpanded && !isClosing ? handleAddClick : undefined}
-      className={`bg-white rounded-xl border overflow-hidden transition-shadow duration-200 ${
+      onClick={!isExpanded && !isClosing && isAcceptingOrders ? handleAddClick : undefined}
+      className={`bg-white rounded-xl border overflow-hidden transition-[box-shadow,border-color] duration-200 ${
         showErrors && unfilledRequired.length > 0
           ? 'border-[#FF3008]/40 shadow-[0_0_0_3px_rgba(255,48,8,0.15),0_4px_16px_rgba(255,48,8,0.25)]'
           : isExpanded
           ? 'border-[#FF3008]/30 shadow-md'
-          : 'border-gray-100 shadow-sm hover:shadow-md cursor-pointer'
+          : isAcceptingOrders
+          ? 'border-gray-100 shadow-sm hover:shadow-md cursor-pointer'
+          : 'border-gray-100 shadow-sm opacity-60'
       }`}
     >
       {/* Item header row */}
@@ -201,7 +274,7 @@ export default function MenuItemCard({ item, isExpanded, onExpand, onCollapse, d
         </div>
         <div className="flex flex-col items-center gap-2 flex-shrink-0">
           <div className="relative w-24 h-24 rounded-lg overflow-hidden">
-            <Image src={item.image_url} alt={item.name} fill className="object-cover" unoptimized />
+            <Image src={item.image_url} alt={item.name} fill sizes="96px" className="object-cover" loading="lazy" />
             {deal && (
               <div className="absolute bottom-0 left-0 right-0 bg-[#FF3008] text-white text-[10px] font-bold px-1 py-0.5 text-center leading-tight">
                 {getDealLabel(deal)}
@@ -211,7 +284,8 @@ export default function MenuItemCard({ item, isExpanded, onExpand, onCollapse, d
           {!isExpanded && (
             <button
               onClick={e => { e.stopPropagation(); handleAddClick(); }}
-              className="w-24 py-1.5 rounded-lg text-sm font-semibold bg-[#FF3008] text-white hover:bg-red-600 transition-colors cursor-pointer"
+              disabled={!isAcceptingOrders}
+              className="w-24 py-1.5 rounded-lg text-sm font-semibold bg-[#FF3008] text-white hover:bg-red-600 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Add
             </button>
@@ -251,9 +325,12 @@ export default function MenuItemCard({ item, isExpanded, onExpand, onCollapse, d
               ) : groups.length > 0 ? (
                 <div className="mt-4 space-y-5">
                   {groups.map(group => {
+                    const isQuantityGroup = group.selection_type === 'quantity';
+                    const groupQtyMap = qtySelections.get(group.id);
+                    const qtyTotal = groupQtyMap ? Array.from(groupQtyMap.values()).reduce((s, v) => s + v, 0) : 0;
                     const groupSels = selected.get(group.id) || [];
-                    const isRequiredAndEmpty = showErrors && group.required && groupSels.length === 0;
-                    const isRadio = group.max_selections === 1;
+                    const isRequiredAndEmpty = showErrors && group.required && (isQuantityGroup ? qtyTotal === 0 : groupSels.length === 0);
+                    const isRadio = !isQuantityGroup && group.max_selections === 1;
 
                     return (
                       <div key={group.id}>
@@ -268,46 +345,100 @@ export default function MenuItemCard({ item, isExpanded, onExpand, onCollapse, d
                           ) : (
                             <span className="text-xs px-1.5 py-0.5 rounded font-medium bg-gray-50 text-gray-400">Optional</span>
                           )}
-                          {group.max_selections && group.max_selections > 1 && (
+                          {isQuantityGroup && group.max_selections ? (
+                            <span className={`text-xs ${qtyTotal >= group.max_selections ? 'text-[#FF3008] font-semibold' : 'text-gray-400'}`}>
+                              {qtyTotal}/{group.max_selections}
+                            </span>
+                          ) : group.max_selections && group.max_selections > 1 ? (
                             <span className="text-xs text-gray-400">Up to {group.max_selections}</span>
-                          )}
+                          ) : null}
                         </div>
                         {isRequiredAndEmpty && (
                           <p className="text-xs text-red-500 mb-2">Please make a selection</p>
                         )}
-                        <div className="space-y-1.5">
-                          {(group.options || []).map(option => {
-                            const checked = isSelected(group.id, option.id);
-                            return (
-                              <button
-                                key={option.id}
-                                type="button"
-                                onClick={() => toggleOption(group, option)}
-                                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-sm transition-colors cursor-pointer text-left ${
-                                  checked ? 'border-[#FF3008] bg-red-50' : isRequiredAndEmpty ? 'border-red-200 bg-white hover:border-red-300' : 'border-gray-200 bg-white hover:border-gray-300'
-                                }`}
-                              >
-                                <div className="flex items-center gap-2.5">
-                                  <div className={`w-4 h-4 flex-shrink-0 flex items-center justify-center border-2 ${
-                                    checked ? 'border-[#FF3008] bg-[#FF3008]' : 'border-gray-300'
-                                  } ${isRadio ? 'rounded-full' : 'rounded'}`}>
-                                    {checked && (
-                                      <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5 text-white" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                      </svg>
+
+                        {isQuantityGroup ? (
+                          /* Quantity-based group: +/- steppers for each option */
+                          <div className="space-y-1.5">
+                            {(group.options || []).map(option => {
+                              const qty = groupQtyMap?.get(option.id) || 0;
+                              const atMax = group.max_selections ? qtyTotal >= group.max_selections : false;
+                              return (
+                                <div
+                                  key={option.id}
+                                  className={`flex items-center justify-between px-3 py-2.5 rounded-xl border text-sm transition-colors ${
+                                    qty > 0 ? 'border-[#FF3008] bg-red-50' : isRequiredAndEmpty ? 'border-red-200 bg-white' : 'border-gray-200 bg-white'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2.5">
+                                    <span className={qty > 0 ? 'text-gray-900 font-medium' : 'text-gray-700'}>{option.name}</span>
+                                    {option.price_modifier !== 0 && (
+                                      <span className={`text-xs font-medium ${qty > 0 ? 'text-[#FF3008]' : 'text-gray-500'}`}>
+                                        {option.price_modifier > 0 ? '+' : ''}${option.price_modifier.toFixed(2)} ea
+                                      </span>
                                     )}
                                   </div>
-                                  <span className={checked ? 'text-gray-900 font-medium' : 'text-gray-700'}>{option.name}</span>
+                                  <div className="flex items-center gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => updateQtyOption(group, option, -1)}
+                                      disabled={qty === 0}
+                                      className="w-7 h-7 rounded-full bg-gray-100 hover:bg-red-50 hover:text-[#FF3008] flex items-center justify-center text-gray-700 font-bold text-base transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                                    >
+                                      −
+                                    </button>
+                                    <span className={`w-5 text-center text-sm font-bold tabular-nums ${qty > 0 ? 'text-gray-900' : 'text-gray-300'}`}>
+                                      {qty}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => updateQtyOption(group, option, 1)}
+                                      disabled={atMax}
+                                      className="w-7 h-7 rounded-full bg-gray-100 hover:bg-red-50 hover:text-[#FF3008] flex items-center justify-center text-gray-700 font-bold text-base transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
                                 </div>
-                                {option.price_modifier !== 0 && (
-                                  <span className={`text-sm font-medium flex-shrink-0 ${checked ? 'text-[#FF3008]' : 'text-gray-500'}`}>
-                                    {option.price_modifier > 0 ? '+' : ''}${option.price_modifier.toFixed(2)}
-                                  </span>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          /* Check/Radio group: existing toggle behavior */
+                          <div className="space-y-1.5">
+                            {(group.options || []).map(option => {
+                              const checked = isSelected(group.id, option.id);
+                              return (
+                                <button
+                                  key={option.id}
+                                  type="button"
+                                  onClick={() => toggleOption(group, option)}
+                                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl border text-sm transition-colors cursor-pointer text-left ${
+                                    checked ? 'border-[#FF3008] bg-red-50' : isRequiredAndEmpty ? 'border-red-200 bg-white hover:border-red-300' : 'border-gray-200 bg-white hover:border-gray-300'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2.5">
+                                    <div className={`w-4 h-4 flex-shrink-0 flex items-center justify-center border-2 ${
+                                      checked ? 'border-[#FF3008] bg-[#FF3008]' : 'border-gray-300'
+                                    } ${isRadio ? 'rounded-full' : 'rounded'}`}>
+                                      {checked && (
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-2.5 w-2.5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                        </svg>
+                                      )}
+                                    </div>
+                                    <span className={checked ? 'text-gray-900 font-medium' : 'text-gray-700'}>{option.name}</span>
+                                  </div>
+                                  {option.price_modifier !== 0 && (
+                                    <span className={`text-sm font-medium flex-shrink-0 ${checked ? 'text-[#FF3008]' : 'text-gray-500'}`}>
+                                      {option.price_modifier > 0 ? '+' : ''}${option.price_modifier.toFixed(2)}
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     );
                   })}

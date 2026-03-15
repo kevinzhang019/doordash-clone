@@ -31,10 +31,11 @@ export default function MenuItemEditor({ item, existingCategories, onSave, onClo
         .then(r => r.json())
         .then(d => {
           const rawGroups = d.groups || [];
-          setGroups(rawGroups.map((g: { name: string; required: number; max_selections: number | null; options?: { name: string; price_modifier: number }[] }) => ({
+          setGroups(rawGroups.map((g: { name: string; required: number; max_selections: number | null; selection_type?: string; options?: { name: string; price_modifier: number }[] }) => ({
             name: g.name,
             required: Boolean(g.required),
             max_selections: g.max_selections,
+            selection_type: (g.selection_type === 'quantity' ? 'quantity' : 'check') as 'check' | 'quantity',
             options: (g.options || []).map((o: { name: string; price_modifier: number }) => ({ name: o.name, price_modifier: o.price_modifier })),
           })));
         })
