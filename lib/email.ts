@@ -54,9 +54,9 @@ export async function sendOrderConfirmation(
       <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Order #${order.id}</p>
       <ul style="margin:0;padding:0 0 0 16px;">${orderItemsList(items)}</ul>
       <div style="margin-top:12px;padding-top:12px;border-top:1px solid #e5e7eb;">
-        <div style="display:flex;justify-content:space-between;color:#111827;font-weight:700;font-size:15px;">
-          <span>Total</span><span>$${order.total.toFixed(2)}</span>
-        </div>
+        <table width="100%" cellpadding="0" cellspacing="0" style="color:#111827;font-weight:700;font-size:15px;">
+          <tr><td>Total</td><td align="right">$${order.total.toFixed(2)}</td></tr>
+        </table>
       </div>
     </div>
     <p style="color:#374151;margin:0 0 20px;">Estimated delivery: ${order.delivery_max ?? 45} min</p>
@@ -110,9 +110,9 @@ export async function sendDeliveryReceipt(
       <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Order #${order.id}</p>
       <ul style="margin:0;padding:0 0 0 16px;">${orderItemsList(items)}</ul>
       <div style="margin-top:12px;padding-top:12px;border-top:1px solid #e5e7eb;">
-        <div style="display:flex;justify-content:space-between;color:#111827;font-weight:700;font-size:15px;">
-          <span>Total</span><span>$${order.total.toFixed(2)}</span>
-        </div>
+        <table width="100%" cellpadding="0" cellspacing="0" style="color:#111827;font-weight:700;font-size:15px;">
+          <tr><td>Total</td><td align="right">$${order.total.toFixed(2)}</td></tr>
+        </table>
       </div>
     </div>
     <a href="${APP_URL}/orders/${order.id}" style="display:inline-block;background:#FF3008;color:#ffffff;font-weight:600;padding:12px 24px;border-radius:10px;text-decoration:none;">Leave a Review</a>
