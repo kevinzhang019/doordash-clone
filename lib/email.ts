@@ -72,6 +72,29 @@ export async function sendOrderConfirmation(
 }
 
 
+export async function sendDriverAccepted(
+  order: Order & { restaurant_name: string; driver_name?: string },
+  userEmail: string,
+  userName: string
+): Promise<void> {
+  const resend = getResend();
+  if (!resend) return;
+
+  const driverName = order.driver_name || 'Your driver';
+  const body = `
+    <p style="color:#374151;margin:0 0 16px;">Hi ${userName},</p>
+    <p style="color:#374151;margin:0 0 20px;"><strong>${driverName}</strong> has accepted your order from <strong>${order.restaurant_name}</strong> and is heading to pick it up.</p>
+    <a href="${APP_URL}/orders/${order.id}" style="display:inline-block;background:#FF3008;color:#ffffff;font-weight:600;padding:12px 24px;border-radius:10px;text-decoration:none;">Track Order</a>
+  `;
+
+  await resend.emails.send({
+    from: FROM,
+    to: userEmail,
+    subject: `${driverName} is picking up your ${order.restaurant_name} order`,
+    html: baseTemplate('Driver On the Way!', body),
+  });
+}
+
 export async function sendDriverCancellation(
   order: Order & { restaurant_name: string },
   userEmail: string,

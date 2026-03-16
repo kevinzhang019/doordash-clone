@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server';
 import getDb from '@/db/database';
+import { sendDriverAccepted } from '@/lib/email';
+import { Order } from '@/lib/types';
 
 export async function POST(request: NextRequest) {
   const userId = parseInt(request.headers.get('x-user-id') ?? '');
@@ -48,6 +50,22 @@ export async function POST(request: NextRequest) {
       INSERT INTO driver_deliveries (session_id, order_id, is_simulated, restaurant_name, restaurant_address, restaurant_lat, restaurant_lng, delivery_address, customer_lat, customer_lng, pay_amount, tip, miles, estimated_minutes, status)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'accepted')
     `).run(sessionId, isSimulated ? null : orderId, isSimulated ? 1 : 0, restaurantName, restaurantAddress, restaurantCoords?.lat ?? null, restaurantCoords?.lng ?? null, deliveryAddress, customerCoords?.lat ?? null, customerCoords?.lng ?? null, payAmount, tip, totalMiles ?? 0, estimatedMinutes ?? 0);
+
+    // Fire-and-forget: notify customer their driver is on the way
+    if (!isSimulated && orderId) {
+      const orderWithUser = db.prepare(`
+        SELECT o.*, r.name as restaurant_name, u.email, u.name as user_name, du.name as driver_name
+        FROM orders o
+        JOIN restaurants r ON o.restaurant_id = r.id
+        JOIN users u ON o.user_id = u.id
+        LEFT JOIN users du ON du.id = o.driver_user_id
+        WHERE o.id = ?
+      `).get(orderId) as (Order & { restaurant_name: string; email: string; user_name: string }) | undefined;
+      if (orderWithUser) {
+        sendDriverAccepted(orderWithUser, orderWithUser.email, orderWithUser.user_name)
+          .catch(err => console.error('Driver accepted email failed:', err));
+      }
+    }
 
     return Response.json({ deliveryId: result.lastInsertRowid });
   } catch (error) {
