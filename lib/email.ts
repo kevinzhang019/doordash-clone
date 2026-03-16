@@ -71,42 +71,26 @@ export async function sendOrderConfirmation(
   });
 }
 
-export async function sendStatusUpdate(
+
+export async function sendDriverCancellation(
   order: Order & { restaurant_name: string },
   userEmail: string,
-  userName: string,
-  newStatus: string
+  userName: string
 ): Promise<void> {
   const resend = getResend();
   if (!resend) return;
 
-  const messages: Record<string, { subject: string; headline: string; detail: string }> = {
-    preparing: {
-      subject: `${order.restaurant_name} is preparing your order`,
-      headline: 'Your food is being prepared!',
-      detail: `${order.restaurant_name} has accepted your order and is cooking it up fresh.`,
-    },
-    picked_up: {
-      subject: 'Your driver is on the way!',
-      headline: 'Your order has been picked up!',
-      detail: `${order.driver_name || 'Your driver'} has picked up your order and is heading to you.`,
-    },
-  };
-
-  const msg = messages[newStatus];
-  if (!msg) return;
-
   const body = `
     <p style="color:#374151;margin:0 0 16px;">Hi ${userName},</p>
-    <p style="color:#374151;margin:0 0 20px;">${msg.detail}</p>
+    <p style="color:#374151;margin:0 0 16px;">Unfortunately your driver had to cancel your order from <strong>${order.restaurant_name}</strong>. We're finding you a new driver — no action needed on your end.</p>
     <a href="${APP_URL}/orders/${order.id}" style="display:inline-block;background:#FF3008;color:#ffffff;font-weight:600;padding:12px 24px;border-radius:10px;text-decoration:none;">Track Order</a>
   `;
 
   await resend.emails.send({
     from: FROM,
     to: userEmail,
-    subject: msg.subject,
-    html: baseTemplate(msg.headline, body),
+    subject: `Driver update for your ${order.restaurant_name} order`,
+    html: baseTemplate('Driver Cancelled — Finding a New One', body),
   });
 }
 
