@@ -73,6 +73,7 @@ export default function DriverSettingsPage() {
       if (!res.ok) { setError(data.error || 'Failed to save'); return; }
       if (data.token && data.user?.role) {
         sessionStorage.setItem(`session_token_${data.user.role}`, data.token);
+        localStorage.setItem(`last_token_${data.user.role}`, data.token);
       }
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);

@@ -122,6 +122,7 @@ export default function SettingsPage() {
       // Update the per-tab session token if the server issued a new one
       if (data.token && data.user?.role) {
         sessionStorage.setItem(`session_token_${data.user.role}`, data.token);
+        localStorage.setItem(`last_token_${data.user.role}`, data.token);
       }
       setProfileSaved(true);
       setTimeout(() => setProfileSaved(false), 3000);

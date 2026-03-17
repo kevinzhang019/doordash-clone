@@ -62,6 +62,7 @@ export default function RestaurantAccountPage() {
       if (!res.ok) { setProfileError(data.error || 'Failed to save'); return; }
       if (data.token && data.user?.role) {
         sessionStorage.setItem(`session_token_${data.user.role}`, data.token);
+        localStorage.setItem(`last_token_${data.user.role}`, data.token);
       }
       setProfileSaved(true);
       setTimeout(() => setProfileSaved(false), 3000);

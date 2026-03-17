@@ -5,10 +5,24 @@ import { triggerAddressLoad } from '@/components/providers/LocationProvider';
 import { setupFetchInterceptor } from '@/lib/fetchInterceptor';
 import type { UserRole } from '@/lib/types';
 
-// Install the fetch interceptor as early as possible (module load time).
-// This ensures all fetch() calls automatically include the Authorization header
-// with the per-tab session token from sessionStorage.
+// On first load of a new tab, seed sessionStorage from localStorage
+// so the user is automatically signed in to their last-used accounts.
+// After this one-time copy, the tab operates independently.
 if (typeof window !== 'undefined') {
+  const ROLES = ['customer', 'driver', 'restaurant'] as const;
+  const hasAnySession = ROLES.some(r => sessionStorage.getItem(`session_token_${r}`));
+  if (!hasAnySession) {
+    for (const role of ROLES) {
+      const saved = localStorage.getItem(`last_token_${role}`);
+      if (saved) sessionStorage.setItem(`session_token_${role}`, saved);
+    }
+    const savedRole = localStorage.getItem('last_active_role');
+    if (savedRole && !sessionStorage.getItem('active_role')) {
+      sessionStorage.setItem('active_role', savedRole);
+    }
+  }
+
+  // Install the fetch interceptor as early as possible (module load time).
   setupFetchInterceptor();
 }
 
@@ -46,6 +60,7 @@ function roleFromPath(path: string): UserRole | null {
 
 function setActiveRole(role: UserRole) {
   sessionStorage.setItem('active_role', role);
+  localStorage.setItem('last_active_role', role);
 }
 
 function getActiveRole(): UserRole | null {
@@ -63,9 +78,11 @@ function detectRole(): UserRole {
   return getActiveRole() || 'customer';
 }
 
-/** Store a session token for a given role in per-tab sessionStorage */
+/** Store a session token for a given role in per-tab sessionStorage
+ *  and persist to localStorage so new tabs auto-sign-in to the last-used account */
 function storeToken(role: UserRole, token: string) {
   sessionStorage.setItem(`session_token_${role}`, token);
+  localStorage.setItem(`last_token_${role}`, token);
 }
 
 /** Remove a session token for a given role */
