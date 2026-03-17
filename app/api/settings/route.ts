@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import getDb from '@/db/database';
-import { signToken, setSessionCookie, clearSessionCookie } from '@/lib/auth';
+import { signToken } from '@/lib/auth';
 import { isValidEmail, isValidPhone } from '@/lib/validation';
 import type { UserRole } from '@/lib/types';
 
@@ -56,12 +56,11 @@ export async function PUT(request: NextRequest) {
       userId
     );
 
-    // Re-issue JWT with updated name/email
+    // Re-issue JWT with updated name/email — return token so client can update sessionStorage
     const token = await signToken({ userId, email: newEmail, name: newName, role: currentUser.role });
-    await setSessionCookie(token, currentUser.role);
 
     const updated = db.prepare('SELECT id, email, name, role, phone FROM users WHERE id = ?').get(userId);
-    return Response.json({ user: updated });
+    return Response.json({ user: updated, token });
   } catch (error) {
     console.error('Update settings error:', error);
     return Response.json({ error: 'Internal server error' }, { status: 500 });
@@ -186,7 +185,7 @@ export async function DELETE(request: NextRequest) {
       db.prepare('DELETE FROM users WHERE id = ?').run(userId);
     })();
 
-    await clearSessionCookie(user.role);
+    // Session token is in per-tab sessionStorage — client clears it on logout/delete
     return Response.json({ success: true });
   } catch (error) {
     console.error('Delete account error:', error);

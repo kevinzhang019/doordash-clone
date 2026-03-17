@@ -38,13 +38,18 @@ npx tsc --noEmit
 
 Singleton better-sqlite3 connection. On first import, it runs migrations (creates all tables) and seeds the 10 restaurants + menu items if the table is empty. Everything else imports from here — never create a second DB connection.
 
-### Authentication Flow
+### Authentication Flow (Per-Tab Session Isolation)
 
-1. Register/Login → bcrypt verify → `jose.SignJWT` → `session` HTTP-only cookie (7-day expiry)
-2. `middleware.ts` intercepts all protected routes, verifies JWT, injects `x-user-id` into request headers
-3. Each protected API route handler reads `x-user-id` from headers and scopes all DB queries to that user
+Each browser tab has its own independent session via `sessionStorage` (not shared cookies). This allows different tabs to be logged into different accounts simultaneously.
 
-Protected routes (defined in `middleware.ts` matcher): `/cart`, `/checkout`, `/orders`, `/api/cart/**`, `/api/orders/**`
+1. Register/Login → bcrypt verify → `jose.SignJWT` → JWT returned in response body → stored in `sessionStorage` as `session_token_{role}`
+2. A global fetch interceptor (`lib/fetchInterceptor.ts`, installed at module load in `AuthProvider`) patches `window.fetch` to automatically add `Authorization: Bearer <token>` headers to all same-origin API requests
+3. `proxy.ts` reads the `Authorization` header (not cookies), verifies JWT, injects `x-user-id` into request headers
+4. For page navigations (browser address bar), the proxy lets requests through — client-side auth guards (`useRequireAuth` hook) handle redirects to login
+5. Each protected API route handler reads `x-user-id` from headers and scopes all DB queries to that user
+
+Protected API routes (defined in `proxy.ts`): `/api/cart/**`, `/api/orders/**`, `/api/settings/**`, etc.
+Client-side auth guards handle page-level protection for `/orders`, `/cart`, `/checkout`, etc.
 
 ### User Data Isolation (Critical)
 
@@ -102,8 +107,4 @@ All DB queries use better-sqlite3 prepared statements with `?` placeholders — 
 ## The 10 Restaurants
 
 Bella Napoli (Italian), Sakura Garden (Japanese), Casa Fuego (Mexican), Spice Route (Indian), Golden Dragon (Chinese), Le Petit Bistro (French), Olive & Sea (Mediterranean), Seoul Kitchen (Korean), Thai Orchid (Thai), The American Grill (American).
-
-## Workflow Preferences
-
-- Always use Context7 MCP tools to resolve library IDs and get library docs for code generation, setup, configuration, or API documentation — without needing to be explicitly asked.
-- Make clean commit messages. Commit frequently and push to GitHub periodically so we always have a saved version and can revert easily.
+version and can revert easily.

@@ -1,4 +1,4 @@
-import { cookies } from 'next/headers';
+import { NextRequest } from 'next/server';
 import { verifyToken } from '@/lib/auth';
 import getDb from '@/db/database';
 import type { UserRole } from '@/lib/types';
@@ -10,8 +10,7 @@ interface SessionUser {
   role: UserRole;
 }
 
-async function getSessionForRole(role: UserRole, cookieStore: Awaited<ReturnType<typeof cookies>>): Promise<SessionUser | null> {
-  const token = cookieStore.get(`session_${role}`)?.value;
+async function verifyRoleToken(token: string | null): Promise<SessionUser | null> {
   if (!token) return null;
   try {
     const session = await verifyToken(token);
@@ -24,14 +23,19 @@ async function getSessionForRole(role: UserRole, cookieStore: Awaited<ReturnType
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies();
+    // Client sends per-role tokens as headers: x-token-customer, x-token-driver, x-token-restaurant
+    const customerToken = request.headers.get('x-token-customer');
+    const driverToken = request.headers.get('x-token-driver');
+    const restaurantToken = request.headers.get('x-token-restaurant');
+
     const [customer, driver, restaurant] = await Promise.all([
-      getSessionForRole('customer', cookieStore),
-      getSessionForRole('driver', cookieStore),
-      getSessionForRole('restaurant', cookieStore),
+      verifyRoleToken(customerToken),
+      verifyRoleToken(driverToken),
+      verifyRoleToken(restaurantToken),
     ]);
+
     return Response.json({ customer, driver, restaurant });
   } catch (error) {
     console.error('Sessions error:', error);

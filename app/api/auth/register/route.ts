@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import bcrypt from 'bcryptjs';
 import getDb from '@/db/database';
-import { signToken, setSessionCookie } from '@/lib/auth';
+import { signToken } from '@/lib/auth';
 import { isValidEmail } from '@/lib/validation';
 import type { UserRole } from '@/lib/types';
 
@@ -42,10 +42,10 @@ export async function POST(request: NextRequest) {
 
     const userId = result.lastInsertRowid as number;
     const token = await signToken({ userId, email: email.toLowerCase().trim(), name: name.trim(), role });
-    await setSessionCookie(token, role);
 
     return Response.json({
       user: { id: userId, email: email.toLowerCase().trim(), name: name.trim(), role },
+      token,
       needsRestaurantSetup: role === 'restaurant',
     }, { status: 201 });
   } catch (error) {

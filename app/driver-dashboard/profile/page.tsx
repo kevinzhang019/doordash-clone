@@ -71,6 +71,9 @@ export default function DriverSettingsPage() {
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Failed to save'); return; }
+      if (data.token && data.user?.role) {
+        sessionStorage.setItem(`session_token_${data.user.role}`, data.token);
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
       await refreshUser();

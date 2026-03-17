@@ -3,17 +3,20 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Order } from '@/lib/types';
+import { useRequireAuth } from '@/lib/useRequireAuth';
 
 export default function OrdersPage() {
+  const { loading: authLoading } = useRequireAuth('customer');
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (authLoading) return;
     fetch('/api/orders')
       .then(res => res.json())
       .then(data => setOrders(data.orders || []))
       .finally(() => setLoading(false));
-  }, []);
+  }, [authLoading]);
 
   if (loading) {
     return (
@@ -43,7 +46,7 @@ export default function OrdersPage() {
   }
 
   const totalSpent = orders.reduce((sum, o) => sum + o.total, 0);
-  const totalSaved = orders.reduce((sum, o) => sum + (o.discount_saved ?? 0), 0);
+  const totalSaved = orders.reduce((sum, o) => sum + (o.discount_saved ?? 0) + (o.promo_discount ?? 0), 0);
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
@@ -72,7 +75,7 @@ export default function OrdersPage() {
                 <div>
                   <h3 className="font-semibold text-gray-900">{order.restaurant_name}</h3>
                   <p className="text-gray-500 text-sm mt-0.5">
-                    {new Date(order.placed_at).toLocaleDateString('en-US', {
+                    {new Date(order.placed_at + 'Z').toLocaleDateString('en-US', {
                       year: 'numeric',
                       month: 'long',
                       day: 'numeric',

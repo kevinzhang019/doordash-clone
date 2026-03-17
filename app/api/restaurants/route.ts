@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server';
 import getDb from '@/db/database';
 import { Restaurant } from '@/lib/types';
-import { getSession } from '@/lib/auth';
 
 export async function GET() {
   try {
@@ -15,9 +14,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const session = await getSession();
-  if (!session) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-  if (session.role !== 'restaurant') return Response.json({ error: 'Only restaurant accounts can create restaurants' }, { status: 403 });
+  const userId = parseInt(request.headers.get('x-user-id') ?? '');
+  const userRole = request.headers.get('x-user-role');
+  if (!userId || userRole !== 'restaurant') return Response.json({ error: 'Only restaurant accounts can create restaurants' }, { status: 403 });
 
   try {
     const { name, cuisine, address, image_url, lat, lng } = await request.json();

@@ -24,13 +24,6 @@ function roleForPath(pathname: string): UserRole | null {
   return null;
 }
 
-const PROTECTED_PAGES = [
-  '/cart', '/checkout', '/orders',
-  '/restaurant-dashboard', '/restaurant-setup',
-  '/driver-dashboard', '/driver-setup',
-  '/settings',
-];
-
 const PROTECTED_APIS = [
   '/api/cart', '/api/orders', '/api/reviews',
   '/api/restaurant-dashboard',
@@ -42,8 +35,8 @@ const PROTECTED_APIS = [
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const isAuthPage = pathname === '/login' || pathname === '/register';
-  const isProtectedPage = PROTECTED_PAGES.some(r => pathname === r || pathname.startsWith(r + '/'));
   const isProtectedApi = PROTECTED_APIS.some(r => pathname === r || pathname.startsWith(r));
+  const isApiRoute = pathname.startsWith('/api/');
 
   const existingGuestId = request.cookies.get('guest_id')?.value;
   const guestId = existingGuestId || crypto.randomUUID();
@@ -60,46 +53,30 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  // Auth pages: always allow through — users may want to log into a different role
+  // Auth pages: always allow through
   if (isAuthPage) {
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-guest-id', guestId);
     return withGuestCookie(NextResponse.next({ request: { headers: requestHeaders } }));
   }
 
-  // For role-specific routes, use the path to determine which cookie to read.
-  // For shared routes (settings, messages, etc.), use the x-session-role header
-  // sent by the client (derived from per-tab sessionStorage, not a shared cookie).
-  const sessionRoleHint = request.headers.get('x-session-role') as UserRole | null;
-  const validHint = sessionRoleHint && ['customer', 'driver', 'restaurant'].includes(sessionRoleHint)
-    ? sessionRoleHint : null;
-  const pathRole = roleForPath(pathname);
-
-  // Priority: explicit header hint > path-based role > 'customer'
-  let routeRole: UserRole = validHint || pathRole || 'customer';
-  let token = request.cookies.get(`session_${routeRole}`)?.value;
-
-  // For shared pages, if the chosen cookie doesn't exist, try others
-  if (!token && !pathRole) {
-    for (const fallback of ['customer', 'driver', 'restaurant'] as UserRole[]) {
-      if (fallback === routeRole) continue;
-      const t = request.cookies.get(`session_${fallback}`)?.value;
-      if (t) {
-        token = t;
-        routeRole = fallback;
-        break;
-      }
-    }
+  // For page navigations (non-API), let them through — client-side auth guards handle redirects.
+  // The browser doesn't send Authorization headers on page navigation, so we can't authenticate here.
+  if (!isApiRoute) {
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-guest-id', guestId);
+    return withGuestCookie(NextResponse.next({ request: { headers: requestHeaders } }));
   }
+
+  // --- API routes: read token from Authorization header ---
+  const authHeader = request.headers.get('Authorization');
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
   if (!token) {
     if (isProtectedApi) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    if (isProtectedPage) {
-      return NextResponse.redirect(new URL(`/login?role=${routeRole}`, request.url));
-    }
-    // Unprotected route (e.g. home, restaurant listings) — pass as guest
+    // Unprotected API (e.g. public restaurant listings) — pass as guest
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-guest-id', guestId);
     return withGuestCookie(NextResponse.next({ request: { headers: requestHeaders } }));
@@ -120,10 +97,9 @@ export async function proxy(request: NextRequest) {
     if (isProtectedApi) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-    if (isProtectedPage) {
-      return NextResponse.redirect(new URL(`/login?role=${routeRole}`, request.url));
-    }
-    return NextResponse.next();
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-guest-id', guestId);
+    return withGuestCookie(NextResponse.next({ request: { headers: requestHeaders } }));
   }
 }
 

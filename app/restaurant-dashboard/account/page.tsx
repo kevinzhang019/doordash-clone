@@ -60,6 +60,9 @@ export default function RestaurantAccountPage() {
       });
       const data = await res.json();
       if (!res.ok) { setProfileError(data.error || 'Failed to save'); return; }
+      if (data.token && data.user?.role) {
+        sessionStorage.setItem(`session_token_${data.user.role}`, data.token);
+      }
       setProfileSaved(true);
       setTimeout(() => setProfileSaved(false), 3000);
       await refreshUser();

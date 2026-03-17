@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import bcrypt from 'bcryptjs';
 import getDb from '@/db/database';
-import { signToken, setSessionCookie } from '@/lib/auth';
+import { signToken } from '@/lib/auth';
 import type { UserRole } from '@/lib/types';
 
 export async function POST(request: NextRequest) {
@@ -52,9 +52,11 @@ export async function POST(request: NextRequest) {
     }
 
     const token = await signToken({ userId: user.id, email: user.email, name: user.name, role: user.role });
-    await setSessionCookie(token, user.role);
 
-    return Response.json({ user: { id: user.id, email: user.email, name: user.name, role: user.role } });
+    return Response.json({
+      user: { id: user.id, email: user.email, name: user.name, role: user.role },
+      token,
+    });
   } catch (error) {
     console.error('Login error:', error);
     return Response.json({ error: 'Internal server error' }, { status: 500 });

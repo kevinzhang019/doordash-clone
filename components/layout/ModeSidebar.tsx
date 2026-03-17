@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
+import { LazyMotion, domAnimation, m, AnimatePresence } from 'framer-motion';
 import { useModeContext } from '@/components/providers/ModeProvider';
 import type { UserRole } from '@/lib/types';
 
@@ -70,7 +70,13 @@ export default function ModeSidebar() {
 
   useEffect(() => {
     if (!isModeOpen) return;
-    fetch('/api/auth/sessions')
+    // Send per-tab tokens as headers so the server can verify each role's session
+    const headers: Record<string, string> = {};
+    for (const role of ['customer', 'driver', 'restaurant']) {
+      const token = sessionStorage.getItem(`session_token_${role}`);
+      if (token) headers[`x-token-${role}`] = token;
+    }
+    fetch('/api/auth/sessions', { headers })
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d) setSessions(d); })
       .catch(() => {});
@@ -78,6 +84,8 @@ export default function ModeSidebar() {
 
   const handleModeClick = (role: UserRole, home: string) => {
     closeMode();
+    // Persist the chosen role so shared pages (like '/settings') use the right session
+    sessionStorage.setItem('active_role', role);
     const session = sessions[role];
     if (session) {
       router.push(home);
@@ -87,28 +95,29 @@ export default function ModeSidebar() {
   };
 
   return (
+    <LazyMotion features={domAnimation}>
     <AnimatePresence>
       {isModeOpen && (
         <>
           {/* Backdrop */}
-          <motion.div
+          <m.div
             key="backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/40 z-50"
+            className="fixed inset-0 bg-black/40 z-50 will-change-[opacity]"
             onClick={closeMode}
           />
 
           {/* Panel */}
-          <motion.div
+          <m.div
             key="panel"
             initial={{ x: '-100%' }}
             animate={{ x: 0 }}
             exit={{ x: '-100%' }}
             transition={{ type: 'spring', stiffness: 420, damping: 38, mass: 0.9 }}
-            className="fixed top-0 left-0 h-full w-[270px] bg-[#FF3008] z-50 flex flex-col shadow-2xl"
+            className="fixed top-0 left-0 h-full w-[270px] bg-[#FF3008] z-50 flex flex-col shadow-2xl will-change-transform"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-5 border-b border-white/20">
@@ -182,9 +191,10 @@ export default function ModeSidebar() {
                 );
               })}
             </div>
-          </motion.div>
+          </m.div>
         </>
       )}
     </AnimatePresence>
+    </LazyMotion>
   );
 }
