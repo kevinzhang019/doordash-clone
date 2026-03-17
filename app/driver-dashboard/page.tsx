@@ -742,9 +742,6 @@ export default function DriverDashboardPage() {
                   <span className="text-white font-bold text-xs">D</span>
                 </div>
                 <span className="text-white font-semibold text-sm">Welcome Dasher</span>
-                <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-[#2a2a2a] text-[#FF3008] border border-[#3a3a3a]">
-                  Driver
-                </span>
               </div>
             )}
           </div>
@@ -783,20 +780,6 @@ export default function DriverDashboardPage() {
                   >
                     Settings
                   </Link>
-                  <div className="h-px bg-[#2a2a2a]" />
-                  <p className="px-4 pt-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500">Switch account</p>
-                  <button
-                    onClick={() => { setAvatarOpen(false); window.open('/login?role=customer', '_blank'); }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#2a2a2a] hover:text-white transition-colors cursor-pointer"
-                  >
-                    Customer
-                  </button>
-                  <button
-                    onClick={() => { setAvatarOpen(false); window.open('/login?role=restaurant', '_blank'); }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#2a2a2a] hover:text-white transition-colors cursor-pointer"
-                  >
-                    Restaurant
-                  </button>
                   <div className="h-px bg-[#2a2a2a]" />
                   <button
                     onClick={() => { setAvatarOpen(false); handleLogout(); }}
