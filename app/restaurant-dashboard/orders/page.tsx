@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-type OrderItem = { name: string; quantity: number; price: number };
+type OrderItem = { name: string; quantity: number; price: number; special_requests: string | null };
 
 type ActiveOrder = {
   id: number;
@@ -10,6 +10,8 @@ type ActiveOrder = {
   subtotal: number;
   total: number;
   delivery_fee: number;
+  discount_saved: number;
+  promo_discount: number;
   placed_at: string;
   delivery_address: string;
   customer_name: string;
@@ -113,11 +115,18 @@ export default function RestaurantOrdersPage() {
                 </span>
               </div>
 
-              <div className="px-6 py-3 space-y-1">
+              <div className="px-6 py-3 space-y-1.5">
                 {order.items.map((item, i) => (
-                  <div key={i} className="flex justify-between text-sm text-gray-700">
-                    <span>{item.quantity}× {item.name}</span>
-                    <span className="text-gray-500">${(item.price * item.quantity).toFixed(2)}</span>
+                  <div key={i}>
+                    <div className="flex justify-between text-sm text-gray-700">
+                      <span>{item.quantity}× {item.name}</span>
+                      <span className="text-gray-500">${(item.price * item.quantity).toFixed(2)}</span>
+                    </div>
+                    {item.special_requests && (
+                      <p className="text-xs text-amber-700 bg-amber-50 rounded px-2 py-1 mt-0.5 italic">
+                        Note: &ldquo;{item.special_requests}&rdquo;
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
@@ -125,7 +134,7 @@ export default function RestaurantOrdersPage() {
               <div className="px-6 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-between">
                 <div className="text-sm text-gray-500 truncate max-w-xs">{order.delivery_address}</div>
                 <div className="flex items-center gap-3 ml-4 flex-shrink-0">
-                  <span className="font-semibold text-gray-900">${order.total.toFixed(2)}</span>
+                  <span className="font-semibold text-gray-900">${Math.max(0, order.subtotal - (order.discount_saved ?? 0)).toFixed(2)}</span>
 
                   {order.status === 'placed' && (
                     <button

@@ -96,12 +96,13 @@ export async function GET(request: NextRequest) {
     labels = generateWeekLabels();
   }
 
+  // Revenue = subtotal minus restaurant's own deal discounts
+  // Platform promo discounts are not deducted (platform absorbs those)
   const chartRows = db.prepare(`
     SELECT ${groupByExpr} as period,
-           SUM(oi.price * oi.quantity) as revenue,
-           COUNT(DISTINCT o.id) as orders
+           SUM(o.subtotal - COALESCE(o.discount_saved, 0)) as revenue,
+           COUNT(*) as orders
     FROM orders o
-    JOIN order_items oi ON oi.order_id = o.id
     WHERE o.restaurant_id = ? AND ${dateFilter}
     GROUP BY ${groupByExpr}
     ORDER BY period ASC
@@ -110,9 +111,9 @@ export async function GET(request: NextRequest) {
   const revenue_chart = fillZeroPeriods(chartRows, labels);
 
   const totals = db.prepare(`
-    SELECT COALESCE(SUM(oi.price * oi.quantity), 0) as total_revenue, COUNT(DISTINCT o.id) as order_count
+    SELECT COALESCE(SUM(o.subtotal - COALESCE(o.discount_saved, 0)), 0) as total_revenue,
+           COUNT(*) as order_count
     FROM orders o
-    JOIN order_items oi ON oi.order_id = o.id
     WHERE o.restaurant_id = ?
   `).get(restaurantId) as { total_revenue: number; order_count: number };
 
@@ -128,8 +129,13 @@ export async function GET(request: NextRequest) {
     LIMIT 10
   `).all(restaurantId) as { name: string; total_qty: number }[];
 
+  // Pro-rate deal discount across items: item_revenue * (1 - discount_saved/subtotal)
   const top_items_by_revenue = db.prepare(`
-    SELECT oi.name, SUM(oi.price * oi.quantity) as total_revenue
+    SELECT oi.name,
+           SUM(oi.price * oi.quantity *
+               CASE WHEN o.subtotal > 0
+                    THEN (1.0 - COALESCE(o.discount_saved, 0) / o.subtotal)
+                    ELSE 1.0 END) as total_revenue
     FROM order_items oi
     JOIN orders o ON oi.order_id = o.id
     WHERE o.restaurant_id = ?
