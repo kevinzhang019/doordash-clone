@@ -413,11 +413,11 @@ export default function SettingsPage() {
                 <div
                   key={a.id}
                   className={`rounded-xl border transition-colors ${
-                    isCurrent ? 'border-[#FF3008] bg-red-50' : 'border-gray-100 hover:border-gray-200'
+                    isCurrent && !isEditing ? 'border-[#FF3008] bg-red-50' : 'border-gray-100 hover:border-gray-200'
                   }`}
                 >
                   <div className="flex items-center gap-3 p-4">
-                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 flex-shrink-0 ${isCurrent ? 'text-[#FF3008]' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 flex-shrink-0 ${isCurrent && !isEditing ? 'text-[#FF3008]' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>

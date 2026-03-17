@@ -295,7 +295,7 @@ function AddressDropdown({ onClose }: { onClose: () => void }) {
                 <div
                   key={a.id}
                   className={`transition-colors ${
-                    isCurrent
+                    isCurrent && !isEditing
                       ? 'bg-red-50 text-[#FF3008]'
                       : 'hover:bg-gray-50 text-gray-700'
                   }`}
@@ -307,7 +307,7 @@ function AddressDropdown({ onClose }: { onClose: () => void }) {
                     >
                       <svg
                         xmlns="http://www.w3.org/2000/svg"
-                        className={`h-4 w-4 flex-shrink-0 ${isCurrent ? 'text-[#FF3008]' : 'text-gray-400'}`}
+                        className={`h-4 w-4 flex-shrink-0 ${isCurrent && !isEditing ? 'text-[#FF3008]' : 'text-gray-400'}`}
                         fill="none" viewBox="0 0 24 24" stroke="currentColor"
                       >
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
