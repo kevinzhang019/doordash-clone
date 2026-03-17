@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useRequireAuth } from '@/lib/useRequireAuth';
 import { useLocation } from '@/components/providers/LocationProvider';
 import AddressModal from '@/components/layout/AddressModal';
 import PhoneInput from '@/components/ui/PhoneInput';
@@ -32,6 +33,7 @@ function roleHeaders(): HeadersInit {
 }
 
 export default function SettingsPage() {
+  useRequireAuth('customer');
   const { user, refreshUser, loading: authLoading, logout } = useAuth();
   const { setDeliveryLocation, deliveryAddress } = useLocation();
   const router = useRouter();

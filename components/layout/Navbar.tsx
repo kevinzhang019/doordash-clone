@@ -5,7 +5,6 @@ import { useCart } from '@/components/providers/CartProvider';
 import { useLocation } from '@/components/providers/LocationProvider';
 import { useSearch } from '@/components/providers/SearchProvider';
 import { useCuisine } from '@/components/providers/CuisineProvider';
-import { useModeContext } from '@/components/providers/ModeProvider';
 import AddressAutocomplete, { AddressAutocompleteHandle } from '@/components/ui/AddressAutocomplete';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -410,7 +409,6 @@ export default function Navbar() {
   const { deliveryAddress } = useLocation();
   const { search, setSearch } = useSearch();
   const { setSelectedCuisine, setSortBy } = useCuisine();
-  const { openMode } = useModeContext();
   const router = useRouter();
   const pathname = usePathname();
   const isCheckout = pathname === '/checkout';
@@ -452,17 +450,6 @@ export default function Navbar() {
     <nav className="bg-white shadow-md sticky top-0 z-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center h-16 gap-3">
-
-          {/* Hamburger / mode switcher */}
-          <button
-            onClick={openMode}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors flex-shrink-0 cursor-pointer"
-            aria-label="Switch mode"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
 
           {/* Logo */}
           <Link

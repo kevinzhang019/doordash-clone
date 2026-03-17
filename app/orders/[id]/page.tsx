@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Order, OrderItem, Review } from '@/lib/types';
 import OrderChat from '@/components/orders/OrderChat';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useRequireAuth } from '@/lib/useRequireAuth';
 import { useCart } from '@/components/providers/CartProvider';
 
 // ── Status progress bar ───────────────────────────────────────────────────────
@@ -79,7 +80,7 @@ function calcEtaMins(order: Order): number | null {
   const { delivery_min, delivery_max } = order;
   if (!delivery_min || !delivery_max) return null;
   const effectiveStatus = displayStatus(order.status, order.driver_user_id);
-  const placedMs = new Date(order.placed_at).getTime();
+  const placedMs = new Date(order.placed_at + 'Z').getTime();
   if (effectiveStatus === 'placed' || effectiveStatus === 'preparing') {
     return Math.max(0, Math.round((placedMs + delivery_max * 60000 - Date.now()) / 60000)) + 5;
   }
@@ -208,6 +209,7 @@ function ReviewSection({ orderId, restaurantName, restaurantId }: { orderId: num
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function OrderDetailPage() {
+  useRequireAuth('customer');
   const params = useParams();
   const orderId = params.id;
   const { user } = useAuth();
@@ -406,7 +408,7 @@ export default function OrderDetailPage() {
               {order.restaurant_name}
             </Link>
             <p className="text-gray-500 text-sm mt-0.5">
-              {new Date(order.placed_at).toLocaleDateString('en-US', {
+              {new Date(order.placed_at + 'Z').toLocaleDateString('en-US', {
                 year: 'numeric', month: 'long', day: 'numeric',
                 hour: '2-digit', minute: '2-digit',
               })}
@@ -489,7 +491,7 @@ export default function OrderDetailPage() {
             <span>${order.subtotal.toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-gray-600 text-sm">
-            <span>Delivery fee</span>
+            <span>Delivery + fees</span>
             <span>{order.delivery_fee === 0 ? 'Free' : `$${order.delivery_fee.toFixed(2)}`}</span>
           </div>
           {(order.tip ?? 0) > 0 && (

@@ -3,9 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useRequireAuth } from '@/lib/useRequireAuth';
 
 export default function DriverSetupPage() {
   const { user } = useAuth();
+  useRequireAuth('driver');
   const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [loading, setLoading] = useState(false);

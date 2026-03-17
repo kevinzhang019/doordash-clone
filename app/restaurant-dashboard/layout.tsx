@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useRequireAuth } from '@/lib/useRequireAuth';
+import NewOrderNotification from '@/components/restaurant-dashboard/NewOrderNotification';
 
 const NAV_ITEMS = [
   { href: '/restaurant-dashboard', label: 'Overview', icon: '📊' },
@@ -20,6 +22,7 @@ const NAV_ITEMS = [
 
 export default function RestaurantDashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
+  const { loading: authLoading } = useRequireAuth('restaurant');
   const pathname = usePathname();
   const router = useRouter();
   const [profileOpen, setProfileOpen] = useState(false);
@@ -27,6 +30,7 @@ export default function RestaurantDashboardLayout({ children }: { children: Reac
   const profileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (authLoading) return;
     fetch('/api/restaurant-dashboard')
       .then(async res => {
         if (res.status === 404) {
@@ -41,7 +45,7 @@ export default function RestaurantDashboardLayout({ children }: { children: Reac
         setHasRestaurant(true);
       })
       .catch(() => setHasRestaurant(true));
-  }, [router]);
+  }, [router, authLoading]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -178,6 +182,8 @@ export default function RestaurantDashboardLayout({ children }: { children: Reac
           {children}
         </main>
       </div>
+
+      <NewOrderNotification />
     </div>
   );
 }

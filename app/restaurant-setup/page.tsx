@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useRequireAuth } from '@/lib/useRequireAuth';
 import AddressAutocomplete from '@/components/ui/AddressAutocomplete';
 import HoursEditor, { type HoursRow } from '@/components/restaurant-dashboard/HoursEditor';
 
@@ -21,6 +22,7 @@ const DEFAULT_HOURS: HoursRow[] = Array.from({ length: 7 }, (_, i) => ({
 
 export default function RestaurantSetupPage() {
   const { user } = useAuth();
+  useRequireAuth('restaurant');
   const router = useRouter();
 
   const [name, setName] = useState('');

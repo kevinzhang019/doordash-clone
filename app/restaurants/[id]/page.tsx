@@ -1,7 +1,10 @@
 import { notFound } from 'next/navigation';
+import RoleRedirect from '@/components/auth/RoleRedirect';
 import Image from 'next/image';
 import getDb from '@/db/database';
-import { Restaurant, MenuItem, Review } from '@/lib/types';
+import { Restaurant, MenuItem, Review, Deal } from '@/lib/types';
+import { isCurrentlyOpen, HoursRow } from '@/lib/hours';
+import { Suspense } from 'react';
 import RestaurantMenuWithDeals from '@/components/restaurant/RestaurantMenuWithDeals';
 import RestaurantDistance from '@/components/restaurant/RestaurantDistance';
 import RestaurantDeliveryStats from '@/components/restaurant/RestaurantDeliveryStats';
@@ -34,7 +37,15 @@ async function getRestaurantData(id: number) {
     'SELECT * FROM reviews WHERE restaurant_id = ? ORDER BY created_at DESC LIMIT 20'
   ).all(id) as Review[];
 
-  return { restaurant, menu, reviews };
+  const hours = db.prepare(
+    'SELECT day_of_week, open_time, close_time, is_closed FROM restaurant_hours WHERE restaurant_id = ? ORDER BY day_of_week'
+  ).all(id) as HoursRow[];
+
+  const ownerDeals = db.prepare(
+    'SELECT * FROM deals WHERE restaurant_id = ? AND is_active = 1'
+  ).all(id) as Deal[];
+
+  return { restaurant, menu, reviews, hours, ownerDeals };
 }
 
 export default async function RestaurantPage({ params }: RestaurantPageProps) {
@@ -45,10 +56,11 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
   const data = await getRestaurantData(restaurantId);
   if (!data) notFound();
 
-  const { restaurant, menu, reviews } = data;
+  const { restaurant, menu, reviews, hours, ownerDeals } = data;
 
   const db = getDb();
   const isOwned = !!db.prepare('SELECT 1 FROM restaurant_owners WHERE restaurant_id = ?').get(restaurantId);
+  const isOpen = Boolean(restaurant.is_accepting_orders) && (!isOwned || isCurrentlyOpen(hours));
 
   const avgRating = reviews.length > 0
     ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
@@ -56,6 +68,7 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <RoleRedirect allowed="customer" />
       <ScrollToTop />
       {/* Restaurant Header */}
       <div className="relative w-full h-40 sm:h-52 rounded-2xl overflow-hidden mb-6">
@@ -63,8 +76,8 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
           src={restaurant.image_url}
           alt={restaurant.name}
           fill
+          sizes="(max-width: 896px) 100vw, 896px"
           className="object-cover"
-          unoptimized
           priority
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
@@ -127,8 +140,10 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
         />
       </div>
 
-      {/* Menu — deals injected client-side from delivery address */}
-      <RestaurantMenuWithDeals menu={menu} restaurantId={restaurant.id} />
+      {/* Menu — deals injected client-side from delivery address (seeded restaurants only) */}
+      <Suspense>
+        <RestaurantMenuWithDeals menu={menu} restaurantId={restaurant.id} isAcceptingOrders={isOpen} isSeeded={!isOwned} ownerDeals={ownerDeals} />
+      </Suspense>
 
       {/* Reviews */}
       {reviews.length > 0 && (
@@ -150,7 +165,7 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
           </div>
           <div className="space-y-5">
             {reviews.map((review) => (
-              <div key={review.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <div key={review.id} id={`review-${review.id}`} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 scroll-mt-20">
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div className="flex items-center gap-3">
                     <div className="w-11 h-11 rounded-full bg-[#FF3008] flex items-center justify-center flex-shrink-0">

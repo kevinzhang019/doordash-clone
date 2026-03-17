@@ -2,12 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useRequireAuth } from '@/lib/useRequireAuth';
 
 export default function DriverDashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const { loading: authLoading } = useRequireAuth('driver');
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    if (authLoading) return;
     fetch('/api/stripe/connect/status', {
       headers: { 'x-session-role': 'driver' },
     })
@@ -21,7 +24,7 @@ export default function DriverDashboardLayout({ children }: { children: React.Re
         }
       })
       .catch(() => router.replace('/driver-setup'));
-  }, [router]);
+  }, [router, authLoading]);
 
   if (!ready) {
     return (

@@ -6,7 +6,9 @@ import Link from 'next/link';
 import { useCart } from '@/components/providers/CartProvider';
 import { useLocation } from '@/components/providers/LocationProvider';
 import { useAuth } from '@/components/providers/AuthProvider';
-import { getItemDeal, dealSavings } from '@/lib/dealUtils';
+import { useRequireAuth } from '@/lib/useRequireAuth';
+import { getItemDeal, dealSavings, ItemDeal } from '@/lib/dealUtils';
+import { Deal } from '@/lib/types';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 
@@ -28,6 +30,7 @@ interface AppliedPromo {
 }
 
 function CheckoutForm() {
+  useRequireAuth('customer');
   const { cartItems, cartTotal, clearCart } = useCart();
   const { deliveryAddress, deliveryCoords, getRestaurantDeliveryInfo } = useLocation();
   const { user, loading: authLoading } = useAuth();
@@ -41,6 +44,7 @@ function CheckoutForm() {
   const [isCustomTip, setIsCustomTip] = useState(false);
   const [deliveryInstructions, setDeliveryInstructions] = useState('');
   const [handoffOption, setHandoffOption] = useState<'hand_off' | 'leave_at_door'>('hand_off');
+  const [prefsLoaded, setPrefsLoaded] = useState(false);
 
   // Promo code state
   const [promoInput, setPromoInput] = useState('');
@@ -53,24 +57,61 @@ function CheckoutForm() {
 
   const info = restaurantId ? getRestaurantDeliveryInfo(restaurantId) : null;
   const deliveryFee = info?.deliveryFee ?? 2.99;
+  const SERVICE_FEE_RATE = 0.05;
 
   const [restaurantIsSeeded, setRestaurantIsSeeded] = useState(false);
+  const [ownerDeals, setOwnerDeals] = useState<Deal[]>([]);
   const fetchedRestaurantIdRef = useRef<number | null>(null);
   useEffect(() => {
     if (!restaurantId || fetchedRestaurantIdRef.current === restaurantId) return;
     fetchedRestaurantIdRef.current = restaurantId;
     fetch(`/api/restaurants/${restaurantId}`)
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) setRestaurantIsSeeded(data.isSeeded ?? false); })
+      .then(data => {
+        if (data) {
+          setRestaurantIsSeeded(data.isSeeded ?? false);
+          setOwnerDeals(data.ownerDeals ?? []);
+        }
+      })
       .catch(() => {});
   }, [restaurantId]);
 
-  const totalDealSavings = restaurantIsSeeded && deliveryAddress
-    ? cartItems.reduce((sum, item) => {
+  // Pre-fill delivery prefs from last use of this address
+  useEffect(() => {
+    if (!deliveryAddress || prefsLoaded) return;
+    fetch('/api/addresses')
+      .then(r => r.ok ? r.json() : null)
+      .then((data: { addresses?: Array<{ address: string; delivery_instructions?: string | null; handoff_option?: string | null }> } | null) => {
+        if (!data?.addresses) return;
+        const match = data.addresses.find((a) => a.address === deliveryAddress);
+        if (match) {
+          if (match.delivery_instructions) setDeliveryInstructions(match.delivery_instructions);
+          if (match.handoff_option === 'leave_at_door' || match.handoff_option === 'hand_off') {
+            setHandoffOption(match.handoff_option);
+          }
+        }
+        setPrefsLoaded(true);
+      })
+      .catch(() => setPrefsLoaded(true));
+  }, [deliveryAddress, prefsLoaded]);
+
+  const totalDealSavings = (() => {
+    if (restaurantIsSeeded && deliveryAddress) {
+      return cartItems.reduce((sum, item) => {
         const deal = getItemDeal(item.menu_item_id, deliveryAddress);
         return sum + (deal ? dealSavings(deal, item.effective_price ?? item.price ?? 0, item.quantity) : 0);
-      }, 0)
-    : 0;
+      }, 0);
+    }
+    if (!restaurantIsSeeded && ownerDeals.length > 0) {
+      return cartItems.reduce((sum, item) => {
+        const deal = ownerDeals.find(d => d.menu_item_id === item.menu_item_id);
+        if (!deal) return sum;
+        const itemDeal: ItemDeal = { deal_type: deal.deal_type, discount_value: deal.discount_value };
+        return sum + dealSavings(itemDeal, item.effective_price ?? item.price ?? 0, item.quantity);
+      }, 0);
+    }
+    return 0;
+  })();
 
   const presetAmounts = TIP_PRESET_RATES.map((r) => roundToHalf(cartTotal * r));
 
@@ -80,7 +121,9 @@ function CheckoutForm() {
 
   const discountedSubtotal = cartTotal - totalDealSavings - (appliedPromo?.savings ?? 0);
   const taxAmount = discountedSubtotal * TAX_RATE;
-  const estimatedTotal = discountedSubtotal + deliveryFee + tipAmount + taxAmount;
+  const serviceFee = Math.round(discountedSubtotal * SERVICE_FEE_RATE * 100) / 100;
+  const displayDeliveryFee = deliveryFee + serviceFee;
+  const estimatedTotal = discountedSubtotal + displayDeliveryFee + tipAmount + taxAmount;
 
   const stripeEnabled = !!stripePromise && !!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY &&
     !process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY.includes('placeholder');
@@ -178,7 +221,7 @@ function CheckoutForm() {
           return;
         }
 
-        if (paymentIntent?.status !== 'succeeded') {
+        if (paymentIntent?.status !== 'requires_capture') {
           setError('Payment was not completed. Please try again.');
           setLoading(false);
           return;
@@ -195,7 +238,7 @@ function CheckoutForm() {
           deliveryLat: deliveryCoords?.lat ?? null,
           deliveryLng: deliveryCoords?.lng ?? null,
           tip: tipAmount,
-          deliveryFee,
+          deliveryFee: displayDeliveryFee,
           discountSaved: totalDealSavings,
           promoCodeId: appliedPromo?.id ?? null,
           paymentIntentId: paymentIntentId ?? null,
@@ -320,8 +363,8 @@ function CheckoutForm() {
               <span>${cartTotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-gray-600 text-sm">
-              <span>Delivery fee</span>
-              <span>{deliveryFee === 0 ? 'Free' : `$${deliveryFee.toFixed(2)}`}</span>
+              <span>Delivery + fees</span>
+              <span>{displayDeliveryFee === 0 ? 'Free' : `$${displayDeliveryFee.toFixed(2)}`}</span>
             </div>
             {tipAmount > 0 && (
               <div className="flex justify-between text-gray-600 text-sm">

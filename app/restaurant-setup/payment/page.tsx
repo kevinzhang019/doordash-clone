@@ -3,9 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
+import { useRequireAuth } from '@/lib/useRequireAuth';
 
 export default function RestaurantPaymentSetupPage() {
   const { user } = useAuth();
+  useRequireAuth('restaurant');
   const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [loading, setLoading] = useState(false);

@@ -87,6 +87,12 @@ export async function proxy(request: NextRequest) {
     const userId = (payload as { userId: number; role?: UserRole }).userId;
     const role = (payload as { userId: number; role?: UserRole }).role || 'customer';
 
+    // Enforce role-based access: reject if user's role doesn't match the route's expected role
+    const requiredRole = roleForPath(pathname);
+    if (requiredRole && role !== requiredRole) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const requestHeaders = new Headers(request.headers);
     requestHeaders.set('x-user-id', userId.toString());
     requestHeaders.set('x-user-role', role);

@@ -6,9 +6,7 @@ import { LocationProvider } from '@/components/providers/LocationProvider';
 import { SearchProvider } from '@/components/providers/SearchProvider';
 import { CuisineProvider } from '@/components/providers/CuisineProvider';
 import { ChatSeenProvider } from '@/components/providers/ChatSeenProvider';
-import { ModeProvider } from '@/components/providers/ModeProvider';
 import Navbar from '@/components/layout/Navbar';
-import ModeSidebar from '@/components/layout/ModeSidebar';
 import CartSidebar from '@/components/cart/CartSidebar';
 import OnboardingModal from '@/components/ui/OnboardingModal';
 import FloatingDriverChat from '@/components/chat/FloatingDriverChat';
@@ -27,13 +25,11 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <AuthProvider>
-          <ModeProvider>
             <LocationProvider>
               <SearchProvider>
                 <CuisineProvider>
                 <CartProvider>
                   <ChatSeenProvider>
-                    <ModeSidebar />
                     <OnboardingModal />
                     <Navbar />
                     <CartSidebar />
@@ -46,7 +42,6 @@ export default function RootLayout({
                 </CuisineProvider>
               </SearchProvider>
             </LocationProvider>
-          </ModeProvider>
         </AuthProvider>
       </body>
     </html>

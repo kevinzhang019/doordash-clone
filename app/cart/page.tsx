@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { motion, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { useCart } from '@/components/providers/CartProvider';
 import { useLocation } from '@/components/providers/LocationProvider';
+import { useRequireAuth } from '@/lib/useRequireAuth';
 
 const listVariants = {
   hidden: {},
@@ -49,7 +50,7 @@ function CartCard({
   onRemove,
   onUpdateQty,
 }: {
-  item: { id: number; name?: string; price?: number; effective_price?: number; quantity: number; image_url?: string; special_requests?: string | null };
+  item: { id: number; name?: string; price?: number; effective_price?: number; quantity: number; image_url?: string; special_requests?: string | null; selections?: { name: string; price_modifier: number; group_name?: string | null }[] };
   onRemove: (id: number) => void;
   onUpdateQty: (id: number, qty: number) => void;
 }) {
@@ -101,14 +102,29 @@ function CartCard({
             src={item.image_url || ''}
             alt={item.name || ''}
             fill
+            sizes="72px"
             className="object-cover"
-            unoptimized
+            loading="lazy"
           />
         </div>
 
         {/* Info */}
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-gray-900 text-[15px] leading-tight line-clamp-1">{item.name}</p>
+          {item.selections && item.selections.length > 0 && (
+            <div className="mt-1 space-y-0.5">
+              {item.selections.map((s, i) => (
+                <div key={i} className="flex items-center justify-between text-xs text-gray-500">
+                  <span>{s.name}</span>
+                  {s.price_modifier !== 0 && (
+                    <span className="ml-2 tabular-nums flex-shrink-0 text-gray-400 font-semibold">
+                      {s.price_modifier > 0 ? `+$${s.price_modifier.toFixed(2)}` : `-$${Math.abs(s.price_modifier).toFixed(2)}`}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
           {item.special_requests && (
             <p className="text-xs text-gray-400 mt-0.5 italic line-clamp-1">"{item.special_requests}"</p>
           )}
@@ -163,6 +179,7 @@ function CartCard({
 }
 
 export default function CartPage() {
+  useRequireAuth('customer');
   const { cartItems, cartTotal, removeItem, updateQuantity, loading } = useCart();
   const { getRestaurantDeliveryInfo } = useLocation();
   const [removingIds, setRemovingIds] = useState<number[]>([]);
@@ -210,6 +227,8 @@ export default function CartPage() {
   const restaurantName = cartItems[0]?.restaurant_name;
   const deliveryInfo = restaurantId ? getRestaurantDeliveryInfo(restaurantId) : null;
   const deliveryFee = deliveryInfo?.deliveryFee ?? 2.99;
+  const serviceFee = Math.round(cartTotal * 0.05 * 100) / 100;
+  const displayDeliveryFee = deliveryFee + serviceFee;
   const deliveryMin = deliveryInfo?.min;
   const deliveryMax = deliveryInfo?.max;
   const visibleItems = cartItems.filter((item) => !removingIds.includes(item.id));
@@ -284,18 +303,18 @@ export default function CartPage() {
             </motion.span>
           </div>
           <div className="flex justify-between text-gray-600 text-sm">
-            <span>Delivery fee</span>
-            <span>{deliveryInfo ? (deliveryFee === 0 ? 'Free' : `$${deliveryFee.toFixed(2)}`) : `~$${deliveryFee.toFixed(2)}`}</span>
+            <span>Delivery + fees</span>
+            <span>{deliveryInfo ? (displayDeliveryFee === 0 ? 'Free' : `$${displayDeliveryFee.toFixed(2)}`) : `~$${displayDeliveryFee.toFixed(2)}`}</span>
           </div>
           <div className="flex justify-between font-bold text-gray-900 pt-2 border-t border-gray-200">
             <span>Estimated Total</span>
             <motion.span
-              key={cartTotal + deliveryFee}
+              key={cartTotal + displayDeliveryFee}
               initial={{ opacity: 0.4, scale: 0.96 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ type: 'spring', stiffness: 300, damping: 20 }}
             >
-              ${(cartTotal + deliveryFee).toFixed(2)}
+              ${(cartTotal + displayDeliveryFee).toFixed(2)}
             </motion.span>
           </div>
         </motion.div>
