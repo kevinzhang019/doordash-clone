@@ -14,6 +14,8 @@ interface SavedAddress {
   lat: number;
   lng: number;
   created_at: string;
+  delivery_instructions: string | null;
+  handoff_option: string | null;
 }
 
 interface UserProfile {
@@ -22,6 +24,11 @@ interface UserProfile {
   email: string;
   role: string;
   phone: string | null;
+}
+
+function roleHeaders(): HeadersInit {
+  const val = typeof window !== 'undefined' ? sessionStorage.getItem('active_role') : null;
+  return val ? { 'x-session-role': val } : {};
 }
 
 export default function SettingsPage() {
@@ -49,6 +56,10 @@ export default function SettingsPage() {
 
   const [addresses, setAddresses] = useState<SavedAddress[]>([]);
   const [addressModalOpen, setAddressModalOpen] = useState(false);
+  const [editingAddressId, setEditingAddressId] = useState<number | null>(null);
+  const [editInstructions, setEditInstructions] = useState('');
+  const [editHandoff, setEditHandoff] = useState<'hand_off' | 'leave_at_door'>('hand_off');
+  const [savingInstructions, setSavingInstructions] = useState(false);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
@@ -63,7 +74,7 @@ export default function SettingsPage() {
   // Load profile
   useEffect(() => {
     if (!user) return;
-    fetch('/api/settings')
+    fetch('/api/settings', { headers: roleHeaders() })
       .then(r => r.json())
       .then(d => {
         if (d.user) {
@@ -77,7 +88,7 @@ export default function SettingsPage() {
   }, [user]);
 
   const loadAddresses = () => {
-    fetch('/api/addresses')
+    fetch('/api/addresses', { headers: roleHeaders() })
       .then(r => r.ok ? r.json() : null)
       .then(d => { if (d?.addresses) setAddresses(d.addresses); })
       .catch(() => {});
@@ -99,7 +110,7 @@ export default function SettingsPage() {
     try {
       const res = await fetch('/api/settings', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...roleHeaders() },
         body: JSON.stringify({ name, email, phone: phone || null }),
       });
       const data = await res.json();
@@ -125,7 +136,7 @@ export default function SettingsPage() {
     const form = new FormData();
     form.append('avatar', file);
     try {
-      const res = await fetch('/api/settings/avatar', { method: 'POST', body: form });
+      const res = await fetch('/api/settings/avatar', { method: 'POST', headers: roleHeaders(), body: form });
       const data = await res.json();
       if (res.ok) { setAvatarUrl(data.avatarUrl); await refreshUser(); }
     } finally {
@@ -136,7 +147,7 @@ export default function SettingsPage() {
 
   const handleDeleteAddress = async (id: number) => {
     const deletedAddr = addresses.find(a => a.id === id);
-    await fetch(`/api/addresses/${id}`, { method: 'DELETE' });
+    await fetch(`/api/addresses/${id}`, { method: 'DELETE', headers: roleHeaders() });
     if (deletedAddr && deletedAddr.address === deliveryAddress) {
       const remaining = addresses.filter(a => a.id !== id);
       if (remaining.length > 0) {
@@ -158,7 +169,7 @@ export default function SettingsPage() {
     try {
       const res = await fetch('/api/settings/password', {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...roleHeaders() },
         body: JSON.stringify({ currentPassword, newPassword }),
       });
       const data = await res.json();
@@ -177,6 +188,28 @@ export default function SettingsPage() {
     }
   };
 
+  const handleEditInstructions = (a: SavedAddress) => {
+    setEditingAddressId(a.id);
+    setEditInstructions(a.delivery_instructions || '');
+    setEditHandoff((a.handoff_option as 'hand_off' | 'leave_at_door') || 'hand_off');
+  };
+
+  const handleSaveInstructions = async () => {
+    if (editingAddressId === null) return;
+    setSavingInstructions(true);
+    try {
+      await fetch(`/api/addresses/${editingAddressId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', ...roleHeaders() },
+        body: JSON.stringify({ delivery_instructions: editInstructions, handoff_option: editHandoff }),
+      });
+      setEditingAddressId(null);
+      loadAddresses();
+    } finally {
+      setSavingInstructions(false);
+    }
+  };
+
   const handleAddressModalClose = () => {
     setAddressModalOpen(false);
     loadAddresses(); // Refresh after potentially adding a new address
@@ -187,7 +220,7 @@ export default function SettingsPage() {
     setDeleting(true);
     setDeleteError('');
     try {
-      const res = await fetch('/api/settings', { method: 'DELETE' });
+      const res = await fetch('/api/settings', { method: 'DELETE', headers: roleHeaders() });
       if (!res.ok) {
         const data = await res.json();
         setDeleteError(data.error || 'Failed to delete account');
@@ -375,38 +408,121 @@ export default function SettingsPage() {
           <div className="space-y-2">
             {addresses.map(a => {
               const isCurrent = deliveryAddress === a.address;
+              const isEditing = editingAddressId === a.id;
               return (
                 <div
                   key={a.id}
-                  className={`flex items-center gap-3 p-4 rounded-xl border transition-colors ${
+                  className={`rounded-xl border transition-colors ${
                     isCurrent ? 'border-[#FF3008] bg-red-50' : 'border-gray-100 hover:border-gray-200'
                   }`}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 flex-shrink-0 ${isCurrent ? 'text-[#FF3008]' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <span className="flex-1 text-sm text-gray-800 min-w-0 truncate">{a.address}</span>
-                  {isCurrent && (
-                    <span className="text-xs font-medium text-[#FF3008] bg-red-100 px-2 py-0.5 rounded-full flex-shrink-0">In use</span>
-                  )}
-                  {!isCurrent && (
-                    <button
-                      onClick={() => handleUseAddress(a)}
-                      className="text-xs font-medium text-gray-500 hover:text-[#FF3008] transition-colors cursor-pointer flex-shrink-0"
-                    >
-                      Use
-                    </button>
-                  )}
-                  <button
-                    onClick={() => handleDeleteAddress(a.id)}
-                    className="text-gray-300 hover:text-red-500 transition-colors cursor-pointer p-1 flex-shrink-0"
-                    title="Delete address"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  <div className="flex items-center gap-3 p-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" className={`h-5 w-5 flex-shrink-0 ${isCurrent ? 'text-[#FF3008]' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
-                  </button>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm text-gray-800 truncate block">{a.address}</span>
+                      {!isEditing && a.delivery_instructions && (
+                        <span className="text-xs text-gray-400 truncate block mt-0.5">{a.delivery_instructions}</span>
+                      )}
+                    </div>
+                    {isCurrent && (
+                      <span className="text-xs font-medium text-[#FF3008] bg-red-100 px-2 py-0.5 rounded-full flex-shrink-0">In use</span>
+                    )}
+                    {!isCurrent && (
+                      <button
+                        onClick={() => handleUseAddress(a)}
+                        className="text-xs font-medium text-gray-500 hover:text-[#FF3008] transition-colors cursor-pointer flex-shrink-0"
+                      >
+                        Use
+                      </button>
+                    )}
+                    <button
+                      onClick={() => isEditing ? setEditingAddressId(null) : handleEditInstructions(a)}
+                      className={`transition-colors cursor-pointer p-1 flex-shrink-0 ${isEditing ? 'text-[#FF3008]' : 'text-gray-300 hover:text-gray-500'}`}
+                      title="Edit delivery instructions"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                    <button
+                      onClick={() => handleDeleteAddress(a.id)}
+                      className="text-gray-300 hover:text-red-500 transition-colors cursor-pointer p-1 flex-shrink-0"
+                      title="Delete address"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {/* Inline delivery instructions editor */}
+                  {isEditing && (
+                    <div className="px-4 pb-4 pt-1 border-t border-gray-100 space-y-3">
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1.5">Handoff preference</label>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setEditHandoff('hand_off')}
+                            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-colors cursor-pointer ${
+                              editHandoff === 'hand_off'
+                                ? 'border-[#FF3008] bg-red-50 text-[#FF3008]'
+                                : 'border-gray-200 text-gray-600 hover:border-gray-400'
+                            }`}
+                          >
+                            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" />
+                            </svg>
+                            Hand it to me
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setEditHandoff('leave_at_door')}
+                            className={`flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium transition-colors cursor-pointer ${
+                              editHandoff === 'leave_at_door'
+                                ? 'border-[#FF3008] bg-red-50 text-[#FF3008]'
+                                : 'border-gray-200 text-gray-600 hover:border-gray-400'
+                            }`}
+                          >
+                            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                            </svg>
+                            Leave at door
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium text-gray-500 mb-1.5">
+                          Delivery instructions <span className="text-gray-300 font-normal">(optional)</span>
+                        </label>
+                        <textarea
+                          value={editInstructions}
+                          onChange={e => setEditInstructions(e.target.value)}
+                          rows={2}
+                          className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm resize-none"
+                          placeholder="Apt number, gate code, ring doorbell…"
+                        />
+                      </div>
+                      <div className="flex gap-2 justify-end">
+                        <button
+                          onClick={() => setEditingAddressId(null)}
+                          className="text-xs font-medium text-gray-500 px-3 py-1.5 rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors cursor-pointer"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={handleSaveInstructions}
+                          disabled={savingInstructions}
+                          className="text-xs font-medium text-white bg-[#FF3008] px-4 py-1.5 rounded-lg hover:bg-red-600 transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          {savingInstructions ? 'Saving...' : 'Save'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
