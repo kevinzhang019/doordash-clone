@@ -41,11 +41,12 @@ export async function POST(request: NextRequest) {
     // Issue Stripe payouts to restaurant and driver for real paid orders
     if (!isSimulated && orderId && process.env.STRIPE_SECRET_KEY) {
       const order = db.prepare(`
-        SELECT o.subtotal, o.payment_intent_id, o.restaurant_transfer_id, o.driver_transfer_id,
+        SELECT o.subtotal, o.discount_saved, o.payment_intent_id, o.restaurant_transfer_id, o.driver_transfer_id,
                o.restaurant_id, o.driver_user_id
         FROM orders o WHERE o.id = ?
       `).get(orderId) as {
         subtotal: number;
+        discount_saved: number;
         payment_intent_id: string | null;
         restaurant_transfer_id: string | null;
         driver_transfer_id: string | null;
@@ -56,11 +57,12 @@ export async function POST(request: NextRequest) {
       if (order?.payment_intent_id) {
         const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
-        // Payout restaurant (their food revenue)
+        // Payout restaurant: subtotal minus their own deal discounts
+        // Platform absorbs promo code discounts (not the restaurant's responsibility)
         if (!order.restaurant_transfer_id) {
           const rest = db.prepare('SELECT stripe_account_id FROM restaurants WHERE id = ?').get(order.restaurant_id) as { stripe_account_id: string | null } | undefined;
           if (rest?.stripe_account_id) {
-            const restaurantCents = Math.round(order.subtotal * 100);
+            const restaurantCents = Math.max(0, Math.round((order.subtotal - (order.discount_saved ?? 0)) * 100));
             try {
               const transfer = await stripe.transfers.create({
                 amount: restaurantCents,
