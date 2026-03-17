@@ -56,6 +56,7 @@ export default function DriverDashboardPage() {
   const [availableJobs, setAvailableJobs] = useState<DriverJob[]>([]);
   const [acceptingAvailableId, setAcceptingAvailableId] = useState<string | null>(null);
   const [acceptingJob, setAcceptingJob] = useState(false);
+  const [delivering, setDelivering] = useState(false);
   const [takenNotice, setTakenNotice] = useState<string | null>(null);
   const takenNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [jobSidebarOpen, setJobSidebarOpen] = useState(false);
@@ -611,7 +612,8 @@ export default function DriverDashboardPage() {
   };
 
   const handleDelivered = async () => {
-    if (!deliveryId || !session || !currentJob) return;
+    if (!deliveryId || !session || !currentJob || delivering) return;
+    setDelivering(true);
     try {
       const res = await fetch('/api/driver/complete', {
         method: 'POST',
@@ -636,6 +638,8 @@ export default function DriverDashboardPage() {
       }, 3000);
     } catch {
       setPhase('active_waiting');
+    } finally {
+      setDelivering(false);
     }
   };
 
@@ -738,6 +742,9 @@ export default function DriverDashboardPage() {
                   <span className="text-white font-bold text-xs">D</span>
                 </div>
                 <span className="text-white font-semibold text-sm">Welcome Dasher</span>
+                <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-[#2a2a2a] text-[#FF3008] border border-[#3a3a3a]">
+                  Driver
+                </span>
               </div>
             )}
           </div>
@@ -776,6 +783,20 @@ export default function DriverDashboardPage() {
                   >
                     Settings
                   </Link>
+                  <div className="h-px bg-[#2a2a2a]" />
+                  <p className="px-4 pt-2.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-500">Switch account</p>
+                  <button
+                    onClick={() => { setAvatarOpen(false); window.open('/login?role=customer', '_blank'); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#2a2a2a] hover:text-white transition-colors cursor-pointer"
+                  >
+                    Customer
+                  </button>
+                  <button
+                    onClick={() => { setAvatarOpen(false); window.open('/login?role=restaurant', '_blank'); }}
+                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#2a2a2a] hover:text-white transition-colors cursor-pointer"
+                  >
+                    Restaurant
+                  </button>
                   <div className="h-px bg-[#2a2a2a]" />
                   <button
                     onClick={() => { setAvatarOpen(false); handleLogout(); }}
@@ -949,9 +970,10 @@ export default function DriverDashboardPage() {
               </div>
               <button
                 onClick={handleDelivered}
-                className="w-full mt-4 bg-[#22c55e] text-white font-semibold py-3 rounded-xl hover:bg-green-600 transition-colors cursor-pointer"
+                disabled={delivering}
+                className="w-full mt-4 bg-[#22c55e] text-white font-semibold py-3 rounded-xl hover:bg-green-600 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Mark as Delivered
+                {delivering ? 'Completing…' : 'Mark as Delivered'}
               </button>
               {currentJob && !currentJob.isSimulated && currentJob.orderId && user && (
                 <DeliveryChat

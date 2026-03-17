@@ -77,12 +77,17 @@ export default function RestaurantDashboardLayout({ children }: { children: Reac
       {/* Top nav */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <Link href="/restaurant-dashboard" className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-[#FF3008] rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-sm">D</span>
-            </div>
-            <span className="font-semibold text-gray-900">Restaurant Dashboard</span>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/restaurant-dashboard" className="flex items-center gap-3">
+              <div className="w-8 h-8 bg-[#FF3008] rounded-full flex items-center justify-center">
+                <span className="text-white font-bold text-sm">D</span>
+              </div>
+              <span className="font-semibold text-gray-900">Restaurant Dashboard</span>
+            </Link>
+            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider bg-red-50 text-[#FF3008] border border-red-100">
+              Restaurant
+            </span>
+          </div>
 
           {/* Profile dropdown */}
           <div className="relative" ref={profileRef}>
@@ -119,6 +124,27 @@ export default function RestaurantDashboardLayout({ children }: { children: Reac
                   </svg>
                   Account Settings
                 </Link>
+                <div className="border-t border-gray-100 my-1" />
+                <p className="px-4 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Switch account</p>
+                <button
+                  onClick={() => { setProfileOpen(false); window.open('/login?role=customer', '_blank'); }}
+                  className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  Customer
+                </button>
+                <button
+                  onClick={() => { setProfileOpen(false); window.open('/login?role=driver', '_blank'); }}
+                  className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+                  </svg>
+                  Driver
+                </button>
+                <div className="border-t border-gray-100 my-1" />
                 <button
                   onClick={handleLogout}
                   className="flex items-center gap-3 w-full px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
