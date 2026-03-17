@@ -6,21 +6,28 @@ const secret = new TextEncoder().encode(
   process.env.JWT_SECRET || 'fallback-secret-change-in-production'
 );
 
-// Determine which role owns this route
-function roleForPath(pathname: string): UserRole {
-  if (pathname.startsWith('/driver-dashboard') || pathname.startsWith('/api/driver')) return 'driver';
+// Determine which role owns this route (null = shared page, no specific role)
+function roleForPath(pathname: string): UserRole | null {
+  if (pathname.startsWith('/driver-dashboard') || pathname.startsWith('/driver-setup') || (pathname.startsWith('/api/driver') && !pathname.startsWith('/api/driver-ratings'))) return 'driver';
   if (
     pathname.startsWith('/restaurant-dashboard') ||
     pathname.startsWith('/api/restaurant-dashboard') ||
     pathname === '/restaurant-setup'
   ) return 'restaurant';
-  return 'customer';
+  if (pathname === '/cart' || pathname.startsWith('/cart/') ||
+      pathname === '/checkout' || pathname.startsWith('/checkout/') ||
+      pathname.startsWith('/orders') ||
+      pathname.startsWith('/api/cart') || pathname.startsWith('/api/orders') ||
+      pathname.startsWith('/api/reviews') || pathname.startsWith('/api/promo') ||
+      (pathname.startsWith('/api/stripe') && !pathname.startsWith('/api/stripe/connect'))) return 'customer';
+  // Shared pages: /settings, /api/settings, /api/addresses, /api/messages, /, etc.
+  return null;
 }
 
 const PROTECTED_PAGES = [
   '/cart', '/checkout', '/orders',
   '/restaurant-dashboard', '/restaurant-setup',
-  '/driver-dashboard',
+  '/driver-dashboard', '/driver-setup',
   '/settings',
 ];
 
@@ -29,6 +36,7 @@ const PROTECTED_APIS = [
   '/api/restaurant-dashboard',
   '/api/driver',
   '/api/settings', '/api/messages', '/api/addresses',
+  '/api/stripe/connect',
 ];
 
 export async function proxy(request: NextRequest) {
@@ -59,8 +67,30 @@ export async function proxy(request: NextRequest) {
     return withGuestCookie(NextResponse.next({ request: { headers: requestHeaders } }));
   }
 
-  const routeRole = roleForPath(pathname);
-  const token = request.cookies.get(`session_${routeRole}`)?.value;
+  // For role-specific routes, use the path to determine which cookie to read.
+  // For shared routes (settings, messages, etc.), use the x-session-role header
+  // sent by the client (derived from per-tab sessionStorage, not a shared cookie).
+  const sessionRoleHint = request.headers.get('x-session-role') as UserRole | null;
+  const validHint = sessionRoleHint && ['customer', 'driver', 'restaurant'].includes(sessionRoleHint)
+    ? sessionRoleHint : null;
+  const pathRole = roleForPath(pathname);
+
+  // Priority: explicit header hint > path-based role > 'customer'
+  let routeRole: UserRole = validHint || pathRole || 'customer';
+  let token = request.cookies.get(`session_${routeRole}`)?.value;
+
+  // For shared pages, if the chosen cookie doesn't exist, try others
+  if (!token && !pathRole) {
+    for (const fallback of ['customer', 'driver', 'restaurant'] as UserRole[]) {
+      if (fallback === routeRole) continue;
+      const t = request.cookies.get(`session_${fallback}`)?.value;
+      if (t) {
+        token = t;
+        routeRole = fallback;
+        break;
+      }
+    }
+  }
 
   if (!token) {
     if (isProtectedApi) {
@@ -120,6 +150,9 @@ export const config = {
     '/api/messages/:path*',
     '/api/promo/:path*',
     '/api/stripe/:path*',
+    '/driver-setup',
+    '/stripe-return',
+    '/stripe-refresh',
     '/api/driver-ratings',
     '/api/driver-ratings/:path*',
   ],

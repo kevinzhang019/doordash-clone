@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { href: '/restaurant-dashboard/reviews', label: 'Reviews', icon: '⭐' },
   { href: '/restaurant-dashboard/analytics', label: 'Analytics', icon: '📈' },
   { href: '/restaurant-dashboard/hours', label: 'Hours', icon: '🕐' },
+  { href: '/restaurant-dashboard/payment', label: 'Payment', icon: '💳' },
   { href: '/restaurant-dashboard/settings', label: 'Settings', icon: '⚙️' },
 ];
 
@@ -22,7 +23,25 @@ export default function RestaurantDashboardLayout({ children }: { children: Reac
   const pathname = usePathname();
   const router = useRouter();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [hasRestaurant, setHasRestaurant] = useState<boolean | null>(null);
   const profileRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetch('/api/restaurant-dashboard')
+      .then(async res => {
+        if (res.status === 404) {
+          router.replace('/restaurant-setup');
+          return;
+        }
+        const data = await res.json();
+        if (!data.restaurant?.stripe_onboarding_complete) {
+          router.replace('/restaurant-setup/payment');
+          return;
+        }
+        setHasRestaurant(true);
+      })
+      .catch(() => setHasRestaurant(true));
+  }, [router]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -40,6 +59,14 @@ export default function RestaurantDashboardLayout({ children }: { children: Reac
     router.push('/');
     router.refresh();
   };
+
+  if (!hasRestaurant) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-3 border-gray-200 border-t-[#FF3008] rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">

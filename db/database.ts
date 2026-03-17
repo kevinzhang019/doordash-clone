@@ -222,6 +222,11 @@ function runMigrations(db: Database.Database) {
     db.exec('ALTER TABLE cart_items ADD COLUMN special_requests TEXT');
   }
 
+  const orderItemCols = (db.prepare("PRAGMA table_info(order_items)").all() as { name: string }[]).map(c => c.name);
+  if (!orderItemCols.includes('special_requests')) {
+    db.exec('ALTER TABLE order_items ADD COLUMN special_requests TEXT');
+  }
+
   const deliveryCols = (db.prepare("PRAGMA table_info(driver_deliveries)").all() as { name: string }[]).map(c => c.name);
   if (!deliveryCols.includes('miles')) db.exec('ALTER TABLE driver_deliveries ADD COLUMN miles REAL NOT NULL DEFAULT 0');
   if (!deliveryCols.includes('estimated_minutes')) db.exec('ALTER TABLE driver_deliveries ADD COLUMN estimated_minutes INTEGER NOT NULL DEFAULT 0');
@@ -236,6 +241,12 @@ function runMigrations(db: Database.Database) {
   }
 
   const orderCols = (db.prepare("PRAGMA table_info(orders)").all() as { name: string }[]).map(c => c.name);
+  if (!orderCols.includes('delivery_instructions')) {
+    db.exec('ALTER TABLE orders ADD COLUMN delivery_instructions TEXT');
+  }
+  if (!orderCols.includes('handoff_option')) {
+    db.exec("ALTER TABLE orders ADD COLUMN handoff_option TEXT NOT NULL DEFAULT 'hand_off'");
+  }
   if (!orderCols.includes('driver_user_id')) {
     db.exec('ALTER TABLE orders ADD COLUMN driver_user_id INTEGER REFERENCES users(id)');
   }
@@ -395,6 +406,11 @@ const restCols = (db.prepare("PRAGMA table_info(restaurants)").all() as { name: 
     seedMenuItemOptions(db);
   }
 
+  // Fix any negative price_modifier values — options should never discount the base price
+  db.exec(`UPDATE menu_item_options SET price_modifier = 0 WHERE price_modifier < 0`);
+  db.exec(`UPDATE order_item_selections SET price_modifier = 0 WHERE price_modifier < 0`);
+  db.exec(`UPDATE cart_item_selections SET price_modifier = 0 WHERE price_modifier < 0`);
+
   // --- Deals table ---
   db.exec(`
     CREATE TABLE IF NOT EXISTS deals (
@@ -407,6 +423,16 @@ const restCols = (db.prepare("PRAGMA table_info(restaurants)").all() as { name: 
       created_at TEXT DEFAULT (datetime('now'))
     );
   `);
+
+  // Migrate: enforce only one *active* deal per menu item
+  db.exec(`DROP INDEX IF EXISTS idx_deals_menu_item_id`);
+  // Deactivate older duplicates, keeping the most recent active deal per item
+  db.exec(`
+    UPDATE deals SET is_active = 0 WHERE is_active = 1 AND id NOT IN (
+      SELECT MAX(id) FROM deals WHERE is_active = 1 GROUP BY menu_item_id
+    )
+  `);
+  db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_deals_active_menu_item ON deals(menu_item_id) WHERE is_active = 1`);
 
   // --- Promo codes ---
   db.exec(`
@@ -497,6 +523,32 @@ const restCols = (db.prepare("PRAGMA table_info(restaurants)").all() as { name: 
 
     CREATE INDEX IF NOT EXISTS idx_messages_order_id ON messages(order_id);
   `);
+
+  // --- Stripe Connect columns ---
+  const restColsStripe = (db.prepare("PRAGMA table_info(restaurants)").all() as { name: string }[]).map(c => c.name);
+  if (!restColsStripe.includes('stripe_account_id')) {
+    db.exec('ALTER TABLE restaurants ADD COLUMN stripe_account_id TEXT');
+  }
+  if (!restColsStripe.includes('stripe_onboarding_complete')) {
+    db.exec('ALTER TABLE restaurants ADD COLUMN stripe_onboarding_complete INTEGER NOT NULL DEFAULT 0');
+  }
+
+  const userColsStripe = (db.prepare("PRAGMA table_info(users)").all() as { name: string }[]).map(c => c.name);
+  if (!userColsStripe.includes('stripe_account_id')) {
+    db.exec('ALTER TABLE users ADD COLUMN stripe_account_id TEXT');
+  }
+  if (!userColsStripe.includes('stripe_onboarding_complete')) {
+    db.exec('ALTER TABLE users ADD COLUMN stripe_onboarding_complete INTEGER NOT NULL DEFAULT 0');
+  }
+
+  // --- Add delivery preferences to user_addresses ---
+  const userAddrCols = (db.prepare("PRAGMA table_info(user_addresses)").all() as { name: string }[]).map(c => c.name);
+  if (!userAddrCols.includes('delivery_instructions')) {
+    db.exec('ALTER TABLE user_addresses ADD COLUMN delivery_instructions TEXT');
+  }
+  if (!userAddrCols.includes('handoff_option')) {
+    db.exec("ALTER TABLE user_addresses ADD COLUMN handoff_option TEXT");
+  }
 
   // --- Add selection_type to option groups (quantity-based groups) ---
   const optGroupCols = (db.prepare("PRAGMA table_info(menu_item_option_groups)").all() as { name: string }[]).map(c => c.name);

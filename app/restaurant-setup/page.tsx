@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import AddressAutocomplete from '@/components/ui/AddressAutocomplete';
+import HoursEditor, { type HoursRow } from '@/components/restaurant-dashboard/HoursEditor';
 
 const CUISINE_OPTIONS = [
   'American', 'Chinese', 'French', 'Indian', 'Italian',
@@ -11,15 +12,16 @@ const CUISINE_OPTIONS = [
   'Vietnamese', 'Greek', 'Middle Eastern', 'Caribbean', 'Other',
 ];
 
+const DEFAULT_HOURS: HoursRow[] = Array.from({ length: 7 }, (_, i) => ({
+  day_of_week: i,
+  open_time: '09:00',
+  close_time: '21:00',
+  is_closed: 0,
+}));
+
 export default function RestaurantSetupPage() {
   const { user } = useAuth();
   const router = useRouter();
-
-  useEffect(() => {
-    if (user && user.role !== 'restaurant') {
-      router.replace('/');
-    }
-  }, [user, router]);
 
   const [name, setName] = useState('');
   const [cuisine, setCuisine] = useState('American');
@@ -27,8 +29,28 @@ export default function RestaurantSetupPage() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const [address, setAddress] = useState('');
   const [addressCoords, setAddressCoords] = useState<{ lat: number; lng: number } | null>(null);
+  const [hours, setHours] = useState<HoursRow[]>(DEFAULT_HOURS);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checkingSetup, setCheckingSetup] = useState(true);
+
+  // If the owner already has a restaurant, check stripe status then route appropriately
+  useEffect(() => {
+    fetch('/api/restaurant-dashboard')
+      .then(async res => {
+        if (res.ok) {
+          const data = await res.json();
+          if (data.restaurant?.stripe_onboarding_complete) {
+            router.replace('/restaurant-dashboard');
+          } else {
+            router.replace('/restaurant-setup/payment');
+          }
+        } else {
+          setCheckingSetup(false);
+        }
+      })
+      .catch(() => setCheckingSetup(false));
+  }, [router]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -67,6 +89,7 @@ export default function RestaurantSetupPage() {
 
     setLoading(true);
     try {
+      // 1. Create restaurant
       const createRes = await fetch('/api/restaurants', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -89,6 +112,7 @@ export default function RestaurantSetupPage() {
 
       const { restaurantId } = await createRes.json();
 
+      // 2. Claim ownership
       const claimRes = await fetch('/api/restaurant-dashboard/claim', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -102,7 +126,21 @@ export default function RestaurantSetupPage() {
         return;
       }
 
-      router.push('/restaurant-dashboard');
+      // 3. Save hours
+      const hoursRes = await fetch('/api/restaurant-dashboard/hours', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hours }),
+      });
+
+      if (!hoursRes.ok) {
+        const data = await hoursRes.json();
+        setError(data.error || 'Failed to save hours');
+        setLoading(false);
+        return;
+      }
+
+      router.push('/restaurant-setup/payment');
       router.refresh();
     } catch {
       setError('Network error. Please try again.');
@@ -110,7 +148,13 @@ export default function RestaurantSetupPage() {
     }
   };
 
-  if (!user) return null;
+  if (!user || checkingSetup) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="w-8 h-8 border-3 border-gray-200 border-t-[#FF3008] rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
@@ -120,7 +164,7 @@ export default function RestaurantSetupPage() {
             <span className="text-white font-bold text-2xl">D</span>
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Set up your restaurant</h1>
-          <p className="text-gray-500 mt-1">Tell customers about your restaurant</p>
+          <p className="text-gray-500 mt-1">Fill in your restaurant details and business hours to get started</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
@@ -194,11 +238,21 @@ export default function RestaurantSetupPage() {
                   <img
                     src={imageUrl}
                     alt="Restaurant preview"
-                    className="w-full h-40 object-cover rounded-xl border border-gray-200"
+                    className="w-full max-h-64 object-contain rounded-xl border border-gray-200 bg-gray-50"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                   />
                 </div>
               )}
+            </div>
+
+            {/* Hours section */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Business hours
+              </label>
+              <div className="border border-gray-200 rounded-xl p-4">
+                <HoursEditor hours={hours} onChange={setHours} />
+              </div>
             </div>
 
             <button
@@ -206,7 +260,7 @@ export default function RestaurantSetupPage() {
               disabled={loading || uploadingImage}
               className="w-full bg-[#FF3008] text-white font-semibold py-3 rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Creating restaurant...' : 'Create Restaurant & Continue'}
+              {loading ? 'Creating restaurant...' : 'Create Restaurant'}
             </button>
           </form>
         </div>

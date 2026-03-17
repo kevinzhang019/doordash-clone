@@ -30,6 +30,9 @@ export default function DriverSettingsPage() {
   const [range, setRange] = useState(DEFAULT_RANGE);
   const [rangeSaved, setRangeSaved] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [stripeAccountId, setStripeAccountId] = useState<string | null>(null);
+  const [bankUpdating, setBankUpdating] = useState(false);
+  const [bankError, setBankError] = useState('');
   const [avatarUploading, setAvatarUploading] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
@@ -41,6 +44,10 @@ export default function DriverSettingsPage() {
       });
     const stored = parseInt(localStorage.getItem('driverRange') ?? '');
     if (!isNaN(stored)) setRange(stored);
+    fetch('/api/stripe/connect/status', { headers: { 'x-session-role': 'driver' } })
+      .then(r => r.json())
+      .then(d => { if (d.stripeAccountId) setStripeAccountId(d.stripeAccountId); })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -102,6 +109,28 @@ export default function DriverSettingsPage() {
     } finally {
       setAvatarUploading(false);
       e.target.value = '';
+    }
+  };
+
+  const handleUpdateBank = async () => {
+    setBankError('');
+    setBankUpdating(true);
+    try {
+      const res = await fetch('/api/stripe/connect/onboard', {
+        method: 'POST',
+        headers: { 'x-session-role': 'driver' },
+      });
+      if (!res.ok) {
+        const data = await res.json();
+        setBankError(data.error || 'Failed to start bank account update');
+        return;
+      }
+      const { url } = await res.json();
+      window.location.href = url;
+    } catch {
+      setBankError('Network error. Please try again.');
+    } finally {
+      setBankUpdating(false);
     }
   };
 
@@ -251,6 +280,40 @@ export default function DriverSettingsPage() {
               </button>
               {rangeSaved && <span className="text-green-400 text-sm">Saved!</span>}
             </div>
+          </div>
+
+          <div className={section}>
+            <h2 className="text-white font-semibold mb-1">Payout account</h2>
+            <p className="text-gray-500 text-xs mb-4">Your bank account for receiving delivery earnings.</p>
+            <div className="flex items-center gap-3 mb-4 p-3 bg-[#111] rounded-xl">
+              <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-white font-medium">Bank account connected</p>
+                {stripeAccountId && <p className="text-xs text-gray-600 font-mono truncate mt-0.5">{stripeAccountId}</p>}
+              </div>
+              <span className="text-xs bg-green-500/20 text-green-400 px-2 py-0.5 rounded-full font-medium flex-shrink-0">Active</span>
+            </div>
+            {bankError && <p className="text-red-400 text-sm mb-3">{bankError}</p>}
+            <button
+              onClick={handleUpdateBank}
+              disabled={bankUpdating}
+              className="bg-[#FF3008] text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-red-700 transition-colors disabled:opacity-50 text-sm cursor-pointer flex items-center gap-2"
+            >
+              {bankUpdating ? (
+                <>
+                  <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Redirecting...
+                </>
+              ) : 'Update bank account'}
+            </button>
+            <p className="text-xs text-gray-600 mt-2">You cannot remove a bank account without linking a new one.</p>
           </div>
         </div>
       </div>
