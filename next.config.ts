@@ -7,7 +7,19 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'images.unsplash.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'media.discordapp.net',
+      },
+      {
+        protocol: 'https',
+        hostname: 'wtlbtdabfbtvpfwzprqd.supabase.co',
+      },
     ],
+    formats: ['image/avif', 'image/webp'],
+    deviceSizes: [640, 750, 828, 1080, 1200],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256],
+    minimumCacheTTL: 31536000,
   },
 };
 

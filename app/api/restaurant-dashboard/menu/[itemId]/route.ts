@@ -1,9 +1,9 @@
 import { NextRequest } from 'next/server';
-import getDb from '@/db/database';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
-function getRestaurantId(userId: number) {
-  const db = getDb();
-  const owner = db.prepare('SELECT restaurant_id FROM restaurant_owners WHERE user_id = ?').get(userId) as { restaurant_id: number } | undefined;
+async function getRestaurantId(userId: number) {
+  const supabase = getSupabaseAdmin();
+  const { data: owner } = await supabase.from('restaurant_owners').select('restaurant_id').eq('user_id', userId).maybeSingle();
   return owner?.restaurant_id ?? null;
 }
 
@@ -12,31 +12,34 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   const role = request.headers.get('x-user-role');
   if (!userId || role !== 'restaurant') return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const restaurantId = getRestaurantId(userId);
+  const restaurantId = await getRestaurantId(userId);
   if (!restaurantId) return Response.json({ error: 'No restaurant found' }, { status: 404 });
 
   const { itemId } = await params;
-  const db = getDb();
+  const supabase = getSupabaseAdmin();
 
   // Verify item belongs to this restaurant
-  const existing = db.prepare('SELECT id FROM menu_items WHERE id = ? AND restaurant_id = ?').get(parseInt(itemId), restaurantId);
+  const { data: existing } = await supabase.from('menu_items').select('id').eq('id', parseInt(itemId)).eq('restaurant_id', restaurantId).maybeSingle();
   if (!existing) return Response.json({ error: 'Item not found' }, { status: 404 });
 
   try {
     const { name, category, description, price, image_url, is_available, allow_special_requests } = await request.json();
 
-    db.prepare(`
-      UPDATE menu_items
-      SET name = ?, category = ?, description = ?, price = ?, image_url = ?, is_available = ?, allow_special_requests = ?
-      WHERE id = ? AND restaurant_id = ?
-    `).run(
-      name, category, description, parseFloat(price), image_url,
-      is_available ? 1 : 0,
-      allow_special_requests ? 1 : 0,
-      parseInt(itemId), restaurantId,
-    );
+    await supabase
+      .from('menu_items')
+      .update({
+        name,
+        category,
+        description,
+        price: parseFloat(price),
+        image_url,
+        is_available: !!is_available,
+        allow_special_requests: !!allow_special_requests,
+      })
+      .eq('id', parseInt(itemId))
+      .eq('restaurant_id', restaurantId);
 
-    const item = db.prepare('SELECT * FROM menu_items WHERE id = ?').get(parseInt(itemId));
+    const { data: item } = await supabase.from('menu_items').select('*').eq('id', parseInt(itemId)).single();
     return Response.json({ item });
   } catch (error) {
     console.error('Update menu item error:', error);
@@ -49,18 +52,17 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const role = request.headers.get('x-user-role');
   if (!userId || role !== 'restaurant') return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const restaurantId = getRestaurantId(userId);
+  const restaurantId = await getRestaurantId(userId);
   if (!restaurantId) return Response.json({ error: 'No restaurant found' }, { status: 404 });
 
   const { itemId } = await params;
-  const db = getDb();
+  const supabase = getSupabaseAdmin();
 
-  const existing = db.prepare('SELECT id FROM menu_items WHERE id = ? AND restaurant_id = ?').get(parseInt(itemId), restaurantId);
+  const { data: existing } = await supabase.from('menu_items').select('id').eq('id', parseInt(itemId)).eq('restaurant_id', restaurantId).maybeSingle();
   if (!existing) return Response.json({ error: 'Item not found' }, { status: 404 });
 
   const { is_available } = await request.json();
-  db.prepare('UPDATE menu_items SET is_available = ? WHERE id = ? AND restaurant_id = ?')
-    .run(is_available ? 1 : 0, parseInt(itemId), restaurantId);
+  await supabase.from('menu_items').update({ is_available: !!is_available }).eq('id', parseInt(itemId)).eq('restaurant_id', restaurantId);
 
   return Response.json({ success: true });
 }
@@ -70,15 +72,15 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   const role = request.headers.get('x-user-role');
   if (!userId || role !== 'restaurant') return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const restaurantId = getRestaurantId(userId);
+  const restaurantId = await getRestaurantId(userId);
   if (!restaurantId) return Response.json({ error: 'No restaurant found' }, { status: 404 });
 
   const { itemId } = await params;
-  const db = getDb();
+  const supabase = getSupabaseAdmin();
 
-  const existing = db.prepare('SELECT id FROM menu_items WHERE id = ? AND restaurant_id = ?').get(parseInt(itemId), restaurantId);
+  const { data: existing } = await supabase.from('menu_items').select('id').eq('id', parseInt(itemId)).eq('restaurant_id', restaurantId).maybeSingle();
   if (!existing) return Response.json({ error: 'Item not found' }, { status: 404 });
 
-  db.prepare('DELETE FROM menu_items WHERE id = ? AND restaurant_id = ?').run(parseInt(itemId), restaurantId);
+  await supabase.from('menu_items').delete().eq('id', parseInt(itemId)).eq('restaurant_id', restaurantId);
   return Response.json({ success: true });
 }

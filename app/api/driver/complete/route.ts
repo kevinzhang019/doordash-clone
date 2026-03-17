@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import Stripe from 'stripe';
-import getDb from '@/db/database';
+import { getSupabaseAdmin } from '@/lib/supabase';
 import { sendDeliveryReceipt } from '@/lib/email';
 import { Order, OrderItem } from '@/lib/types';
 
@@ -12,55 +12,90 @@ export async function POST(request: NextRequest) {
   try {
     const { deliveryId, sessionId, orderId, isSimulated } = await request.json();
 
-    const db = getDb();
+    const supabase = getSupabaseAdmin();
+    const now = new Date().toISOString();
 
-    const txn = db.transaction(() => {
-      // Mark delivery complete
-      db.prepare("UPDATE driver_deliveries SET status = 'delivered', delivered_at = datetime('now') WHERE id = ?").run(deliveryId);
+    // Mark delivery complete — only if not already delivered
+    const { data: updatedDelivery } = await supabase
+      .from('driver_deliveries')
+      .update({ status: 'delivered', delivered_at: now })
+      .eq('id', deliveryId)
+      .neq('status', 'delivered')
+      .select('id, pay_amount, tip')
+      .maybeSingle();
 
-      // If real order, mark as delivered and clear chat
-      if (!isSimulated && orderId) {
-        db.prepare("UPDATE orders SET status = 'delivered', delivered_at = datetime('now') WHERE id = ?").run(orderId);
-        db.prepare('DELETE FROM messages WHERE order_id = ?').run(orderId);
+    // If real order, mark as delivered and clear chat
+    if (!isSimulated && orderId) {
+      await supabase
+        .from('orders')
+        .update({ status: 'delivered', delivered_at: now })
+        .eq('id', orderId)
+        .neq('status', 'delivered');
+      await supabase.from('messages').delete().eq('order_id', orderId);
+    }
+
+    let earned = 0;
+
+    // Only update session earnings if delivery wasn't already counted
+    if (updatedDelivery) {
+      earned = (updatedDelivery.pay_amount || 0) + (updatedDelivery.tip || 0);
+
+      // Get current session to update earnings
+      const { data: currentSession } = await supabase
+        .from('driver_sessions')
+        .select('total_earnings, deliveries_completed')
+        .eq('id', sessionId)
+        .single();
+
+      if (currentSession) {
+        await supabase
+          .from('driver_sessions')
+          .update({
+            total_earnings: (currentSession.total_earnings || 0) + earned,
+            deliveries_completed: (currentSession.deliveries_completed || 0) + 1,
+          })
+          .eq('id', sessionId);
       }
+    }
 
-      // Get delivery pay info
-      const delivery = db.prepare('SELECT pay_amount, tip FROM driver_deliveries WHERE id = ?').get(deliveryId) as { pay_amount: number; tip: number } | undefined;
-      const earned = (delivery?.pay_amount || 0) + (delivery?.tip || 0);
-
-      // Update session earnings
-      db.prepare('UPDATE driver_sessions SET total_earnings = total_earnings + ?, deliveries_completed = deliveries_completed + 1 WHERE id = ?').run(earned, sessionId);
-
-      return earned;
-    });
-
-    const earned = txn();
-
-    const session = db.prepare('SELECT * FROM driver_sessions WHERE id = ?').get(sessionId);
+    const { data: session } = await supabase
+      .from('driver_sessions')
+      .select('*')
+      .eq('id', sessionId)
+      .single();
 
     // Issue Stripe payouts to restaurant and driver for real paid orders
     if (!isSimulated && orderId && process.env.STRIPE_SECRET_KEY) {
-      const order = db.prepare(`
-        SELECT o.subtotal, o.discount_saved, o.payment_intent_id, o.restaurant_transfer_id, o.driver_transfer_id,
-               o.restaurant_id, o.driver_user_id
-        FROM orders o WHERE o.id = ?
-      `).get(orderId) as {
-        subtotal: number;
-        discount_saved: number;
-        payment_intent_id: string | null;
-        restaurant_transfer_id: string | null;
-        driver_transfer_id: string | null;
-        restaurant_id: number;
-        driver_user_id: number | null;
-      } | undefined;
+      const { data: order } = await supabase
+        .from('orders')
+        .select('subtotal, discount_saved, payment_intent_id, restaurant_transfer_id, driver_transfer_id, restaurant_id, driver_user_id')
+        .eq('id', orderId)
+        .single();
 
       if (order?.payment_intent_id) {
         const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
+        // Retrieve the underlying charge ID so transfers can be funded from this
+        // specific payment rather than the platform's general Stripe balance.
+        let chargeId: string | undefined;
+        try {
+          const intent = await stripe.paymentIntents.retrieve(order.payment_intent_id, {
+            expand: ['latest_charge'],
+          });
+          const latestCharge = intent.latest_charge;
+          chargeId = typeof latestCharge === 'string' ? latestCharge : latestCharge?.id;
+        } catch (e) {
+          console.error('Failed to retrieve payment intent for transfer:', e);
+        }
+
         // Payout restaurant: subtotal minus their own deal discounts
-        // Platform absorbs promo code discounts (not the restaurant's responsibility)
         if (!order.restaurant_transfer_id) {
-          const rest = db.prepare('SELECT stripe_account_id FROM restaurants WHERE id = ?').get(order.restaurant_id) as { stripe_account_id: string | null } | undefined;
+          const { data: rest } = await supabase
+            .from('restaurants')
+            .select('stripe_account_id')
+            .eq('id', order.restaurant_id)
+            .single();
+
           if (rest?.stripe_account_id) {
             const restaurantCents = Math.max(0, Math.round((order.subtotal - (order.discount_saved ?? 0)) * 100));
             try {
@@ -69,9 +104,13 @@ export async function POST(request: NextRequest) {
                 currency: 'usd',
                 destination: rest.stripe_account_id,
                 transfer_group: `order_${orderId}`,
+                ...(chargeId ? { source_transaction: chargeId } : {}),
                 metadata: { orderId: String(orderId), type: 'restaurant_payout' },
               });
-              db.prepare('UPDATE orders SET restaurant_transfer_id = ? WHERE id = ?').run(transfer.id, orderId);
+              await supabase
+                .from('orders')
+                .update({ restaurant_transfer_id: transfer.id })
+                .eq('id', orderId);
             } catch (e) {
               console.error('Restaurant transfer failed:', e);
             }
@@ -80,8 +119,18 @@ export async function POST(request: NextRequest) {
 
         // Payout driver (their delivery pay + tip)
         if (!order.driver_transfer_id && order.driver_user_id) {
-          const driverUser = db.prepare('SELECT stripe_account_id FROM users WHERE id = ?').get(order.driver_user_id) as { stripe_account_id: string | null } | undefined;
-          const delivery = db.prepare('SELECT pay_amount, tip FROM driver_deliveries WHERE id = ?').get(deliveryId) as { pay_amount: number; tip: number } | undefined;
+          const { data: driverUser } = await supabase
+            .from('users')
+            .select('stripe_account_id')
+            .eq('id', order.driver_user_id)
+            .single();
+
+          const { data: delivery } = await supabase
+            .from('driver_deliveries')
+            .select('pay_amount, tip')
+            .eq('id', deliveryId)
+            .single();
+
           if (driverUser?.stripe_account_id && delivery) {
             const driverCents = Math.round((delivery.pay_amount + delivery.tip) * 100);
             if (driverCents > 0) {
@@ -91,9 +140,13 @@ export async function POST(request: NextRequest) {
                   currency: 'usd',
                   destination: driverUser.stripe_account_id,
                   transfer_group: `order_${orderId}`,
+                  ...(chargeId ? { source_transaction: chargeId } : {}),
                   metadata: { orderId: String(orderId), type: 'driver_payout' },
                 });
-                db.prepare('UPDATE orders SET driver_transfer_id = ? WHERE id = ?').run(transfer.id, orderId);
+                await supabase
+                  .from('orders')
+                  .update({ driver_transfer_id: transfer.id })
+                  .eq('id', orderId);
               } catch (e) {
                 console.error('Driver transfer failed:', e);
               }
@@ -105,16 +158,23 @@ export async function POST(request: NextRequest) {
 
     // Fire-and-forget delivery receipt email
     if (!isSimulated && orderId) {
-      const orderWithUser = db.prepare(`
-        SELECT o.*, r.name as restaurant_name, u.email, u.name as user_name
-        FROM orders o
-        JOIN restaurants r ON o.restaurant_id = r.id
-        JOIN users u ON o.user_id = u.id
-        WHERE o.id = ?
-      `).get(orderId) as (Order & { restaurant_name: string; email: string; user_name: string }) | undefined;
+      const { data: orderWithUser } = await supabase
+        .from('orders')
+        .select('*, restaurants(name), users!orders_user_id_fkey(email, name)')
+        .eq('id', orderId)
+        .single();
+
       if (orderWithUser) {
-        const items = db.prepare('SELECT * FROM order_items WHERE order_id = ?').all(orderId) as OrderItem[];
-        sendDeliveryReceipt(orderWithUser, items, orderWithUser.email, orderWithUser.user_name)
+        const restaurant = orderWithUser.restaurants as unknown as { name: string };
+        const user = orderWithUser.users as unknown as { email: string; name: string };
+        const orderForEmail = { ...orderWithUser, restaurant_name: restaurant.name } as Order & { restaurant_name: string };
+
+        const { data: items } = await supabase
+          .from('order_items')
+          .select('*')
+          .eq('order_id', orderId);
+
+        sendDeliveryReceipt(orderForEmail, (items ?? []) as OrderItem[], user.email, user.name)
           .catch(err => console.error('Delivery receipt email failed:', err));
       }
     }

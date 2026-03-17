@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
-import getDb from '@/db/database';
-import { Order, OrderItem, Review } from '@/lib/types';
+import { getSupabaseAdmin } from '@/lib/supabase';
+import { OrderItem, OrderItemSelection, Review } from '@/lib/types';
 
 export async function GET(
   request: NextRequest,
@@ -16,33 +16,93 @@ export async function GET(
       return Response.json({ error: 'Invalid order ID' }, { status: 400 });
     }
 
-    const db = getDb();
+    const supabase = getSupabaseAdmin();
 
     // IDOR prevention: WHERE id = ? AND user_id = ?
-    const order = db.prepare(`
-      SELECT o.*, r.name as restaurant_name, r.delivery_min, r.delivery_max,
-             u.name as driver_name, o.estimated_delivery_at
-      FROM orders o
-      JOIN restaurants r ON o.restaurant_id = r.id
-      LEFT JOIN users u ON u.id = o.driver_user_id
-      WHERE o.id = ? AND o.user_id = ?
-    `).get(orderId, userId) as Order | undefined;
+    const { data: orderRaw, error: orderError } = await supabase
+      .from('orders')
+      .select('*, restaurants(name, delivery_min, delivery_max)')
+      .eq('id', orderId)
+      .eq('user_id', userId)
+      .maybeSingle();
 
-    if (!order) {
+    if (orderError) throw orderError;
+    if (!orderRaw) {
       return Response.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    const orderItems = db.prepare(
-      'SELECT * FROM order_items WHERE order_id = ?'
-    ).all(orderId) as OrderItem[];
+    // Get driver name if assigned
+    let driverName: string | null = null;
+    if (orderRaw.driver_user_id) {
+      const { data: driver } = await supabase
+        .from('users')
+        .select('name')
+        .eq('id', orderRaw.driver_user_id)
+        .maybeSingle();
+      driverName = driver?.name ?? null;
+    }
 
-    const existingReview = db.prepare(
-      'SELECT * FROM reviews WHERE order_id = ?'
-    ).get(orderId) as Review | undefined;
+    const order = {
+      ...orderRaw,
+      restaurant_name: orderRaw.restaurants?.name,
+      delivery_min: orderRaw.restaurants?.delivery_min,
+      delivery_max: orderRaw.restaurants?.delivery_max,
+      driver_name: driverName,
+      restaurants: undefined,
+    };
 
-    const existingDriverRating = order.driver_user_id
-      ? (db.prepare('SELECT rating FROM driver_ratings WHERE order_id = ?').get(orderId) as { rating: number } | undefined)?.rating ?? null
-      : null;
+    // Fetch order items
+    const { data: rawOrderItems, error: itemsError } = await supabase
+      .from('order_items')
+      .select('*')
+      .eq('order_id', orderId);
+
+    if (itemsError) throw itemsError;
+
+    const orderItemIds = (rawOrderItems || []).map((i: OrderItem) => i.id);
+    let allSelections: OrderItemSelection[] = [];
+
+    if (orderItemIds.length > 0) {
+      const { data: selections, error: selError } = await supabase
+        .from('order_item_selections')
+        .select('*, menu_item_options(group_id, menu_item_option_groups(name))')
+        .in('order_item_id', orderItemIds);
+
+      if (!selError && selections) {
+        allSelections = selections.map((s: Record<string, unknown>) => {
+          const { menu_item_options, ...rest } = s;
+          const opts = menu_item_options as Record<string, unknown> | null;
+          const grp = opts?.menu_item_option_groups as Record<string, unknown> | null;
+          return {
+            ...rest,
+            group_name: grp?.name ?? null,
+          };
+        }) as unknown as OrderItemSelection[];
+      }
+    }
+
+    const orderItems: OrderItem[] = (rawOrderItems || []).map((item: OrderItem) => ({
+      ...item,
+      selections: allSelections.filter((s: OrderItemSelection) => s.order_item_id === item.id),
+    }));
+
+    // Get existing review
+    const { data: existingReview } = await supabase
+      .from('reviews')
+      .select('*')
+      .eq('order_id', orderId)
+      .maybeSingle();
+
+    // Get existing driver rating
+    let existingDriverRating: number | null = null;
+    if (order.driver_user_id) {
+      const { data: driverRating } = await supabase
+        .from('driver_ratings')
+        .select('rating')
+        .eq('order_id', orderId)
+        .maybeSingle();
+      existingDriverRating = driverRating?.rating ?? null;
+    }
 
     return Response.json({ order, orderItems, existingReview: existingReview || null, existingDriverRating });
   } catch (error) {

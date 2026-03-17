@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import getDb from '@/db/database';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export async function GET(
   request: NextRequest,
@@ -13,10 +13,13 @@ export async function GET(
   const orderId = parseInt(id);
   if (isNaN(orderId)) return Response.json({ error: 'Invalid order ID' }, { status: 400 });
 
-  const db = getDb();
-  const order = db.prepare(
-    'SELECT status FROM orders WHERE id = ? AND driver_user_id = ?'
-  ).get(orderId, userId) as { status: string } | undefined;
+  const supabase = getSupabaseAdmin();
+  const { data: order } = await supabase
+    .from('orders')
+    .select('status')
+    .eq('id', orderId)
+    .eq('driver_user_id', userId)
+    .maybeSingle();
 
   if (!order) return Response.json({ error: 'Not found' }, { status: 404 });
 
@@ -37,10 +40,12 @@ export async function PATCH(
 
   const { estimated_delivery_at } = await request.json();
 
-  const db = getDb();
-  db.prepare(
-    'UPDATE orders SET estimated_delivery_at = ? WHERE id = ? AND driver_user_id = ?'
-  ).run(estimated_delivery_at, orderId, userId);
+  const supabase = getSupabaseAdmin();
+  await supabase
+    .from('orders')
+    .update({ estimated_delivery_at })
+    .eq('id', orderId)
+    .eq('driver_user_id', userId);
 
   return Response.json({ ok: true });
 }
@@ -63,12 +68,17 @@ export async function PUT(
     return Response.json({ error: 'Invalid status transition' }, { status: 400 });
   }
 
-  const db = getDb();
-  const result = db.prepare(
-    "UPDATE orders SET status = 'picked_up', updated_at = datetime('now') WHERE id = ? AND status = 'ready' AND driver_user_id = ?"
-  ).run(orderId, userId);
+  const supabase = getSupabaseAdmin();
+  const { data: updated } = await supabase
+    .from('orders')
+    .update({ status: 'picked_up' })
+    .eq('id', orderId)
+    .eq('status', 'ready')
+    .eq('driver_user_id', userId)
+    .select('id')
+    .maybeSingle();
 
-  if (result.changes === 0) {
+  if (!updated) {
     return Response.json({ error: 'Order not ready or not yours' }, { status: 409 });
   }
 

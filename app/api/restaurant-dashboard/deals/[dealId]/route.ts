@@ -1,9 +1,9 @@
 import { NextRequest } from 'next/server';
-import getDb from '@/db/database';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
-function getRestaurantId(userId: number) {
-  const db = getDb();
-  const owner = db.prepare('SELECT restaurant_id FROM restaurant_owners WHERE user_id = ?').get(userId) as { restaurant_id: number } | undefined;
+async function getRestaurantId(userId: number) {
+  const supabase = getSupabaseAdmin();
+  const { data: owner } = await supabase.from('restaurant_owners').select('restaurant_id').eq('user_id', userId).maybeSingle();
   return owner?.restaurant_id ?? null;
 }
 
@@ -12,17 +12,35 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   const role = request.headers.get('x-user-role');
   if (!userId || role !== 'restaurant') return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const restaurantId = getRestaurantId(userId);
+  const restaurantId = await getRestaurantId(userId);
   if (!restaurantId) return Response.json({ error: 'No restaurant found' }, { status: 404 });
 
   const { dealId } = await params;
   const { is_active } = await request.json();
-  const db = getDb();
+  const supabase = getSupabaseAdmin();
 
-  const deal = db.prepare('SELECT id FROM deals WHERE id = ? AND restaurant_id = ?').get(parseInt(dealId), restaurantId);
+  const { data: deal } = await supabase
+    .from('deals')
+    .select('id, menu_item_id')
+    .eq('id', parseInt(dealId))
+    .eq('restaurant_id', restaurantId)
+    .maybeSingle();
+
   if (!deal) return Response.json({ error: 'Deal not found' }, { status: 404 });
 
-  db.prepare('UPDATE deals SET is_active = ? WHERE id = ?').run(is_active ? 1 : 0, parseInt(dealId));
+  if (is_active) {
+    const { data: conflict } = await supabase
+      .from('deals')
+      .select('id')
+      .eq('menu_item_id', deal.menu_item_id)
+      .eq('is_active', true)
+      .neq('id', parseInt(dealId))
+      .maybeSingle();
+
+    if (conflict) return Response.json({ error: 'This item already has an active deal. Deactivate it before activating another.' }, { status: 409 });
+  }
+
+  await supabase.from('deals').update({ is_active: !!is_active }).eq('id', parseInt(dealId));
   return Response.json({ ok: true });
 }
 
@@ -31,15 +49,15 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
   const role = request.headers.get('x-user-role');
   if (!userId || role !== 'restaurant') return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const restaurantId = getRestaurantId(userId);
+  const restaurantId = await getRestaurantId(userId);
   if (!restaurantId) return Response.json({ error: 'No restaurant found' }, { status: 404 });
 
   const { dealId } = await params;
-  const db = getDb();
+  const supabase = getSupabaseAdmin();
 
-  const deal = db.prepare('SELECT id FROM deals WHERE id = ? AND restaurant_id = ?').get(parseInt(dealId), restaurantId);
+  const { data: deal } = await supabase.from('deals').select('id').eq('id', parseInt(dealId)).eq('restaurant_id', restaurantId).maybeSingle();
   if (!deal) return Response.json({ error: 'Deal not found' }, { status: 404 });
 
-  db.prepare('DELETE FROM deals WHERE id = ?').run(parseInt(dealId));
+  await supabase.from('deals').delete().eq('id', parseInt(dealId));
   return Response.json({ ok: true });
 }

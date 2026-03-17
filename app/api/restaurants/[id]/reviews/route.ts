@@ -1,6 +1,5 @@
 import { NextRequest } from 'next/server';
-import getDb from '@/db/database';
-import { Review } from '@/lib/types';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export async function GET(
   _request: NextRequest,
@@ -13,15 +12,17 @@ export async function GET(
       return Response.json({ error: 'Invalid restaurant ID' }, { status: 400 });
     }
 
-    const db = getDb();
-    const reviews = db.prepare(`
-      SELECT * FROM reviews
-      WHERE restaurant_id = ?
-      ORDER BY created_at DESC
-      LIMIT 20
-    `).all(restaurantId) as Review[];
+    const supabase = getSupabaseAdmin();
+    const { data: reviews, error } = await supabase
+      .from('reviews')
+      .select('*')
+      .eq('restaurant_id', restaurantId)
+      .order('created_at', { ascending: false })
+      .limit(20);
 
-    return Response.json({ reviews });
+    if (error) throw error;
+
+    return Response.json({ reviews: reviews || [] });
   } catch (error) {
     console.error('Get reviews error:', error);
     return Response.json({ error: 'Internal server error' }, { status: 500 });

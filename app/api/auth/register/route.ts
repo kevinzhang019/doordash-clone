@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import bcrypt from 'bcryptjs';
-import getDb from '@/db/database';
+import { getSupabaseAdmin } from '@/lib/supabase';
 import { signToken } from '@/lib/auth';
 import { isValidEmail } from '@/lib/validation';
 import type { UserRole } from '@/lib/types';
@@ -26,21 +26,31 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Invalid role' }, { status: 400 });
     }
 
-    const db = getDb();
-    const existingUser = db.prepare('SELECT id FROM users WHERE email = ? AND role = ?').get(
-      email.toLowerCase().trim(),
-      role
-    );
+    const supabase = getSupabaseAdmin();
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', email.toLowerCase().trim())
+      .eq('role', role)
+      .maybeSingle();
+
     if (existingUser) {
       return Response.json({ error: 'An account with this email already exists for this role' }, { status: 409 });
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
-    const result = db.prepare(
-      'INSERT INTO users (email, name, password_hash, role) VALUES (?, ?, ?, ?)'
-    ).run(email.toLowerCase().trim(), name.trim(), passwordHash, role);
+    const { data } = await supabase
+      .from('users')
+      .insert({
+        email: email.toLowerCase().trim(),
+        name: name.trim(),
+        password_hash: passwordHash,
+        role,
+      })
+      .select()
+      .single();
 
-    const userId = result.lastInsertRowid as number;
+    const userId = data!.id;
     const token = await signToken({ userId, email: email.toLowerCase().trim(), name: name.trim(), role });
 
     return Response.json({

@@ -1,10 +1,10 @@
 import { NextRequest } from 'next/server';
-import getDb from '@/db/database';
+import { getSupabaseAdmin } from '@/lib/supabase';
 import { Review } from '@/lib/types';
 
-function getRestaurantId(userId: number) {
-  const db = getDb();
-  const owner = db.prepare('SELECT restaurant_id FROM restaurant_owners WHERE user_id = ?').get(userId) as { restaurant_id: number } | undefined;
+async function getRestaurantId(userId: number) {
+  const supabase = getSupabaseAdmin();
+  const { data: owner } = await supabase.from('restaurant_owners').select('restaurant_id').eq('user_id', userId).maybeSingle();
   return owner?.restaurant_id ?? null;
 }
 
@@ -13,15 +13,15 @@ export async function GET(request: NextRequest) {
   const role = request.headers.get('x-user-role');
   if (!userId || role !== 'restaurant') return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const restaurantId = getRestaurantId(userId);
+  const restaurantId = await getRestaurantId(userId);
   if (!restaurantId) return Response.json({ error: 'No restaurant found' }, { status: 404 });
 
-  const db = getDb();
-  const reviews = db.prepare(`
-    SELECT * FROM reviews
-    WHERE restaurant_id = ?
-    ORDER BY created_at DESC
-  `).all(restaurantId) as Review[];
+  const supabase = getSupabaseAdmin();
+  const { data: reviews } = await supabase
+    .from('reviews')
+    .select('*')
+    .eq('restaurant_id', restaurantId)
+    .order('created_at', { ascending: false });
 
-  return Response.json({ reviews });
+  return Response.json({ reviews: (reviews ?? []) as Review[] });
 }

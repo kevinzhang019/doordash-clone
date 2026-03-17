@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import bcrypt from 'bcryptjs';
-import getDb from '@/db/database';
+import { getSupabaseAdmin } from '@/lib/supabase';
 import { signToken } from '@/lib/auth';
 import type { UserRole } from '@/lib/types';
 
@@ -12,12 +12,13 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Invalid email or password' }, { status: 401 });
     }
 
-    const db = getDb();
-    const users = db.prepare('SELECT id, email, name, password_hash, role FROM users WHERE email = ?').all(
-      email.toLowerCase().trim()
-    ) as { id: number; email: string; name: string; password_hash: string; role: UserRole }[];
+    const supabase = getSupabaseAdmin();
+    const { data: users } = await supabase
+      .from('users')
+      .select('id, email, name, password_hash, role')
+      .eq('email', email.toLowerCase().trim());
 
-    if (users.length === 0) {
+    if (!users || users.length === 0) {
       return Response.json({ error: 'Invalid email or password' }, { status: 401 });
     }
 

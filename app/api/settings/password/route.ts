@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import bcrypt from 'bcryptjs';
-import getDb from '@/db/database';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export async function PUT(request: NextRequest) {
   const userId = parseInt(request.headers.get('x-user-id') ?? '');
@@ -16,17 +16,23 @@ export async function PUT(request: NextRequest) {
       return Response.json({ error: 'New password must be at least 6 characters' }, { status: 400 });
     }
 
-    const db = getDb();
-    const user = db.prepare('SELECT password_hash FROM users WHERE id = ?').get(userId) as
-      | { password_hash: string }
-      | undefined;
+    const supabase = getSupabaseAdmin();
+    const { data: user } = await supabase
+      .from('users')
+      .select('password_hash')
+      .eq('id', userId)
+      .maybeSingle();
+
     if (!user) return Response.json({ error: 'User not found' }, { status: 404 });
 
     const valid = await bcrypt.compare(currentPassword, user.password_hash);
     if (!valid) return Response.json({ error: 'Current password is incorrect' }, { status: 400 });
 
     const hash = await bcrypt.hash(newPassword, 12);
-    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hash, userId);
+    await supabase
+      .from('users')
+      .update({ password_hash: hash })
+      .eq('id', userId);
 
     return Response.json({ success: true });
   } catch (error) {

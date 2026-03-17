@@ -1,11 +1,9 @@
 import { NextRequest } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
-import getDb from '@/db/database';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
-function getRestaurantId(userId: number) {
-  const db = getDb();
-  const owner = db.prepare('SELECT restaurant_id FROM restaurant_owners WHERE user_id = ?').get(userId) as { restaurant_id: number } | undefined;
+async function getRestaurantId(userId: number) {
+  const supabase = getSupabaseAdmin();
+  const { data: owner } = await supabase.from('restaurant_owners').select('restaurant_id').eq('user_id', userId).maybeSingle();
   return owner?.restaurant_id ?? null;
 }
 
@@ -14,7 +12,7 @@ export async function POST(request: NextRequest) {
   const role = request.headers.get('x-user-role');
   if (!userId || role !== 'restaurant') return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const restaurantId = getRestaurantId(userId);
+  const restaurantId = await getRestaurantId(userId);
   // Allow upload even before restaurant is created (during setup)
   if (!restaurantId && !request.headers.get('x-setup-mode')) {
     // Still allow if no restaurant (setup flow)
@@ -34,12 +32,25 @@ export async function POST(request: NextRequest) {
 
   const ext = file.type === 'image/jpeg' ? 'jpg' : file.type === 'image/png' ? 'png' : 'webp';
   const filename = `restaurant_${userId}_${Date.now()}.${ext}`;
-  const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'restaurants');
-  await mkdir(uploadDir, { recursive: true });
 
+  const supabase = getSupabaseAdmin();
   const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(path.join(uploadDir, filename), buffer);
 
-  const imageUrl = `/uploads/restaurants/${filename}`;
-  return Response.json({ imageUrl });
+  const { error: uploadError } = await supabase.storage
+    .from('restaurant-images')
+    .upload(filename, buffer, {
+      contentType: file.type,
+      upsert: false,
+    });
+
+  if (uploadError) {
+    console.error('Supabase Storage upload error:', uploadError);
+    return Response.json({ error: 'Upload failed' }, { status: 500 });
+  }
+
+  const { data: { publicUrl } } = supabase.storage
+    .from('restaurant-images')
+    .getPublicUrl(filename);
+
+  return Response.json({ imageUrl: publicUrl });
 }

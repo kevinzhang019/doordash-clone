@@ -1,8 +1,5 @@
 import { NextRequest } from 'next/server';
-import { writeFile, mkdir, unlink } from 'fs/promises';
-import { existsSync } from 'fs';
-import path from 'path';
-import getDb from '@/db/database';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   const userId = parseInt(request.headers.get('x-user-id') ?? '');
@@ -22,25 +19,44 @@ export async function POST(request: NextRequest) {
 
   const ext = file.type === 'image/jpeg' ? 'jpg' : file.type === 'image/png' ? 'png' : 'webp';
   const filename = `${userId}_${Date.now()}.${ext}`;
-  const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'avatars');
-  await mkdir(uploadDir, { recursive: true });
 
-  // Delete old avatar file if it exists
-  const db = getDb();
-  const existing = db.prepare('SELECT avatar_url FROM users WHERE id = ?').get(userId) as { avatar_url: string | null } | undefined;
-  if (existing?.avatar_url) {
+  const supabase = getSupabaseAdmin();
+
+  // Delete old avatar from storage if it exists
+  const { data: existing } = await supabase
+    .from('users')
+    .select('avatar_url')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (existing?.avatar_url && existing.avatar_url.includes('supabase.co')) {
     const oldFilename = existing.avatar_url.split('/').pop();
     if (oldFilename) {
-      const oldPath = path.join(uploadDir, oldFilename);
-      if (existsSync(oldPath)) await unlink(oldPath).catch(() => {});
+      await supabase.storage.from('avatars').remove([oldFilename]);
     }
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  await writeFile(path.join(uploadDir, filename), buffer);
+  const { error: uploadError } = await supabase.storage
+    .from('avatars')
+    .upload(filename, buffer, {
+      contentType: file.type,
+      upsert: false,
+    });
 
-  const avatarUrl = `/uploads/avatars/${filename}`;
-  db.prepare('UPDATE users SET avatar_url = ? WHERE id = ?').run(avatarUrl, userId);
+  if (uploadError) {
+    console.error('Avatar upload error:', uploadError);
+    return Response.json({ error: 'Upload failed' }, { status: 500 });
+  }
 
-  return Response.json({ avatarUrl });
+  const { data: { publicUrl } } = supabase.storage
+    .from('avatars')
+    .getPublicUrl(filename);
+
+  await supabase
+    .from('users')
+    .update({ avatar_url: publicUrl })
+    .eq('id', userId);
+
+  return Response.json({ avatarUrl: publicUrl });
 }

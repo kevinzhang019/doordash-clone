@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
@@ -14,6 +14,14 @@ const ROLES: { role: UserRole; label: string; icon: string; subtitle: string }[]
 ];
 
 export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginPageInner />
+    </Suspense>
+  );
+}
+
+function LoginPageInner() {
   const { login } = useAuth();
   const { refreshCart } = useCart();
   const router = useRouter();

@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import Stripe from 'stripe';
-import getDb from '@/db/database';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   const userId = parseInt(request.headers.get('x-user-id') ?? '');
@@ -11,28 +11,40 @@ export async function GET(request: NextRequest) {
     return Response.json({ error: 'Invalid role' }, { status: 400 });
   }
 
-  const db = getDb();
+  const supabase = getSupabaseAdmin();
   let stripeAccountId: string | null = null;
   let isComplete = false;
   let entityId: number = userId;
 
   if (userRole === 'restaurant') {
-    const row = db.prepare(`
-      SELECT r.id, r.stripe_account_id, r.stripe_onboarding_complete
-      FROM restaurants r
-      JOIN restaurant_owners ro ON ro.restaurant_id = r.id
-      WHERE ro.user_id = ?
-    `).get(userId) as { id: number; stripe_account_id: string | null; stripe_onboarding_complete: number } | undefined;
+    const { data: ownership } = await supabase
+      .from('restaurant_owners')
+      .select('restaurant_id')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (!ownership) return Response.json({ complete: false, hasRestaurant: false });
+
+    const { data: row } = await supabase
+      .from('restaurants')
+      .select('id, stripe_account_id, stripe_onboarding_complete')
+      .eq('id', ownership.restaurant_id)
+      .single();
 
     if (!row) return Response.json({ complete: false, hasRestaurant: false });
     stripeAccountId = row.stripe_account_id;
-    isComplete = row.stripe_onboarding_complete === 1;
+    isComplete = row.stripe_onboarding_complete === true;
     entityId = row.id;
   } else {
-    const row = db.prepare('SELECT stripe_account_id, stripe_onboarding_complete FROM users WHERE id = ?').get(userId) as { stripe_account_id: string | null; stripe_onboarding_complete: number } | undefined;
+    const { data: row } = await supabase
+      .from('users')
+      .select('stripe_account_id, stripe_onboarding_complete')
+      .eq('id', userId)
+      .maybeSingle();
+
     if (!row) return Response.json({ complete: false });
     stripeAccountId = row.stripe_account_id;
-    isComplete = row.stripe_onboarding_complete === 1;
+    isComplete = row.stripe_onboarding_complete === true;
   }
 
   if (isComplete) {
@@ -47,9 +59,15 @@ export async function GET(request: NextRequest) {
 
       if (account.details_submitted) {
         if (userRole === 'restaurant') {
-          db.prepare('UPDATE restaurants SET stripe_onboarding_complete = 1 WHERE id = ?').run(entityId);
+          await supabase
+            .from('restaurants')
+            .update({ stripe_onboarding_complete: true })
+            .eq('id', entityId);
         } else {
-          db.prepare('UPDATE users SET stripe_onboarding_complete = 1 WHERE id = ?').run(userId);
+          await supabase
+            .from('users')
+            .update({ stripe_onboarding_complete: true })
+            .eq('id', userId);
         }
         return Response.json({ complete: true, stripeAccountId });
       }

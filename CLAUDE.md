@@ -20,23 +20,38 @@ npm start
 npm run lint
 npx tsc --noEmit
 
-# Database (SQLite is auto-initialized on first run — no manual setup needed)
-# To reset: delete ./data/doordash.db and restart the dev server
+# Database
+# Supabase PostgreSQL — managed via Supabase Dashboard
+# Seed data: run supabase/seed.sql against the database
+# Project ID: wtlbtdabfbtvpfwzprqd
 ```
 
 ## Tech Stack
 
 - **Next.js 14** (App Router, TypeScript)
 - **Tailwind CSS** — primary red `#FF3008`
-- **better-sqlite3** — synchronous SQLite with WAL mode
+- **Supabase** — PostgreSQL database, Storage (images), Row Level Security
 - **bcryptjs** — password hashing (cost factor 12)
 - **jose** — JWT for session tokens (Edge Runtime compatible)
+- **@supabase/supabase-js** — Supabase client for database and storage operations
 
 ## Architecture
 
-### Database Initialization (`db/database.ts`)
+### Database (Supabase PostgreSQL)
 
-Singleton better-sqlite3 connection. On first import, it runs migrations (creates all tables) and seeds the 10 restaurants + menu items if the table is empty. Everything else imports from here — never create a second DB connection.
+All database operations use the Supabase JS client (`@supabase/supabase-js`). The admin client (`getSupabaseAdmin()` in `lib/supabase.ts`) uses the service role key to bypass RLS — our own auth middleware handles access control.
+
+- **Never** use the service role key on the client side
+- **Never** create direct PostgreSQL connections — always use the Supabase client
+- Row Level Security (RLS) is enabled on all tables as defense-in-depth
+- Order placement uses a PostgreSQL function `place_order()` for atomic transactions
+
+### File Storage (Supabase Storage)
+
+- **restaurant-images** bucket — restaurant photos uploaded by owners
+- **avatars** bucket — user profile pictures
+- Both buckets are public-read, 5MB limit, JPEG/PNG/WebP only
+- Upload via `supabase.storage.from('bucket').upload()` in API routes
 
 ### Authentication Flow (Per-Tab Session Isolation)
 
@@ -53,36 +68,33 @@ Client-side auth guards handle page-level protection for `/orders`, `/cart`, `/c
 
 ### User Data Isolation (Critical)
 
-Every cart and order query **must** include `WHERE user_id = ?` using the session-derived userId — never a user-supplied ID. Order detail endpoints use `WHERE id = ? AND user_id = ?` to prevent IDOR attacks.
+Every cart and order query **must** include `.eq('user_id', userId)` using the session-derived userId — never a user-supplied ID. Order detail endpoints use `.eq('id', orderId).eq('user_id', userId)` to prevent IDOR attacks.
+
+### Security
+
+- **Passwords** — hashed with bcrypt (cost factor 12), never stored in plaintext
+- **Emails** — stored in `users` table, protected by RLS policies
+- **Addresses** — stored in `user_addresses`, protected by RLS (users can only access their own)
+- **Payment data** — only Stripe payment intent IDs stored (no card numbers); Stripe handles PCI compliance
+- **RLS** — enabled on all tables; user-scoped tables restrict to `current_setting('app.current_user_id')`
+- **Service role key** — server-side only, never exposed to client
 
 ### Cart Rules (enforced in `app/api/cart/items/route.ts`)
 
 - A user's cart can only contain items from one restaurant at a time
 - Adding an item from a different restaurant returns HTTP 409 with the conflicting restaurant name
-- `cart_items` has `UNIQUE(user_id, menu_item_id)` — adding the same item performs an upsert on quantity
 
 ### Order Placement (`app/api/orders/route.ts`)
 
-Runs in a single SQLite transaction:
+Uses the `place_order()` PostgreSQL function for atomic transaction:
 
 1. Fetch cart items with price snapshots from `menu_items`
-2. Calculate totals
-3. INSERT into `orders`
-4. INSERT all items into `order_items` (snapshots `name` and `price` — not FK references)
+2. Validate promo codes and calculate totals
+3. INSERT into `orders` and `order_items` (snapshots `name` and `price`)
+4. Record promo code usage
 5. DELETE all `cart_items` for the user
 
 Price snapshots ensure historical order accuracy if menu prices change later.
-
-### Database Schema
-
-```
-users         (id, email UNIQUE, name, password_hash, created_at)
-restaurants   (id, name, cuisine, description, image_url, rating, delivery_fee, delivery_min, delivery_max, address)
-menu_items    (id, restaurant_id→restaurants, category, name, description, price, image_url, is_available)
-cart_items    (id, user_id→users, restaurant_id→restaurants, menu_item_id→menu_items, quantity, UNIQUE(user_id, menu_item_id))
-orders        (id, user_id→users, restaurant_id→restaurants, status, delivery_address, subtotal, delivery_fee, total, placed_at)
-order_items   (id, order_id→orders, menu_item_id→menu_items, name TEXT, price REAL, quantity)
-```
 
 ### State Management
 
@@ -91,7 +103,7 @@ Two React Contexts wrap the entire app (defined in `components/providers/`):
 - **AuthProvider** — current user (`{ id, email, name } | null`), login/logout functions
 - **CartProvider** — cart state, addItem/removeItem/updateQuantity/clearCart, sidebar open state
 
-Server Components (home page, restaurant detail) fetch data directly without context. Client Components use context for real-time cart and auth state.
+Server Components (home page, restaurant detail) fetch data directly via Supabase. Client Components use context for real-time cart and auth state.
 
 ### API Route Conventions
 
@@ -102,9 +114,25 @@ const userId = parseInt(request.headers.get("x-user-id") ?? "");
 if (!userId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 ```
 
-All DB queries use better-sqlite3 prepared statements with `?` placeholders — never string interpolation.
+All DB queries use the Supabase query builder — never raw SQL string interpolation.
 
-## The 10 Restaurants
+### Environment Variables
 
-Bella Napoli (Italian), Sakura Garden (Japanese), Casa Fuego (Mexican), Spice Route (Indian), Golden Dragon (Chinese), Le Petit Bistro (French), Olive & Sea (Mediterranean), Seoul Kitchen (Korean), Thai Orchid (Thai), The American Grill (American).
-version and can revert easily.
+Required in `.env.local`:
+- `NEXT_PUBLIC_SUPABASE_URL` — Supabase project URL
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase anon/public key
+- `SUPABASE_SERVICE_ROLE_KEY` — Supabase service role key (server-side only)
+- `JWT_SECRET` — secret for signing session JWTs
+- `STRIPE_SECRET_KEY` / `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` — Stripe keys
+- `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` — Google Maps API key
+
+## The 20 Restaurants
+
+Bella Napoli (Italian), Sakura Garden (Japanese), Casa Fuego (Mexican), Spice Route (Indian), Golden Dragon (Chinese), Le Petit Bistro (French), Olive & Sea (Mediterranean), Seoul Kitchen (Korean), Thai Orchid (Thai), The American Grill (American), plus 10 additional restaurants.
+
+## Important Notes
+
+- When using the Supabase query builder, use `.maybeSingle()` instead of `.single()` when a row may not exist (to avoid throwing errors)
+- Boolean columns use actual `true`/`false` in PostgreSQL (not 0/1 like SQLite)
+- Supabase relation queries replace SQL JOINs: `supabase.from('orders').select('*, restaurants(name)')`
+- The old `db/database.ts` and `db/seed.ts` files are kept as reference but are no longer used

@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import getDb from '@/db/database';
+import { getSupabaseAdmin } from '@/lib/supabase';
 import { isCurrentlyOpen, HoursRow } from '@/lib/hours';
 
 interface SelectionDraft {
@@ -20,39 +20,62 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'menuItemId is required' }, { status: 400 });
     }
 
-    const db = getDb();
+    const supabase = getSupabaseAdmin();
 
     // Get menu item with restaurant info
-    const menuItem = db.prepare(
-      'SELECT mi.*, r.name as restaurant_name, r.is_accepting_orders FROM menu_items mi JOIN restaurants r ON mi.restaurant_id = r.id WHERE mi.id = ? AND mi.is_available = 1'
-    ).get(menuItemId) as { id: number; restaurant_id: number; restaurant_name: string; is_accepting_orders: number } | undefined;
+    const { data: menuItem } = await supabase
+      .from('menu_items')
+      .select('id, restaurant_id, restaurants(name, is_accepting_orders)')
+      .eq('id', menuItemId)
+      .eq('is_available', true)
+      .single();
 
     if (!menuItem) {
       return Response.json({ error: 'Menu item not found' }, { status: 404 });
     }
 
-    const isOwned = !!db.prepare('SELECT 1 FROM restaurant_owners WHERE restaurant_id = ?').get(menuItem.restaurant_id);
-    const restaurantHours = isOwned
-      ? db.prepare('SELECT day_of_week, open_time, close_time, is_closed FROM restaurant_hours WHERE restaurant_id = ? ORDER BY day_of_week').all(menuItem.restaurant_id) as HoursRow[]
-      : [];
+    const restaurant = menuItem.restaurants as unknown as { name: string; is_accepting_orders: boolean };
 
-    if (!menuItem.is_accepting_orders || (isOwned && !isCurrentlyOpen(restaurantHours))) {
+    const { data: ownerRow } = await supabase
+      .from('restaurant_owners')
+      .select('restaurant_id')
+      .eq('restaurant_id', menuItem.restaurant_id)
+      .maybeSingle();
+
+    const isOwned = !!ownerRow;
+
+    let restaurantHours: HoursRow[] = [];
+    if (isOwned) {
+      const { data: hoursData } = await supabase
+        .from('restaurant_hours')
+        .select('day_of_week, open_time, close_time, is_closed')
+        .eq('restaurant_id', menuItem.restaurant_id)
+        .order('day_of_week');
+      restaurantHours = (hoursData ?? []) as HoursRow[];
+    }
+
+    if (!restaurant.is_accepting_orders || (isOwned && !isCurrentlyOpen(restaurantHours))) {
       return Response.json({ error: 'This restaurant is not accepting orders right now' }, { status: 503 });
     }
 
     // Check for cart conflicts (different restaurant)
-    const existingCartItem = db.prepare(
-      'SELECT restaurant_id FROM cart_items WHERE user_id = ? LIMIT 1'
-    ).get(userId) as { restaurant_id: number } | undefined;
+    const { data: existingCartItem } = await supabase
+      .from('cart_items')
+      .select('restaurant_id')
+      .eq('user_id', userId)
+      .limit(1)
+      .maybeSingle();
 
     if (existingCartItem && existingCartItem.restaurant_id !== menuItem.restaurant_id) {
-      const existingRestaurant = db.prepare(
-        'SELECT name FROM restaurants WHERE id = ?'
-      ).get(existingCartItem.restaurant_id) as { name: string };
+      const { data: existingRestaurant } = await supabase
+        .from('restaurants')
+        .select('name')
+        .eq('id', existingCartItem.restaurant_id)
+        .single();
 
       return Response.json({
         error: 'Your cart contains items from another restaurant',
-        conflictingRestaurant: existingRestaurant.name,
+        conflictingRestaurant: existingRestaurant?.name,
       }, { status: 409 });
     }
 
@@ -67,21 +90,24 @@ export async function POST(request: NextRequest) {
     const newSels = normalizeSelections(selectionList);
 
     // Read-then-write: find existing cart row with same item + identical selections + identical special requests
-    const existingRows = db.prepare(
-      'SELECT ci.id, ci.special_requests FROM cart_items ci WHERE ci.user_id = ? AND ci.menu_item_id = ?'
-    ).all(userId, menuItemId) as { id: number; special_requests: string | null }[];
+    const { data: existingRows } = await supabase
+      .from('cart_items')
+      .select('id, special_requests')
+      .eq('user_id', userId)
+      .eq('menu_item_id', menuItemId);
 
     let matchedCartItemId: number | null = null;
 
-    for (const row of existingRows) {
+    for (const row of (existingRows ?? [])) {
       const rowSpecialRequests = row.special_requests ?? '';
       if (rowSpecialRequests !== specialRequestsStr) continue;
 
-      const rowSels = db.prepare(
-        'SELECT option_id, name, price_modifier, quantity FROM cart_item_selections WHERE cart_item_id = ?'
-      ).all(row.id) as { option_id: number | null; name: string; price_modifier: number; quantity: number }[];
+      const { data: rowSels } = await supabase
+        .from('cart_item_selections')
+        .select('option_id, name, price_modifier, quantity')
+        .eq('cart_item_id', row.id);
 
-      const normalizedRowSels = rowSels
+      const normalizedRowSels = (rowSels ?? [])
         .map(s => ({ option_id: s.option_id, name: s.name, price_modifier: s.price_modifier, quantity: s.quantity ?? 1 }))
         .sort((a, b) => (a.option_id ?? 0) - (b.option_id ?? 0) || a.name.localeCompare(b.name));
 
@@ -91,29 +117,46 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const txn = db.transaction(() => {
-      if (matchedCartItemId !== null) {
-        // Increment quantity on existing row
-        db.prepare('UPDATE cart_items SET quantity = quantity + ? WHERE id = ?').run(quantity, matchedCartItemId);
-      } else {
-        // Insert new row
-        const result = db.prepare(
-          'INSERT INTO cart_items (user_id, restaurant_id, menu_item_id, quantity, special_requests) VALUES (?, ?, ?, ?, ?)'
-        ).run(userId, menuItem.restaurant_id, menuItemId, quantity, specialRequestsStr || null);
+    if (matchedCartItemId !== null) {
+      // Increment quantity on existing row
+      // Need to read current quantity first since Supabase doesn't support increment directly
+      const { data: currentItem } = await supabase
+        .from('cart_items')
+        .select('quantity')
+        .eq('id', matchedCartItemId)
+        .single();
 
-        const cartItemId = result.lastInsertRowid;
+      await supabase
+        .from('cart_items')
+        .update({ quantity: (currentItem?.quantity ?? 0) + quantity })
+        .eq('id', matchedCartItemId);
+    } else {
+      // Insert new row
+      const { data: insertedItem } = await supabase
+        .from('cart_items')
+        .insert({
+          user_id: userId,
+          restaurant_id: menuItem.restaurant_id,
+          menu_item_id: menuItemId,
+          quantity,
+          special_requests: specialRequestsStr || null,
+        })
+        .select()
+        .single();
 
-        // Insert selections
-        const insertSel = db.prepare(
-          'INSERT INTO cart_item_selections (cart_item_id, option_id, name, price_modifier, quantity) VALUES (?, ?, ?, ?, ?)'
-        );
-        for (const sel of newSels) {
-          insertSel.run(cartItemId, sel.option_id, sel.name, sel.price_modifier, sel.quantity);
-        }
+      if (insertedItem && newSels.length > 0) {
+        const selectionRows = newSels.map(sel => ({
+          cart_item_id: insertedItem.id,
+          option_id: sel.option_id,
+          name: sel.name,
+          price_modifier: sel.price_modifier,
+          quantity: sel.quantity,
+        }));
+
+        await supabase.from('cart_item_selections').insert(selectionRows);
       }
-    });
+    }
 
-    txn();
     return Response.json({ success: true }, { status: 201 });
   } catch (error) {
     console.error('Add to cart error:', error);

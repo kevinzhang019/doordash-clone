@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { getSessionFromHeader } from '@/lib/auth';
-import getDb from '@/db/database';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   try {
@@ -9,10 +9,12 @@ export async function GET(request: NextRequest) {
       return Response.json({ user: null });
     }
 
-    const db = getDb();
-    const dbUser = db.prepare('SELECT avatar_url FROM users WHERE id = ?').get(session.userId) as
-      | { avatar_url: string | null }
-      | undefined;
+    const supabase = getSupabaseAdmin();
+    const { data: dbUser } = await supabase
+      .from('users')
+      .select('avatar_url')
+      .eq('id', session.userId)
+      .maybeSingle();
 
     if (!dbUser) {
       return Response.json({ user: null });

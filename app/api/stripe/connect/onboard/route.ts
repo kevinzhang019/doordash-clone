@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import Stripe from 'stripe';
-import getDb from '@/db/database';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   const userId = parseInt(request.headers.get('x-user-id') ?? '');
@@ -16,22 +16,27 @@ export async function POST(request: NextRequest) {
   }
 
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-  const db = getDb();
+  const supabase = getSupabaseAdmin();
 
   let stripeAccountId: string | null = null;
-  let entityId: number = userId;
 
   if (userRole === 'restaurant') {
-    const row = db.prepare(`
-      SELECT r.id, r.stripe_account_id
-      FROM restaurants r
-      JOIN restaurant_owners ro ON ro.restaurant_id = r.id
-      WHERE ro.user_id = ?
-    `).get(userId) as { id: number; stripe_account_id: string | null } | undefined;
+    const { data: ownership } = await supabase
+      .from('restaurant_owners')
+      .select('restaurant_id')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (!ownership) return Response.json({ error: 'No restaurant found' }, { status: 404 });
+
+    const { data: row } = await supabase
+      .from('restaurants')
+      .select('id, stripe_account_id')
+      .eq('id', ownership.restaurant_id)
+      .single();
 
     if (!row) return Response.json({ error: 'No restaurant found' }, { status: 404 });
 
-    entityId = row.id;
     stripeAccountId = row.stripe_account_id;
 
     if (!stripeAccountId) {
@@ -44,10 +49,18 @@ export async function POST(request: NextRequest) {
         metadata: { restaurantId: String(row.id), userId: String(userId) },
       });
       stripeAccountId = account.id;
-      db.prepare('UPDATE restaurants SET stripe_account_id = ? WHERE id = ?').run(stripeAccountId, row.id);
+      await supabase
+        .from('restaurants')
+        .update({ stripe_account_id: stripeAccountId })
+        .eq('id', row.id);
     }
   } else {
-    const row = db.prepare('SELECT stripe_account_id FROM users WHERE id = ?').get(userId) as { stripe_account_id: string | null } | undefined;
+    const { data: row } = await supabase
+      .from('users')
+      .select('stripe_account_id')
+      .eq('id', userId)
+      .maybeSingle();
+
     if (!row) return Response.json({ error: 'User not found' }, { status: 404 });
 
     stripeAccountId = row.stripe_account_id;
@@ -61,7 +74,10 @@ export async function POST(request: NextRequest) {
         metadata: { userId: String(userId), role: 'driver' },
       });
       stripeAccountId = account.id;
-      db.prepare('UPDATE users SET stripe_account_id = ? WHERE id = ?').run(stripeAccountId, userId);
+      await supabase
+        .from('users')
+        .update({ stripe_account_id: stripeAccountId })
+        .eq('id', userId);
     }
   }
 

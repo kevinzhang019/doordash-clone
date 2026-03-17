@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import getDb from '@/db/database';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   const userId = parseInt(request.headers.get('x-user-id') ?? '');
@@ -9,23 +9,38 @@ export async function POST(request: NextRequest) {
   const { orderId } = await request.json();
   if (!orderId) return Response.json({ error: 'orderId required' }, { status: 400 });
 
-  const db = getDb();
+  const supabase = getSupabaseAdmin();
 
-  db.transaction(() => {
-    db.prepare(
-      'INSERT OR IGNORE INTO driver_job_declines (driver_user_id, order_id) VALUES (?, ?)'
-    ).run(userId, orderId);
+  // Insert decline record (ignore if already exists)
+  await supabase
+    .from('driver_job_declines')
+    .upsert({ driver_user_id: userId, order_id: orderId }, { onConflict: 'driver_user_id,order_id', ignoreDuplicates: true });
 
-    db.prepare(`
-      UPDATE orders
-      SET dispatched_to = NULL, dispatch_expires_at = NULL, declined_count = declined_count + 1
-      WHERE id = ? AND dispatched_to = ?
-    `).run(orderId, userId);
+  // Clear dispatch and increment declined count
+  // First get the current order to check dispatched_to
+  const { data: order } = await supabase
+    .from('orders')
+    .select('declined_count')
+    .eq('id', orderId)
+    .eq('dispatched_to', userId)
+    .maybeSingle();
 
-    db.prepare(
-      'INSERT OR IGNORE INTO driver_available_jobs (driver_user_id, order_id) VALUES (?, ?)'
-    ).run(userId, orderId);
-  })();
+  if (order) {
+    await supabase
+      .from('orders')
+      .update({
+        dispatched_to: null,
+        dispatch_expires_at: null,
+        declined_count: (order.declined_count ?? 0) + 1,
+      })
+      .eq('id', orderId)
+      .eq('dispatched_to', userId);
+  }
+
+  // Add to available jobs (ignore if already exists)
+  await supabase
+    .from('driver_available_jobs')
+    .upsert({ driver_user_id: userId, order_id: orderId }, { onConflict: 'driver_user_id,order_id', ignoreDuplicates: true });
 
   return Response.json({ ok: true });
 }

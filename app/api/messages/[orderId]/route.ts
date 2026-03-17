@@ -1,11 +1,15 @@
 import { NextRequest } from 'next/server';
-import getDb from '@/db/database';
+import { getSupabaseAdmin } from '@/lib/supabase';
 import type { Message } from '@/lib/types';
 
-function getOrder(orderId: number) {
-  const db = getDb();
-  return db.prepare('SELECT user_id, driver_user_id, status FROM orders WHERE id = ?').get(orderId) as
-    { user_id: number; driver_user_id: number | null; status: string } | undefined;
+async function getOrder(orderId: number) {
+  const supabase = getSupabaseAdmin();
+  const { data } = await supabase
+    .from('orders')
+    .select('user_id, driver_user_id, status')
+    .eq('id', orderId)
+    .maybeSingle();
+  return data as { user_id: number; driver_user_id: number | null; status: string } | null;
 }
 
 export async function GET(
@@ -19,7 +23,7 @@ export async function GET(
   const orderId = parseInt(orderIdStr);
   if (isNaN(orderId)) return Response.json({ error: 'Invalid order ID' }, { status: 400 });
 
-  const order = getOrder(orderId);
+  const order = await getOrder(orderId);
   if (!order) return Response.json({ error: 'Order not found' }, { status: 404 });
   if (order.user_id !== userId && order.driver_user_id !== userId) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
@@ -27,16 +31,23 @@ export async function GET(
 
   if (order.status === 'delivered') return Response.json({ messages: [] });
 
-  const db = getDb();
-  const messages = db.prepare(`
-    SELECT m.*, u.name as sender_name
-    FROM messages m
-    JOIN users u ON u.id = m.sender_user_id
-    WHERE m.order_id = ?
-    ORDER BY m.sent_at ASC
-  `).all(orderId) as Message[];
+  const supabase = getSupabaseAdmin();
+  const { data: messages } = await supabase
+    .from('messages')
+    .select('*, sender:users!sender_user_id(name)')
+    .eq('order_id', orderId)
+    .order('sent_at', { ascending: true });
 
-  return Response.json({ messages });
+  // Flatten sender_name from the join
+  const formatted = (messages || []).map((m: Record<string, unknown>) => {
+    const { sender, ...rest } = m;
+    return {
+      ...rest,
+      sender_name: (sender as { name: string } | null)?.name ?? null,
+    };
+  }) as unknown as Message[];
+
+  return Response.json({ messages: formatted });
 }
 
 export async function POST(
@@ -44,14 +55,13 @@ export async function POST(
   { params }: { params: Promise<{ orderId: string }> }
 ) {
   const userId = parseInt(request.headers.get('x-user-id') ?? '');
-  const userRole = request.headers.get('x-user-role') ?? '';
   if (!userId) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { orderId: orderIdStr } = await params;
   const orderId = parseInt(orderIdStr);
   if (isNaN(orderId)) return Response.json({ error: 'Invalid order ID' }, { status: 400 });
 
-  const order = getOrder(orderId);
+  const order = await getOrder(orderId);
   if (!order) return Response.json({ error: 'Order not found' }, { status: 404 });
   if (order.user_id !== userId && order.driver_user_id !== userId) {
     return Response.json({ error: 'Forbidden' }, { status: 403 });
@@ -60,12 +70,20 @@ export async function POST(
   const { content } = await request.json();
   if (!content?.trim()) return Response.json({ error: 'Content required' }, { status: 400 });
 
-  const senderRole = userRole === 'driver' ? 'driver' : 'customer';
+  // Determine role from the order relationship, not the header
+  const senderRole = userId === order.driver_user_id ? 'driver' : 'customer';
 
-  const db = getDb();
-  const result = db.prepare(
-    'INSERT INTO messages (order_id, sender_user_id, sender_role, content) VALUES (?, ?, ?, ?)'
-  ).run(orderId, userId, senderRole, content.trim());
+  const supabase = getSupabaseAdmin();
+  const { data, error } = await supabase
+    .from('messages')
+    .insert({ order_id: orderId, sender_user_id: userId, sender_role: senderRole, content: content.trim() })
+    .select('id')
+    .single();
 
-  return Response.json({ id: result.lastInsertRowid });
+  if (error) {
+    console.error('Insert message error:', error);
+    return Response.json({ error: 'Failed to send message' }, { status: 500 });
+  }
+
+  return Response.json({ id: data.id });
 }

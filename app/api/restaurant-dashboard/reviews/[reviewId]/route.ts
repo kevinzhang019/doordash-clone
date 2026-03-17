@@ -1,9 +1,9 @@
 import { NextRequest } from 'next/server';
-import getDb from '@/db/database';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
-function getRestaurantId(userId: number) {
-  const db = getDb();
-  const owner = db.prepare('SELECT restaurant_id FROM restaurant_owners WHERE user_id = ?').get(userId) as { restaurant_id: number } | undefined;
+async function getRestaurantId(userId: number) {
+  const supabase = getSupabaseAdmin();
+  const { data: owner } = await supabase.from('restaurant_owners').select('restaurant_id').eq('user_id', userId).maybeSingle();
   return owner?.restaurant_id ?? null;
 }
 
@@ -15,7 +15,7 @@ export async function PUT(
   const role = request.headers.get('x-user-role');
   if (!userId || role !== 'restaurant') return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const restaurantId = getRestaurantId(userId);
+  const restaurantId = await getRestaurantId(userId);
   if (!restaurantId) return Response.json({ error: 'No restaurant found' }, { status: 404 });
 
   const { reviewId } = await params;
@@ -27,16 +27,24 @@ export async function PUT(
     return Response.json({ error: 'Reply cannot be empty' }, { status: 400 });
   }
 
-  const db = getDb();
-  const result = db.prepare(`
-    UPDATE reviews
-    SET owner_reply = ?, owner_reply_at = datetime('now')
-    WHERE id = ? AND restaurant_id = ?
-  `).run(reply.trim(), id, restaurantId);
+  const supabase = getSupabaseAdmin();
 
-  if (result.changes === 0) {
+  const { data: existing } = await supabase
+    .from('reviews')
+    .select('id')
+    .eq('id', id)
+    .eq('restaurant_id', restaurantId)
+    .maybeSingle();
+
+  if (!existing) {
     return Response.json({ error: 'Review not found' }, { status: 404 });
   }
+
+  await supabase
+    .from('reviews')
+    .update({ owner_reply: reply.trim(), owner_reply_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('restaurant_id', restaurantId);
 
   return Response.json({ ok: true });
 }
@@ -49,23 +57,31 @@ export async function DELETE(
   const role = request.headers.get('x-user-role');
   if (!userId || role !== 'restaurant') return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const restaurantId = getRestaurantId(userId);
+  const restaurantId = await getRestaurantId(userId);
   if (!restaurantId) return Response.json({ error: 'No restaurant found' }, { status: 404 });
 
   const { reviewId } = await params;
   const id = parseInt(reviewId);
   if (isNaN(id)) return Response.json({ error: 'Invalid review ID' }, { status: 400 });
 
-  const db = getDb();
-  const result = db.prepare(`
-    UPDATE reviews
-    SET owner_reply = NULL, owner_reply_at = NULL
-    WHERE id = ? AND restaurant_id = ?
-  `).run(id, restaurantId);
+  const supabase = getSupabaseAdmin();
 
-  if (result.changes === 0) {
+  const { data: existing } = await supabase
+    .from('reviews')
+    .select('id')
+    .eq('id', id)
+    .eq('restaurant_id', restaurantId)
+    .maybeSingle();
+
+  if (!existing) {
     return Response.json({ error: 'Review not found' }, { status: 404 });
   }
+
+  await supabase
+    .from('reviews')
+    .update({ owner_reply: null, owner_reply_at: null })
+    .eq('id', id)
+    .eq('restaurant_id', restaurantId);
 
   return Response.json({ ok: true });
 }

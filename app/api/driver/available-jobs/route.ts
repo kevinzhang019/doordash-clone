@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
-import getDb from '@/db/database';
-import { getVirtualRestaurantCoords } from '@/lib/restaurantDistance';
+import { getSupabaseAdmin } from '@/lib/supabase';
+import { getVirtualRestaurantCoords, deliveryFeeFromDistance } from '@/lib/restaurantDistance';
 import type { DriverJob } from '@/lib/types';
 
 function haversineMiles(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
@@ -13,9 +13,6 @@ function haversineMiles(a: { lat: number; lng: number }, b: { lat: number; lng: 
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-function calcPay(totalMiles: number): number {
-  return Math.round(Math.max(3.50, 2.00 + totalMiles * 0.65) * 4) / 4;
-}
 
 function calcMinutes(totalMiles: number): number {
   return Math.max(10, Math.round(((totalMiles / 20) * 60 + 6) / 5) * 5);
@@ -71,44 +68,58 @@ export async function GET(request: NextRequest) {
   const driverLng = parseFloat(searchParams.get('lng') ?? '');
   const driverPos = !isNaN(driverLat) && !isNaN(driverLng) ? { lat: driverLat, lng: driverLng } : null;
 
-  const db = getDb();
+  const supabase = getSupabaseAdmin();
 
-  const rows = db.prepare(`
-    SELECT o.id, o.restaurant_id, o.delivery_address, o.delivery_lat, o.delivery_lng, o.subtotal, o.tip,
-           r.name as restaurant_name, r.address as restaurant_address,
-           r.lat as r_lat, r.lng as r_lng,
-           EXISTS(SELECT 1 FROM restaurant_owners WHERE restaurant_id = r.id) as is_owned,
-           daj.added_at
-    FROM driver_available_jobs daj
-    JOIN orders o ON o.id = daj.order_id
-    JOIN restaurants r ON r.id = o.restaurant_id
-    WHERE daj.driver_user_id = ?
-      AND o.driver_user_id IS NULL
-      AND o.status IN ('placed', 'preparing', 'ready')
-    ORDER BY daj.added_at DESC
-  `).all(userId) as {
-    id: number; restaurant_id: number; delivery_address: string; delivery_lat: number | null; delivery_lng: number | null;
-    subtotal: number; tip: number;
-    restaurant_name: string; restaurant_address: string;
-    r_lat: number | null; r_lng: number | null; is_owned: number; added_at: string;
-  }[];
+  // Get available jobs for this driver
+  const { data: availableJobRows } = await supabase
+    .from('driver_available_jobs')
+    .select('order_id, added_at')
+    .eq('driver_user_id', userId)
+    .order('added_at', { ascending: false });
+
+  if (!availableJobRows || availableJobRows.length === 0) {
+    return Response.json({ jobs: [] });
+  }
+
+  const orderIds = availableJobRows.map(r => r.order_id);
+
+  // Fetch the orders with restaurant info
+  const { data: orders } = await supabase
+    .from('orders')
+    .select('id, restaurant_id, delivery_address, delivery_lat, delivery_lng, subtotal, tip, delivery_instructions, handoff_option, driver_user_id, status, restaurants(name, address, lat, lng)')
+    .in('id', orderIds)
+    .is('driver_user_id', null)
+    .in('status', ['placed', 'preparing', 'ready']);
+
+  if (!orders || orders.length === 0) {
+    return Response.json({ jobs: [] });
+  }
 
   const jobs: DriverJob[] = [];
 
-  for (const row of rows) {
+  for (const row of orders) {
+    const restaurant = row.restaurants as unknown as { name: string; address: string; lat: number | null; lng: number | null };
+
+    // Check if restaurant is owned
+    const { data: ownerRow } = await supabase
+      .from('restaurant_owners')
+      .select('id')
+      .eq('restaurant_id', row.restaurant_id)
+      .maybeSingle();
+    const isOwned = !!ownerRow;
+
     const customerCoords = row.delivery_lat && row.delivery_lng
       ? { lat: row.delivery_lat, lng: row.delivery_lng }
       : await geocodeWithCache(row.delivery_address);
 
     let restaurantCoords: { lat: number; lng: number } | null;
     let restaurantAddress: string;
-    if (row.r_lat && row.r_lng) {
-      restaurantCoords = { lat: row.r_lat, lng: row.r_lng };
-      restaurantAddress = row.restaurant_address;
-    } else if (row.is_owned) {
-      // User-created restaurant: always use the real stored address
-      restaurantAddress = row.restaurant_address;
-      restaurantCoords = await geocodeWithCache(row.restaurant_address);
+    if (restaurant.lat && restaurant.lng) {
+      restaurantCoords = { lat: restaurant.lat, lng: restaurant.lng };
+      restaurantAddress = restaurant.address;
+    } else if (isOwned) {
+      restaurantAddress = restaurant.address;
+      restaurantCoords = await geocodeWithCache(restaurant.address);
       if (!restaurantCoords && customerCoords) {
         restaurantCoords = getVirtualRestaurantCoords(row.restaurant_id, customerCoords.lat, customerCoords.lng);
       }
@@ -116,8 +127,8 @@ export async function GET(request: NextRequest) {
       restaurantCoords = getVirtualRestaurantCoords(row.restaurant_id, customerCoords.lat, customerCoords.lng);
       restaurantAddress = await reverseGeocode(restaurantCoords.lat, restaurantCoords.lng);
     } else {
-      restaurantCoords = await geocodeWithCache(row.restaurant_address);
-      restaurantAddress = row.restaurant_address;
+      restaurantCoords = await geocodeWithCache(restaurant.address);
+      restaurantAddress = restaurant.address;
     }
 
     if (!restaurantCoords || !customerCoords) continue;
@@ -125,22 +136,28 @@ export async function GET(request: NextRequest) {
     const d1 = driverPos ? haversineMiles(driverPos, restaurantCoords) : 1.5;
     const d2 = haversineMiles(restaurantCoords, customerCoords);
     const totalMiles = d1 + d2;
-    const orderItems = db.prepare('SELECT name FROM order_items WHERE order_id = ?').all(row.id) as { name: string }[];
+
+    const { data: orderItems } = await supabase
+      .from('order_items')
+      .select('name')
+      .eq('order_id', row.id);
 
     jobs.push({
       id: `order_${row.id}`,
       isSimulated: false,
       orderId: row.id,
-      restaurantName: row.restaurant_name,
+      restaurantName: restaurant.name,
       restaurantAddress,
       restaurantCoords,
       deliveryAddress: row.delivery_address,
       customerCoords,
-      items: orderItems.map(i => i.name),
-      payAmount: calcPay(totalMiles),
+      items: (orderItems ?? []).map(i => i.name),
+      payAmount: deliveryFeeFromDistance(d2),
       tip: row.tip,
       estimatedMinutes: calcMinutes(totalMiles),
       totalMiles,
+      deliveryInstructions: row.delivery_instructions ?? null,
+      handoffOption: row.handoff_option ?? 'hand_off',
     });
   }
 

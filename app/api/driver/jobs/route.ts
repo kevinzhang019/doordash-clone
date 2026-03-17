@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
-import getDb from '@/db/database';
-import { getVirtualRestaurantCoords } from '@/lib/restaurantDistance';
+import { getSupabaseAdmin } from '@/lib/supabase';
+import { getVirtualRestaurantCoords, deliveryFeeFromDistance } from '@/lib/restaurantDistance';
 import type { DriverJob } from '@/lib/types';
 
 // ── Geo helpers ──────────────────────────────────────────────────────────────
@@ -15,31 +15,6 @@ function haversineMiles(a: { lat: number; lng: number }, b: { lat: number; lng: 
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-function randomCoordWithinMiles(lat: number, lng: number, maxMiles: number): { lat: number; lng: number } {
-  const R = 3958.8;
-  const maxDist = maxMiles / R;
-  const dist = maxDist * Math.sqrt(Math.random());
-  const bearing = Math.random() * 2 * Math.PI;
-  const lat1 = lat * Math.PI / 180;
-  const lng1 = lng * Math.PI / 180;
-  const lat2 = Math.asin(
-    Math.sin(lat1) * Math.cos(dist) +
-    Math.cos(lat1) * Math.sin(dist) * Math.cos(bearing),
-  );
-  const lng2 = lng1 + Math.atan2(
-    Math.sin(bearing) * Math.sin(dist) * Math.cos(lat1),
-    Math.cos(dist) - Math.sin(lat1) * Math.sin(lat2),
-  );
-  return { lat: lat2 * 180 / Math.PI, lng: ((lng2 * 180 / Math.PI) + 540) % 360 - 180 };
-}
-
-// ── Pay / time formulas ───────────────────────────────────────────────────────
-
-function calcPay(totalMiles: number): number {
-  const raw = 2.00 + totalMiles * 0.65;
-  const floored = Math.max(3.50, raw);
-  return Math.round(floored * 4) / 4;
-}
 
 function calcMinutes(totalMiles: number): number {
   const drive = (totalMiles / 20) * 60;
@@ -95,20 +70,39 @@ async function geocodeWithCache(address: string): Promise<{ lat: number; lng: nu
   return null;
 }
 
+function randomCoordWithinMiles(lat: number, lng: number, maxMiles: number): { lat: number; lng: number } {
+  const R = 3958.8;
+  const maxDist = maxMiles / R;
+  const dist = maxDist * Math.sqrt(Math.random());
+  const bearing = Math.random() * 2 * Math.PI;
+  const lat1 = lat * Math.PI / 180;
+  const lng1 = lng * Math.PI / 180;
+  const lat2 = Math.asin(
+    Math.sin(lat1) * Math.cos(dist) +
+    Math.cos(lat1) * Math.sin(dist) * Math.cos(bearing),
+  );
+  const lng2 = lng1 + Math.atan2(
+    Math.sin(bearing) * Math.sin(dist) * Math.cos(lat1),
+    Math.cos(dist) - Math.sin(lat1) * Math.sin(lat2),
+  );
+  return { lat: lat2 * 180 / Math.PI, lng: ((lng2 * 180 / Math.PI) + 540) % 360 - 180 };
+}
+
 // ── Build a DriverJob from an order row ──────────────────────────────────────
 
 type OrderRow = {
   id: number; restaurant_id: number; delivery_address: string; subtotal: number; tip: number;
+  delivery_instructions: string | null; handoff_option: string;
   restaurant_name: string; restaurant_address: string;
   r_lat: number | null; r_lng: number | null;
   delivery_lat: number | null; delivery_lng: number | null;
-  is_owned: number;
+  is_owned: boolean;
 };
 
 async function buildJobFromOrder(
   order: OrderRow,
   driverPos: { lat: number; lng: number } | null,
-  db: ReturnType<typeof getDb>,
+  supabase: ReturnType<typeof getSupabaseAdmin>,
 ): Promise<DriverJob | null> {
   const customerCoords = order.delivery_lat && order.delivery_lng
     ? { lat: order.delivery_lat, lng: order.delivery_lng }
@@ -120,11 +114,9 @@ async function buildJobFromOrder(
     restaurantCoords = { lat: order.r_lat, lng: order.r_lng };
     restaurantAddress = order.restaurant_address;
   } else if (order.is_owned) {
-    // User-created restaurant: always use the real stored address
     restaurantAddress = order.restaurant_address;
     restaurantCoords = await geocodeWithCache(order.restaurant_address);
     if (!restaurantCoords && customerCoords) {
-      // Geocoding unavailable — estimate coords near customer for distance calc
       restaurantCoords = getVirtualRestaurantCoords(order.restaurant_id, customerCoords.lat, customerCoords.lng);
     }
   } else if (customerCoords) {
@@ -140,7 +132,11 @@ async function buildJobFromOrder(
   const d1 = driverPos ? haversineMiles(driverPos, restaurantCoords) : 1.5;
   const d2 = haversineMiles(restaurantCoords, customerCoords);
   const totalMiles = d1 + d2;
-  const orderItems = db.prepare('SELECT name FROM order_items WHERE order_id = ?').all(order.id) as { name: string }[];
+
+  const { data: orderItems } = await supabase
+    .from('order_items')
+    .select('name')
+    .eq('order_id', order.id);
 
   return {
     id: `order_${order.id}`,
@@ -151,11 +147,13 @@ async function buildJobFromOrder(
     restaurantCoords,
     deliveryAddress: order.delivery_address,
     customerCoords,
-    items: orderItems.map(i => i.name),
-    payAmount: calcPay(totalMiles),
+    items: (orderItems ?? []).map(i => i.name),
+    payAmount: deliveryFeeFromDistance(d2),
     tip: order.tip,
     estimatedMinutes: calcMinutes(totalMiles),
     totalMiles,
+    deliveryInstructions: order.delivery_instructions ?? null,
+    handoffOption: order.handoff_option ?? 'hand_off',
   };
 }
 
@@ -176,72 +174,131 @@ export async function GET(request: NextRequest) {
     ? { lat: driverLat, lng: driverLng }
     : null;
 
-  const db = getDb();
+  const supabase = getSupabaseAdmin();
 
   // ── 1. Check if driver already has an active (non-expired) dispatched offer ──
-  const existingDispatch = db.prepare(`
-    SELECT o.id, o.restaurant_id, o.delivery_address, o.delivery_lat, o.delivery_lng, o.subtotal, o.tip,
-           r.name as restaurant_name, r.address as restaurant_address,
-           r.lat as r_lat, r.lng as r_lng,
-           EXISTS(SELECT 1 FROM restaurant_owners WHERE restaurant_id = r.id) as is_owned
-    FROM orders o
-    JOIN restaurants r ON r.id = o.restaurant_id
-    WHERE o.dispatched_to = ? AND o.dispatch_expires_at > datetime('now')
-      AND o.driver_user_id IS NULL
-      AND o.status IN ('placed', 'preparing', 'ready')
-      AND NOT EXISTS (
-        SELECT 1 FROM driver_available_jobs
-        WHERE driver_user_id = ? AND order_id = o.id
-      )
-    LIMIT 1
-  `).get(userId, userId) as OrderRow | undefined;
+  // We need to find orders dispatched to this driver that haven't expired and haven't been accepted
+  const now = new Date().toISOString();
+  const { data: dispatchedOrders } = await supabase
+    .from('orders')
+    .select('id, restaurant_id, delivery_address, delivery_lat, delivery_lng, subtotal, tip, delivery_instructions, handoff_option, restaurants(name, address, lat, lng)')
+    .eq('dispatched_to', userId)
+    .gt('dispatch_expires_at', now)
+    .is('driver_user_id', null)
+    .in('status', ['placed', 'preparing', 'ready'])
+    .limit(1);
 
-  if (existingDispatch) {
-    const job = await buildJobFromOrder(existingDispatch, driverPos, db);
-    if (job) return Response.json({ jobs: [job] });
+  if (dispatchedOrders && dispatchedOrders.length > 0) {
+    const d = dispatchedOrders[0];
+    const restaurant = d.restaurants as unknown as { name: string; address: string; lat: number | null; lng: number | null };
+
+    // Check if already in driver_available_jobs
+    const { data: alreadyAvailable } = await supabase
+      .from('driver_available_jobs')
+      .select('id')
+      .eq('driver_user_id', userId)
+      .eq('order_id', d.id)
+      .maybeSingle();
+
+    if (!alreadyAvailable) {
+      // Check if restaurant is owned
+      const { data: ownerRow } = await supabase
+        .from('restaurant_owners')
+        .select('id')
+        .eq('restaurant_id', d.restaurant_id)
+        .maybeSingle();
+
+      const orderRow: OrderRow = {
+        id: d.id, restaurant_id: d.restaurant_id, delivery_address: d.delivery_address,
+        subtotal: d.subtotal, tip: d.tip,
+        delivery_instructions: d.delivery_instructions, handoff_option: d.handoff_option,
+        restaurant_name: restaurant.name, restaurant_address: restaurant.address,
+        r_lat: restaurant.lat, r_lng: restaurant.lng,
+        delivery_lat: d.delivery_lat, delivery_lng: d.delivery_lng,
+        is_owned: !!ownerRow,
+      };
+
+      const job = await buildJobFromOrder(orderRow, driverPos, supabase);
+      if (job) return Response.json({ jobs: [job] });
+    }
   }
 
   // ── 2. Find candidate orders this driver hasn't declined ──────────────────
-  const candidates = db.prepare(`
-    SELECT o.id, o.restaurant_id, o.delivery_address, o.delivery_lat, o.delivery_lng, o.subtotal, o.tip,
-           r.name as restaurant_name, r.address as restaurant_address,
-           r.lat as r_lat, r.lng as r_lng,
-           EXISTS(SELECT 1 FROM restaurant_owners WHERE restaurant_id = r.id) as is_owned
-    FROM orders o
-    JOIN restaurants r ON r.id = o.restaurant_id
-    WHERE o.status IN ('placed', 'preparing', 'ready')
-      AND o.driver_user_id IS NULL
-      AND (o.dispatched_to IS NULL OR o.dispatch_expires_at < datetime('now'))
-      AND NOT EXISTS (
-        SELECT 1 FROM driver_job_declines
-        WHERE driver_user_id = ? AND order_id = o.id
-      )
-      AND NOT EXISTS (
-        SELECT 1 FROM driver_available_jobs
-        WHERE driver_user_id = ? AND order_id = o.id
-      )
-    ORDER BY o.placed_at ASC
-    LIMIT 5
-  `).all(userId, userId) as OrderRow[];
+  // Get declined order IDs for this driver
+  const { data: declinedRows } = await supabase
+    .from('driver_job_declines')
+    .select('order_id')
+    .eq('driver_user_id', userId);
+  const declinedIds = (declinedRows ?? []).map(r => r.order_id);
+
+  // Get available job order IDs for this driver
+  const { data: availableRows } = await supabase
+    .from('driver_available_jobs')
+    .select('order_id')
+    .eq('driver_user_id', userId);
+  const availableIds = (availableRows ?? []).map(r => r.order_id);
+
+  const excludeIds = [...new Set([...declinedIds, ...availableIds])];
+
+  // Fetch candidate orders
+  let candidateQuery = supabase
+    .from('orders')
+    .select('id, restaurant_id, delivery_address, delivery_lat, delivery_lng, subtotal, tip, delivery_instructions, handoff_option, dispatched_to, dispatch_expires_at, restaurants(name, address, lat, lng)')
+    .in('status', ['placed', 'preparing', 'ready'])
+    .is('driver_user_id', null)
+    .order('placed_at', { ascending: true })
+    .limit(5);
+
+  if (excludeIds.length > 0) {
+    // We need to filter out excluded IDs — use not.in
+    candidateQuery = candidateQuery.not('id', 'in', `(${excludeIds.join(',')})`);
+  }
+
+  const { data: candidates } = await candidateQuery;
+
+  // Filter for orders that are either not dispatched or have expired dispatch
+  const filteredCandidates = (candidates ?? []).filter(c =>
+    c.dispatched_to === null || (c.dispatch_expires_at && c.dispatch_expires_at < now)
+  );
 
   // ── 3. Atomically lock one candidate ─────────────────────────────────────
   let lockedOrder: OrderRow | null = null;
-  for (const candidate of candidates) {
-    const result = db.prepare(`
-      UPDATE orders
-      SET dispatched_to = ?, dispatch_expires_at = datetime('now', '+15 seconds')
-      WHERE id = ?
-        AND (dispatched_to IS NULL OR dispatch_expires_at < datetime('now'))
-        AND driver_user_id IS NULL
-    `).run(userId, candidate.id);
-    if (result.changes === 1) {
-      lockedOrder = candidate;
+  for (const candidate of filteredCandidates) {
+    const restaurant = candidate.restaurants as unknown as { name: string; address: string; lat: number | null; lng: number | null };
+    const expiresAt = new Date(Date.now() + 15000).toISOString();
+
+    // Try to lock the order
+    const { data: updated, error } = await supabase
+      .from('orders')
+      .update({ dispatched_to: userId, dispatch_expires_at: expiresAt })
+      .eq('id', candidate.id)
+      .is('driver_user_id', null)
+      .select('id')
+      .maybeSingle();
+
+    if (!error && updated) {
+      // Check if restaurant is owned
+      const { data: ownerRow } = await supabase
+        .from('restaurant_owners')
+        .select('id')
+        .eq('restaurant_id', candidate.restaurant_id)
+        .maybeSingle();
+
+      lockedOrder = {
+        id: candidate.id, restaurant_id: candidate.restaurant_id, delivery_address: candidate.delivery_address,
+        subtotal: candidate.subtotal, tip: candidate.tip,
+        delivery_instructions: candidate.delivery_instructions, handoff_option: candidate.handoff_option,
+        restaurant_name: restaurant.name, restaurant_address: restaurant.address,
+        r_lat: restaurant.lat, r_lng: restaurant.lng,
+        delivery_lat: candidate.delivery_lat, delivery_lng: candidate.delivery_lng,
+        is_owned: !!ownerRow,
+      };
       break;
     }
   }
 
   if (lockedOrder) {
-    const job = await buildJobFromOrder(lockedOrder, driverPos, db);
+    const job = await buildJobFromOrder(lockedOrder, driverPos, supabase);
     if (job) return Response.json({ jobs: [job] });
   }
 
@@ -270,7 +327,7 @@ export async function GET(request: NextRequest) {
         deliveryAddress,
         customerCoords,
         items: [],
-        payAmount: calcPay(totalMiles),
+        payAmount: deliveryFeeFromDistance(d2),
         tip: randomTip(),
         estimatedMinutes: calcMinutes(totalMiles),
         totalMiles,

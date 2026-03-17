@@ -1,4 +1,4 @@
-import getDb from '@/db/database';
+import { getSupabaseAdmin } from '@/lib/supabase';
 import { Restaurant } from '@/lib/types';
 import { isCurrentlyOpen, HoursRow } from '@/lib/hours';
 import RestaurantGrid from '@/components/home/RestaurantGrid';
@@ -14,48 +14,74 @@ interface RestaurantWithReviews extends Restaurant {
 }
 
 async function getRestaurants(): Promise<RestaurantWithReviews[]> {
-  const db = getDb();
-  const rows = db.prepare(`
-    SELECT r.id, r.name, r.cuisine, r.description, r.image_url,
-      COALESCE(ROUND(AVG(rv.rating), 1), r.rating) as rating,
-      r.delivery_fee, r.delivery_min, r.delivery_max, r.address, r.lat, r.lng,
-      r.is_accepting_orders, COUNT(rv.id) as review_count
-    FROM restaurants r
-    LEFT JOIN reviews rv ON rv.restaurant_id = r.id
-    GROUP BY r.id
-    ORDER BY rating DESC
-  `).all() as (Restaurant & { review_count: number })[];
+  const supabase = getSupabaseAdmin();
 
-  const ownedIds = new Set(
-    (db.prepare('SELECT restaurant_id FROM restaurant_owners').all() as { restaurant_id: number }[])
-      .map(r => r.restaurant_id)
-  );
+  const { data: restaurants } = await supabase
+    .from('restaurants')
+    .select('*');
 
-  const allHours = db.prepare('SELECT restaurant_id, day_of_week, open_time, close_time, is_closed FROM restaurant_hours').all() as (HoursRow & { restaurant_id: number })[];
+  const { data: reviews } = await supabase
+    .from('reviews')
+    .select('restaurant_id, rating');
+
+  const { data: owners } = await supabase
+    .from('restaurant_owners')
+    .select('restaurant_id');
+
+  const { data: allHours } = await supabase
+    .from('restaurant_hours')
+    .select('restaurant_id, day_of_week, open_time, close_time, is_closed');
+
+  const ownedIds = new Set((owners ?? []).map(r => r.restaurant_id));
+
   const hoursByRestaurant = new Map<number, HoursRow[]>();
-  for (const h of allHours) {
+  for (const h of (allHours ?? [])) {
     if (!hoursByRestaurant.has(h.restaurant_id)) hoursByRestaurant.set(h.restaurant_id, []);
     hoursByRestaurant.get(h.restaurant_id)!.push(h);
   }
 
-  return rows.map(r => ({
-    ...r,
-    is_open: Boolean(r.is_accepting_orders) && (!ownedIds.has(r.id) || isCurrentlyOpen(hoursByRestaurant.get(r.id) ?? [])),
-  }));
+  // Calculate avg rating and review count per restaurant
+  const reviewsByRestaurant = new Map<number, { total: number; count: number }>();
+  for (const r of (reviews ?? [])) {
+    const entry = reviewsByRestaurant.get(r.restaurant_id) ?? { total: 0, count: 0 };
+    entry.total += r.rating;
+    entry.count += 1;
+    reviewsByRestaurant.set(r.restaurant_id, entry);
+  }
+
+  const rows = (restaurants ?? []).map(r => {
+    const reviewData = reviewsByRestaurant.get(r.id);
+    const avgRating = reviewData ? Math.round(reviewData.total / reviewData.count * 10) / 10 : r.rating;
+    return {
+      ...r,
+      rating: avgRating,
+      review_count: reviewData?.count ?? 0,
+      is_open: Boolean(r.is_accepting_orders) && (!ownedIds.has(r.id) || isCurrentlyOpen(hoursByRestaurant.get(r.id) ?? [])),
+    };
+  });
+
+  rows.sort((a, b) => b.rating - a.rating);
+  return rows;
 }
 
 async function getMenuItemsPerRestaurant(): Promise<Record<number, { menu_item_id: number; menu_item_name: string; menu_item_price: number }[]>> {
-  const db = getDb();
-  const rows = db.prepare(`
-    SELECT restaurant_id, id as menu_item_id, name as menu_item_name, price as menu_item_price
-    FROM menu_items
-    WHERE is_available = 1
-    ORDER BY restaurant_id, category, name
-  `).all() as { restaurant_id: number; menu_item_id: number; menu_item_name: string; menu_item_price: number }[];
+  const supabase = getSupabaseAdmin();
+  const { data: rows } = await supabase
+    .from('menu_items')
+    .select('restaurant_id, id, name, price')
+    .eq('is_available', true)
+    .order('restaurant_id')
+    .order('category')
+    .order('name');
+
   const result: Record<number, { menu_item_id: number; menu_item_name: string; menu_item_price: number }[]> = {};
-  for (const row of rows) {
+  for (const row of (rows ?? [])) {
     if (!result[row.restaurant_id]) result[row.restaurant_id] = [];
-    result[row.restaurant_id].push(row);
+    result[row.restaurant_id].push({
+      menu_item_id: row.id,
+      menu_item_name: row.name,
+      menu_item_price: row.price,
+    });
   }
   return result;
 }
@@ -64,11 +90,9 @@ export default async function HomePage() {
   const restaurants = await getRestaurants();
   const menuItems = await getMenuItemsPerRestaurant();
 
-  const db = getDb();
-  const ownedSet = new Set(
-    (db.prepare('SELECT restaurant_id FROM restaurant_owners').all() as { restaurant_id: number }[])
-      .map(r => r.restaurant_id)
-  );
+  const supabase = getSupabaseAdmin();
+  const { data: owners } = await supabase.from('restaurant_owners').select('restaurant_id');
+  const ownedSet = new Set((owners ?? []).map(r => r.restaurant_id));
 
   const carouselRestaurants = restaurants.map(r => ({
     id: r.id,
@@ -78,29 +102,25 @@ export default async function HomePage() {
     isSeeded: !ownedSet.has(r.id),
   }));
 
-  // Owner-created deals for user-inputted restaurants (show first in carousel)
-  const ownerDeals = db.prepare(`
-    SELECT d.restaurant_id, d.menu_item_id, d.deal_type, d.discount_value,
-           r.name as restaurant_name, r.image_url as restaurant_image_url,
-           mi.name as menu_item_name
-    FROM deals d
-    JOIN restaurants r ON d.restaurant_id = r.id
-    JOIN menu_items mi ON d.menu_item_id = mi.id
-    WHERE d.is_active = 1
-  `).all() as {
-    restaurant_id: number;
-    menu_item_id: number;
-    deal_type: 'percentage_off' | 'bogo';
-    discount_value: number | null;
-    restaurant_name: string;
-    restaurant_image_url: string;
-    menu_item_name: string;
-  }[];
+  const { data: ownerDeals } = await supabase
+    .from('deals')
+    .select('restaurant_id, menu_item_id, deal_type, discount_value, restaurants(name, image_url), menu_items(name)')
+    .eq('is_active', true);
+
+  const formattedDeals = (ownerDeals ?? []).map((d: Record<string, unknown>) => ({
+    restaurant_id: d.restaurant_id as number,
+    menu_item_id: d.menu_item_id as number,
+    deal_type: d.deal_type as 'percentage_off' | 'bogo',
+    discount_value: d.discount_value as number | null,
+    restaurant_name: (d.restaurants as Record<string, unknown>)?.name as string,
+    restaurant_image_url: (d.restaurants as Record<string, unknown>)?.image_url as string,
+    menu_item_name: (d.menu_items as Record<string, unknown>)?.name as string,
+  }));
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
       <RoleRedirect allowed="customer" />
-      <DealsCarousel allRestaurants={carouselRestaurants} ownerDeals={ownerDeals} />
+      <DealsCarousel allRestaurants={carouselRestaurants} ownerDeals={formattedDeals} />
       <ActiveOrderCarousel />
       <RestaurantGrid restaurants={restaurants} />
     </div>

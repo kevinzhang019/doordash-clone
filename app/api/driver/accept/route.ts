@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import getDb from '@/db/database';
+import { getSupabaseAdmin } from '@/lib/supabase';
 import { sendDriverAccepted } from '@/lib/email';
 import { Order } from '@/lib/types';
 
@@ -11,63 +11,100 @@ export async function POST(request: NextRequest) {
   try {
     const { jobId, sessionId, orderId, restaurantName, restaurantAddress, restaurantCoords, deliveryAddress, customerCoords, payAmount, tip, isSimulated, totalMiles, estimatedMinutes } = await request.json();
 
-    const db = getDb();
+    const supabase = getSupabaseAdmin();
 
     if (!isSimulated && orderId) {
       // For default (unowned) restaurants, always ensure status is 'ready' so the
       // driver can pick up without waiting for a non-existent owner.
-      const orderRow = db.prepare(
-        'SELECT restaurant_id FROM orders WHERE id = ?'
-      ).get(orderId) as { restaurant_id: number } | undefined;
-      const isOwned = orderRow
-        ? !!db.prepare('SELECT 1 FROM restaurant_owners WHERE restaurant_id = ?').get(orderRow.restaurant_id)
-        : false;
+      const { data: orderRow } = await supabase
+        .from('orders')
+        .select('restaurant_id')
+        .eq('id', orderId)
+        .maybeSingle();
 
-      const result = db.prepare(`
-        UPDATE orders
-        SET driver_user_id = ?,
-            status = CASE
-              WHEN ? = 0 THEN 'ready'
-              WHEN status = 'ready' THEN 'ready'
-              ELSE 'preparing'
-            END,
-            dispatched_to = NULL,
-            dispatch_expires_at = NULL
-        WHERE id = ? AND driver_user_id IS NULL
-      `).run(userId, isOwned ? 1 : 0, orderId);
+      let isOwned = false;
+      if (orderRow) {
+        const { data: ownerRow } = await supabase
+          .from('restaurant_owners')
+          .select('id')
+          .eq('restaurant_id', orderRow.restaurant_id)
+          .maybeSingle();
+        isOwned = !!ownerRow;
+      }
 
-      if (result.changes === 0) {
+      const newStatus = !isOwned ? 'ready' : undefined;
+
+      // Try to claim the order
+      let updateQuery = supabase
+        .from('orders')
+        .update({
+          driver_user_id: userId,
+          ...(newStatus ? { status: newStatus } : {}),
+          dispatched_to: null,
+          dispatch_expires_at: null,
+        })
+        .eq('id', orderId)
+        .is('driver_user_id', null);
+
+      const { data: updated } = await updateQuery.select('id').maybeSingle();
+
+      if (!updated) {
         return Response.json({ error: 'already_taken' }, { status: 409 });
       }
 
+      // If it's an owned restaurant and the status was already 'ready', keep it;
+      // otherwise for owned restaurants we leave the status as-is (preparing/placed)
+      // The update above only sets status to 'ready' for unowned restaurants.
+
       // Clean up available jobs entry if this came from the available list
-      db.prepare(
-        'DELETE FROM driver_available_jobs WHERE driver_user_id = ? AND order_id = ?'
-      ).run(userId, orderId);
+      await supabase
+        .from('driver_available_jobs')
+        .delete()
+        .eq('driver_user_id', userId)
+        .eq('order_id', orderId);
     }
 
-    const result = db.prepare(`
-      INSERT INTO driver_deliveries (session_id, order_id, is_simulated, restaurant_name, restaurant_address, restaurant_lat, restaurant_lng, delivery_address, customer_lat, customer_lng, pay_amount, tip, miles, estimated_minutes, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'accepted')
-    `).run(sessionId, isSimulated ? null : orderId, isSimulated ? 1 : 0, restaurantName, restaurantAddress, restaurantCoords?.lat ?? null, restaurantCoords?.lng ?? null, deliveryAddress, customerCoords?.lat ?? null, customerCoords?.lng ?? null, payAmount, tip, totalMiles ?? 0, estimatedMinutes ?? 0);
+    const { data: deliveryData } = await supabase
+      .from('driver_deliveries')
+      .insert({
+        session_id: sessionId,
+        order_id: isSimulated ? null : orderId,
+        is_simulated: isSimulated ? true : false,
+        restaurant_name: restaurantName,
+        restaurant_address: restaurantAddress,
+        restaurant_lat: restaurantCoords?.lat ?? null,
+        restaurant_lng: restaurantCoords?.lng ?? null,
+        delivery_address: deliveryAddress,
+        customer_lat: customerCoords?.lat ?? null,
+        customer_lng: customerCoords?.lng ?? null,
+        pay_amount: payAmount,
+        tip,
+        miles: totalMiles ?? 0,
+        estimated_minutes: estimatedMinutes ?? 0,
+        status: 'accepted',
+      })
+      .select('id')
+      .single();
 
     // Fire-and-forget: notify customer their driver is on the way
     if (!isSimulated && orderId) {
-      const orderWithUser = db.prepare(`
-        SELECT o.*, r.name as restaurant_name, u.email, u.name as user_name, du.name as driver_name
-        FROM orders o
-        JOIN restaurants r ON o.restaurant_id = r.id
-        JOIN users u ON o.user_id = u.id
-        LEFT JOIN users du ON du.id = o.driver_user_id
-        WHERE o.id = ?
-      `).get(orderId) as (Order & { restaurant_name: string; email: string; user_name: string }) | undefined;
+      const { data: orderWithUser } = await supabase
+        .from('orders')
+        .select('*, restaurants(name), users!orders_user_id_fkey(email, name)')
+        .eq('id', orderId)
+        .single();
+
       if (orderWithUser) {
-        sendDriverAccepted(orderWithUser, orderWithUser.email, orderWithUser.user_name)
+        const restaurant = orderWithUser.restaurants as unknown as { name: string };
+        const user = orderWithUser.users as unknown as { email: string; name: string };
+        const driverUserData = await supabase.from('users').select('name').eq('id', userId).single();
+        const orderForEmail = { ...orderWithUser, restaurant_name: restaurant.name, driver_name: driverUserData.data?.name } as Order & { restaurant_name: string; driver_name: string };
+        sendDriverAccepted(orderForEmail, user.email, user.name)
           .catch(err => console.error('Driver accepted email failed:', err));
       }
     }
 
-    return Response.json({ deliveryId: result.lastInsertRowid });
+    return Response.json({ deliveryId: deliveryData?.id });
   } catch (error) {
     console.error('Accept job error:', error);
     return Response.json({ error: 'Internal server error' }, { status: 500 });

@@ -20,6 +20,7 @@ export async function POST(request: NextRequest) {
       amount: Math.round(amount),
       currency: 'usd',
       automatic_payment_methods: { enabled: true },
+      capture_method: 'manual',
       metadata: { userId: String(userId) },
     });
 

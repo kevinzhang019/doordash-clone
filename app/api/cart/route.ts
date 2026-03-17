@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import getDb from '@/db/database';
+import { getSupabaseAdmin } from '@/lib/supabase';
 import { CartItem } from '@/lib/types';
 
 export async function DELETE(request: NextRequest) {
@@ -7,8 +7,8 @@ export async function DELETE(request: NextRequest) {
   if (!userId) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const db = getDb();
-    db.prepare('DELETE FROM cart_items WHERE user_id = ?').run(userId);
+    const supabase = getSupabaseAdmin();
+    await supabase.from('cart_items').delete().eq('user_id', userId);
     return Response.json({ success: true });
   } catch (error) {
     console.error('Clear cart error:', error);
@@ -21,38 +21,67 @@ export async function GET(request: NextRequest) {
   if (!userId) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
-    const db = getDb();
-    const cartItems = db.prepare(`
-      SELECT
-        ci.id, ci.user_id, ci.restaurant_id, ci.menu_item_id, ci.quantity, ci.special_requests,
-        mi.name, mi.description, mi.price, mi.image_url,
-        r.name as restaurant_name
-      FROM cart_items ci
-      JOIN menu_items mi ON ci.menu_item_id = mi.id
-      JOIN restaurants r ON ci.restaurant_id = r.id
-      WHERE ci.user_id = ?
-      ORDER BY ci.id
-    `).all(userId) as CartItem[];
+    const supabase = getSupabaseAdmin();
+    const { data: cartItems } = await supabase
+      .from('cart_items')
+      .select('id, user_id, restaurant_id, menu_item_id, quantity, special_requests, menu_items(name, description, price, image_url), restaurants(name)')
+      .eq('user_id', userId)
+      .order('id');
 
-    if (cartItems.length > 0) {
-      const ids = cartItems.map(ci => ci.id);
-      const allSelections = db.prepare(
-        `SELECT cis.*, g.name as group_name
-         FROM cart_item_selections cis
-         LEFT JOIN menu_item_options o ON o.id = cis.option_id
-         LEFT JOIN menu_item_option_groups g ON g.id = o.group_id
-         WHERE cis.cart_item_id IN (${ids.map(() => '?').join(',')})
-         ORDER BY cis.id`
-      ).all(...ids) as { id: number; cart_item_id: number; option_id: number | null; name: string; price_modifier: number; quantity: number; group_name: string | null }[];
+    if (!cartItems || cartItems.length === 0) {
+      return Response.json({ cartItems: [] });
+    }
 
-      for (const item of cartItems) {
-        item.selections = allSelections.filter(s => s.cart_item_id === item.id);
-        const selectionTotal = item.selections.reduce((sum, s) => sum + s.price_modifier * (s.quantity ?? 1), 0);
+    // Flatten the joined data to match the original shape
+    const flattenedItems: CartItem[] = cartItems.map((ci: Record<string, unknown>) => {
+      const menuItem = ci.menu_items as Record<string, unknown> | null;
+      const restaurant = ci.restaurants as Record<string, unknown> | null;
+      return {
+        id: ci.id,
+        user_id: ci.user_id,
+        restaurant_id: ci.restaurant_id,
+        menu_item_id: ci.menu_item_id,
+        quantity: ci.quantity,
+        special_requests: ci.special_requests,
+        name: menuItem?.name,
+        description: menuItem?.description,
+        price: menuItem?.price,
+        image_url: menuItem?.image_url,
+        restaurant_name: restaurant?.name,
+      } as CartItem;
+    });
+
+    const ids = flattenedItems.map(ci => ci.id);
+    const { data: allSelections } = await supabase
+      .from('cart_item_selections')
+      .select('id, cart_item_id, option_id, name, price_modifier, quantity, menu_item_options(menu_item_option_groups(name))')
+      .in('cart_item_id', ids)
+      .order('id');
+
+    if (allSelections) {
+      const selectionsWithGroupName = allSelections.map((s: Record<string, unknown>) => {
+        const option = s.menu_item_options as Record<string, unknown> | null;
+        const group = option?.menu_item_option_groups as Record<string, unknown> | null;
+        return {
+          id: s.id,
+          cart_item_id: s.cart_item_id,
+          option_id: s.option_id,
+          name: s.name,
+          price_modifier: s.price_modifier,
+          quantity: s.quantity,
+          group_name: group?.name ?? null,
+        };
+      });
+
+      for (const item of flattenedItems) {
+        (item as unknown as Record<string, unknown>).selections = selectionsWithGroupName.filter(s => s.cart_item_id === item.id);
+        const sels = (item as unknown as Record<string, unknown>).selections as { price_modifier: number; quantity?: number }[];
+        const selectionTotal = sels.reduce((sum: number, s) => sum + s.price_modifier * (s.quantity ?? 1), 0);
         item.effective_price = (item.price || 0) + selectionTotal;
       }
     }
 
-    return Response.json({ cartItems });
+    return Response.json({ cartItems: flattenedItems });
   } catch (error) {
     console.error('Get cart error:', error);
     return Response.json({ error: 'Internal server error' }, { status: 500 });

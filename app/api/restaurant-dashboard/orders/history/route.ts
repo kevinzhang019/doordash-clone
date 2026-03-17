@@ -15,16 +15,34 @@ export async function GET(request: NextRequest) {
   const restaurantId = await getRestaurantId(userId);
   if (!restaurantId) return Response.json({ error: 'No restaurant found' }, { status: 404 });
 
+  const { searchParams } = new URL(request.url);
+  const page = Math.max(1, parseInt(searchParams.get('page') ?? '1'));
+  const limit = 20;
+  const offset = (page - 1) * limit;
+
   const supabase = getSupabaseAdmin();
 
+  // Get total count
+  const { count: total } = await supabase
+    .from('orders')
+    .select('id', { count: 'exact', head: true })
+    .eq('restaurant_id', restaurantId)
+    .in('status', ['delivered', 'picked_up']);
+
+  const totalCount = total ?? 0;
+
+  // Get paginated orders
   const { data: orders } = await supabase
     .from('orders')
-    .select('id, status, subtotal, total, delivery_fee, placed_at, delivery_address, discount_saved, promo_discount, user_id')
+    .select('id, status, subtotal, total, delivery_fee, placed_at, delivered_at, delivery_address, discount_saved, promo_discount, user_id')
     .eq('restaurant_id', restaurantId)
-    .in('status', ['placed', 'preparing', 'ready'])
-    .order('placed_at', { ascending: false });
+    .in('status', ['delivered', 'picked_up'])
+    .order('placed_at', { ascending: false })
+    .range(offset, offset + limit - 1);
 
-  if (!orders || orders.length === 0) return Response.json({ orders: [] });
+  if (!orders || orders.length === 0) {
+    return Response.json({ orders: [], total: totalCount, page, pages: Math.ceil(totalCount / limit) });
+  }
 
   // Fetch customer names
   const userIds = [...new Set(orders.map(o => o.user_id))];
@@ -35,7 +53,7 @@ export async function GET(request: NextRequest) {
   const orderIds = orders.map(o => o.id);
   const { data: allItems } = await supabase
     .from('order_items')
-    .select('order_id, name, quantity, price, special_requests')
+    .select('order_id, name, quantity, price')
     .in('order_id', orderIds);
 
   const ordersWithItems = orders.map(order => {
@@ -44,5 +62,5 @@ export async function GET(request: NextRequest) {
     return { ...rest, customer_name: userMap.get(user_id) ?? 'Unknown', items };
   });
 
-  return Response.json({ orders: ordersWithItems });
+  return Response.json({ orders: ordersWithItems, total: totalCount, page, pages: Math.ceil(totalCount / limit) });
 }

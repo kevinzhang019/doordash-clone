@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import getDb from '@/db/database';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 interface PromoCode {
   id: number;
@@ -10,7 +10,7 @@ interface PromoCode {
   uses_count: number;
   min_order_amount: number;
   expires_at: string | null;
-  is_active: number;
+  is_active: boolean;
 }
 
 export async function POST(request: NextRequest) {
@@ -24,10 +24,15 @@ export async function POST(request: NextRequest) {
       return Response.json({ valid: false, error: 'Invalid request' });
     }
 
-    const db = getDb();
-    const promo = db.prepare(
-      'SELECT * FROM promo_codes WHERE code = ? COLLATE NOCASE'
-    ).get(code.trim().toUpperCase()) as PromoCode | undefined;
+    const supabase = getSupabaseAdmin();
+
+    const { data: promo, error: promoError } = await supabase
+      .from('promo_codes')
+      .select('*')
+      .ilike('code', code.trim().toUpperCase())
+      .maybeSingle();
+
+    if (promoError) throw promoError;
 
     if (!promo) {
       return Response.json({ valid: false, error: 'Promo code not found' });
@@ -45,9 +50,13 @@ export async function POST(request: NextRequest) {
       return Response.json({ valid: false, error: `Minimum order of $${promo.min_order_amount.toFixed(2)} required` });
     }
 
-    const alreadyUsed = db.prepare(
-      'SELECT 1 FROM promo_code_uses WHERE promo_code_id = ? AND user_id = ?'
-    ).get(promo.id, userId);
+    const { data: alreadyUsed } = await supabase
+      .from('promo_code_uses')
+      .select('id')
+      .eq('promo_code_id', promo.id)
+      .eq('user_id', userId)
+      .maybeSingle();
+
     if (alreadyUsed) {
       return Response.json({ valid: false, error: 'You have already used this promo code' });
     }

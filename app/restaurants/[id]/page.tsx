@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import RoleRedirect from '@/components/auth/RoleRedirect';
 import Image from 'next/image';
-import getDb from '@/db/database';
+import { getSupabaseAdmin } from '@/lib/supabase';
 import { Restaurant, MenuItem, Review, Deal } from '@/lib/types';
 import { isCurrentlyOpen, HoursRow } from '@/lib/hours';
 import { Suspense } from 'react';
@@ -19,33 +19,56 @@ interface RestaurantPageProps {
 }
 
 async function getRestaurantData(id: number) {
-  const db = getDb();
-  const restaurant = db.prepare('SELECT * FROM restaurants WHERE id = ?').get(id) as Restaurant | undefined;
+  const supabase = getSupabaseAdmin();
+
+  const { data: restaurant } = await supabase
+    .from('restaurants')
+    .select('*')
+    .eq('id', id)
+    .maybeSingle();
+
   if (!restaurant) return null;
 
-  const menuItems = db.prepare(
-    'SELECT * FROM menu_items WHERE restaurant_id = ? AND is_available = 1 ORDER BY category, name'
-  ).all(id) as MenuItem[];
+  const { data: menuItems } = await supabase
+    .from('menu_items')
+    .select('*')
+    .eq('restaurant_id', id)
+    .eq('is_available', true)
+    .order('category')
+    .order('name');
 
   const menu: Record<string, MenuItem[]> = {};
-  for (const item of menuItems) {
+  for (const item of (menuItems ?? [])) {
     if (!menu[item.category]) menu[item.category] = [];
     menu[item.category].push(item);
   }
 
-  const reviews = db.prepare(
-    'SELECT * FROM reviews WHERE restaurant_id = ? ORDER BY created_at DESC LIMIT 20'
-  ).all(id) as Review[];
+  const { data: reviews } = await supabase
+    .from('reviews')
+    .select('*')
+    .eq('restaurant_id', id)
+    .order('created_at', { ascending: false })
+    .limit(20);
 
-  const hours = db.prepare(
-    'SELECT day_of_week, open_time, close_time, is_closed FROM restaurant_hours WHERE restaurant_id = ? ORDER BY day_of_week'
-  ).all(id) as HoursRow[];
+  const { data: hours } = await supabase
+    .from('restaurant_hours')
+    .select('day_of_week, open_time, close_time, is_closed')
+    .eq('restaurant_id', id)
+    .order('day_of_week');
 
-  const ownerDeals = db.prepare(
-    'SELECT * FROM deals WHERE restaurant_id = ? AND is_active = 1'
-  ).all(id) as Deal[];
+  const { data: ownerDeals } = await supabase
+    .from('deals')
+    .select('*')
+    .eq('restaurant_id', id)
+    .eq('is_active', true);
 
-  return { restaurant, menu, reviews, hours, ownerDeals };
+  return {
+    restaurant: restaurant as Restaurant,
+    menu,
+    reviews: (reviews ?? []) as Review[],
+    hours: (hours ?? []) as HoursRow[],
+    ownerDeals: (ownerDeals ?? []) as Deal[],
+  };
 }
 
 export default async function RestaurantPage({ params }: RestaurantPageProps) {
@@ -58,8 +81,13 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
 
   const { restaurant, menu, reviews, hours, ownerDeals } = data;
 
-  const db = getDb();
-  const isOwned = !!db.prepare('SELECT 1 FROM restaurant_owners WHERE restaurant_id = ?').get(restaurantId);
+  const supabase = getSupabaseAdmin();
+  const { data: ownerRow } = await supabase
+    .from('restaurant_owners')
+    .select('restaurant_id')
+    .eq('restaurant_id', restaurantId)
+    .maybeSingle();
+  const isOwned = !!ownerRow;
   const isOpen = Boolean(restaurant.is_accepting_orders) && (!isOwned || isCurrentlyOpen(hours));
 
   const avgRating = reviews.length > 0

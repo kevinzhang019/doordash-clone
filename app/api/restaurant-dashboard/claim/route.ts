@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import getDb from '@/db/database';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   const userId = parseInt(request.headers.get('x-user-id') ?? '');
@@ -10,14 +10,17 @@ export async function POST(request: NextRequest) {
     const { restaurantId } = await request.json();
     if (!restaurantId) return Response.json({ error: 'restaurantId is required' }, { status: 400 });
 
-    const db = getDb();
+    const supabase = getSupabaseAdmin();
 
     // Verify restaurant exists
-    const restaurant = db.prepare('SELECT id FROM restaurants WHERE id = ?').get(restaurantId);
+    const { data: restaurant } = await supabase.from('restaurants').select('id').eq('id', restaurantId).maybeSingle();
     if (!restaurant) return Response.json({ error: 'Restaurant not found' }, { status: 404 });
 
     // Link owner to restaurant (ignore duplicate)
-    db.prepare('INSERT OR IGNORE INTO restaurant_owners (user_id, restaurant_id) VALUES (?, ?)').run(userId, restaurantId);
+    await supabase.from('restaurant_owners').upsert(
+      { user_id: userId, restaurant_id: restaurantId },
+      { onConflict: 'user_id,restaurant_id' }
+    );
 
     return Response.json({ success: true });
   } catch (error) {

@@ -1,31 +1,42 @@
 import { NextRequest } from 'next/server';
-import getDb from '@/db/database';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ itemId: string }> }
 ) {
   const { itemId } = await params;
-  const db = getDb();
-  const item = db.prepare(`
-    SELECT mi.id, mi.name, mi.price, mi.image_url, mi.is_available,
-           r.id as restaurant_id, r.name as restaurant_name
-    FROM menu_items mi
-    JOIN restaurants r ON r.id = mi.restaurant_id
-    WHERE mi.id = ?
-  `).get(parseInt(itemId)) as {
-    id: number;
-    name: string;
-    price: number;
-    image_url: string | null;
-    is_available: number;
-    restaurant_id: number;
-    restaurant_name: string;
-  } | undefined;
+  const supabase = getSupabaseAdmin();
+
+  const { data: item, error } = await supabase
+    .from('menu_items')
+    .select(`
+      id, name, price, image_url, is_available,
+      restaurants!inner ( id, name )
+    `)
+    .eq('id', parseInt(itemId))
+    .maybeSingle();
+
+  if (error) {
+    console.error('Get menu item error:', error);
+    return Response.json({ error: 'Internal server error' }, { status: 500 });
+  }
 
   if (!item) {
     return Response.json({ error: 'Not found' }, { status: 404 });
   }
 
-  return Response.json({ item });
+  // Flatten to match original response shape
+  const restaurant = item.restaurants as unknown as { id: number; name: string };
+  const flatItem = {
+    id: item.id,
+    name: item.name,
+    price: item.price,
+    image_url: item.image_url,
+    is_available: item.is_available,
+    restaurant_id: restaurant.id,
+    restaurant_name: restaurant.name,
+  };
+
+  return Response.json({ item: flatItem });
 }

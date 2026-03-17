@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import getDb from '@/db/database';
+import { getSupabaseAdmin } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   const userId = parseInt(request.headers.get('x-user-id') ?? '');
@@ -12,13 +12,14 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Invalid request' }, { status: 400 });
     }
 
-    const db = getDb();
+    const supabase = getSupabaseAdmin();
 
-    const order = db.prepare(`
-      SELECT id, user_id, driver_user_id, status
-      FROM orders
-      WHERE id = ? AND user_id = ?
-    `).get(orderId, userId) as { id: number; user_id: number; driver_user_id: number | null; status: string } | undefined;
+    const { data: order } = await supabase
+      .from('orders')
+      .select('id, user_id, driver_user_id, status')
+      .eq('id', orderId)
+      .eq('user_id', userId)
+      .maybeSingle();
 
     if (!order) {
       return Response.json({ error: 'Order not found' }, { status: 404 });
@@ -30,13 +31,21 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'No driver assigned to this order' }, { status: 400 });
     }
 
-    try {
-      db.prepare(`
-        INSERT INTO driver_ratings (driver_user_id, customer_user_id, order_id, rating)
-        VALUES (?, ?, ?, ?)
-      `).run(order.driver_user_id, userId, orderId, rating);
-    } catch {
-      return Response.json({ error: 'Already rated this delivery' }, { status: 409 });
+    const { error } = await supabase
+      .from('driver_ratings')
+      .insert({
+        driver_user_id: order.driver_user_id,
+        customer_user_id: userId,
+        order_id: orderId,
+        rating,
+      });
+
+    if (error) {
+      // Unique constraint violation means already rated
+      if (error.code === '23505') {
+        return Response.json({ error: 'Already rated this delivery' }, { status: 409 });
+      }
+      throw error;
     }
 
     return Response.json({ ok: true });

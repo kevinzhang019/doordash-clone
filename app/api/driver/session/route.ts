@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import getDb from '@/db/database';
+import { getSupabaseAdmin } from '@/lib/supabase';
 import type { DriverSession } from '@/lib/types';
 
 export async function GET(request: NextRequest) {
@@ -7,38 +7,51 @@ export async function GET(request: NextRequest) {
   const role = request.headers.get('x-user-role');
   if (!userId || role !== 'driver') return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const db = getDb();
-  const session = db.prepare(
-    'SELECT * FROM driver_sessions WHERE user_id = ? AND ended_at IS NULL ORDER BY started_at DESC LIMIT 1'
-  ).get(userId) as DriverSession | undefined;
+  const supabase = getSupabaseAdmin();
+
+  const { data: session } = await supabase
+    .from('driver_sessions')
+    .select('*')
+    .eq('user_id', userId)
+    .is('ended_at', null)
+    .order('started_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   if (!session) return Response.json({ session: null, activeDelivery: null });
 
   // Check for an active delivery in this session
-  const delivery = db.prepare(`
-    SELECT dd.id, dd.order_id, dd.is_simulated,
-           dd.restaurant_name, dd.restaurant_address, dd.restaurant_lat, dd.restaurant_lng,
-           dd.delivery_address, dd.customer_lat, dd.customer_lng,
-           dd.pay_amount, dd.tip, dd.miles, dd.estimated_minutes,
-           o.status as order_status
-    FROM driver_deliveries dd
-    LEFT JOIN orders o ON o.id = dd.order_id
-    WHERE dd.session_id = ? AND dd.status = 'accepted'
-    ORDER BY dd.accepted_at DESC
-    LIMIT 1
-  `).get(session.id) as {
-    id: number; order_id: number | null; is_simulated: number;
-    restaurant_name: string; restaurant_address: string; restaurant_lat: number | null; restaurant_lng: number | null;
-    delivery_address: string; customer_lat: number | null; customer_lng: number | null;
-    pay_amount: number; tip: number; miles: number; estimated_minutes: number;
-    order_status: string | null;
-  } | undefined;
+  const { data: delivery } = await supabase
+    .from('driver_deliveries')
+    .select('id, order_id, is_simulated, restaurant_name, restaurant_address, restaurant_lat, restaurant_lng, delivery_address, customer_lat, customer_lng, pay_amount, tip, miles, estimated_minutes')
+    .eq('session_id', session.id)
+    .eq('status', 'accepted')
+    .order('accepted_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
 
   if (!delivery || delivery.is_simulated || !delivery.restaurant_lat || !delivery.customer_lat) {
     return Response.json({ session, activeDelivery: null });
   }
 
-  const phase = delivery.order_status === 'picked_up' ? 'job_accepted_deliver' : 'job_accepted_pickup';
+  // Fetch order status separately
+  let orderStatus: string | null = null;
+  let deliveryInstructions: string | null = null;
+  let handoffOption: string | null = null;
+  if (delivery.order_id) {
+    const { data: order } = await supabase
+      .from('orders')
+      .select('status, delivery_instructions, handoff_option')
+      .eq('id', delivery.order_id)
+      .single();
+    if (order) {
+      orderStatus = order.status;
+      deliveryInstructions = order.delivery_instructions;
+      handoffOption = order.handoff_option;
+    }
+  }
+
+  const phase = orderStatus === 'picked_up' ? 'job_accepted_deliver' : 'job_accepted_pickup';
 
   const job = {
     id: `order_${delivery.order_id}`,
@@ -54,6 +67,8 @@ export async function GET(request: NextRequest) {
     tip: delivery.tip,
     estimatedMinutes: delivery.estimated_minutes,
     totalMiles: delivery.miles,
+    deliveryInstructions: deliveryInstructions ?? null,
+    handoffOption: handoffOption ?? 'hand_off',
   };
 
   return Response.json({
@@ -62,7 +77,7 @@ export async function GET(request: NextRequest) {
       deliveryId: delivery.id,
       job,
       phase,
-      orderStatus: delivery.order_status,
+      orderStatus,
     },
   });
 }
@@ -72,23 +87,32 @@ export async function POST(request: NextRequest) {
   const role = request.headers.get('x-user-role');
   if (!userId || role !== 'driver') return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const db = getDb();
+  const supabase = getSupabaseAdmin();
   const { action } = await request.json();
 
   if (action === 'start') {
     // End any existing active sessions first
-    db.prepare("UPDATE driver_sessions SET ended_at = datetime('now') WHERE user_id = ? AND ended_at IS NULL").run(userId);
+    await supabase
+      .from('driver_sessions')
+      .update({ ended_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .is('ended_at', null);
 
-    const result = db.prepare(
-      'INSERT INTO driver_sessions (user_id, total_earnings, deliveries_completed) VALUES (?, 0, 0)'
-    ).run(userId);
+    const { data: session } = await supabase
+      .from('driver_sessions')
+      .insert({ user_id: userId, total_earnings: 0, deliveries_completed: 0 })
+      .select()
+      .single();
 
-    const session = db.prepare('SELECT * FROM driver_sessions WHERE id = ?').get(result.lastInsertRowid) as DriverSession;
     return Response.json({ session }, { status: 201 });
   }
 
   if (action === 'end') {
-    db.prepare("UPDATE driver_sessions SET ended_at = datetime('now') WHERE user_id = ? AND ended_at IS NULL").run(userId);
+    await supabase
+      .from('driver_sessions')
+      .update({ ended_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .is('ended_at', null);
     return Response.json({ success: true });
   }
 
