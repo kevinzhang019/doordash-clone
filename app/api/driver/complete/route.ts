@@ -1,4 +1,5 @@
 import { NextRequest } from 'next/server';
+import Stripe from 'stripe';
 import getDb from '@/db/database';
 import { sendDeliveryReceipt } from '@/lib/email';
 import { Order, OrderItem } from '@/lib/types';
@@ -36,6 +37,69 @@ export async function POST(request: NextRequest) {
     const earned = txn();
 
     const session = db.prepare('SELECT * FROM driver_sessions WHERE id = ?').get(sessionId);
+
+    // Issue Stripe payouts to restaurant and driver for real paid orders
+    if (!isSimulated && orderId && process.env.STRIPE_SECRET_KEY) {
+      const order = db.prepare(`
+        SELECT o.subtotal, o.payment_intent_id, o.restaurant_transfer_id, o.driver_transfer_id,
+               o.restaurant_id, o.driver_user_id
+        FROM orders o WHERE o.id = ?
+      `).get(orderId) as {
+        subtotal: number;
+        payment_intent_id: string | null;
+        restaurant_transfer_id: string | null;
+        driver_transfer_id: string | null;
+        restaurant_id: number;
+        driver_user_id: number | null;
+      } | undefined;
+
+      if (order?.payment_intent_id) {
+        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
+        // Payout restaurant (their food revenue)
+        if (!order.restaurant_transfer_id) {
+          const rest = db.prepare('SELECT stripe_account_id FROM restaurants WHERE id = ?').get(order.restaurant_id) as { stripe_account_id: string | null } | undefined;
+          if (rest?.stripe_account_id) {
+            const restaurantCents = Math.round(order.subtotal * 100);
+            try {
+              const transfer = await stripe.transfers.create({
+                amount: restaurantCents,
+                currency: 'usd',
+                destination: rest.stripe_account_id,
+                transfer_group: `order_${orderId}`,
+                metadata: { orderId: String(orderId), type: 'restaurant_payout' },
+              });
+              db.prepare('UPDATE orders SET restaurant_transfer_id = ? WHERE id = ?').run(transfer.id, orderId);
+            } catch (e) {
+              console.error('Restaurant transfer failed:', e);
+            }
+          }
+        }
+
+        // Payout driver (their delivery pay + tip)
+        if (!order.driver_transfer_id && order.driver_user_id) {
+          const driverUser = db.prepare('SELECT stripe_account_id FROM users WHERE id = ?').get(order.driver_user_id) as { stripe_account_id: string | null } | undefined;
+          const delivery = db.prepare('SELECT pay_amount, tip FROM driver_deliveries WHERE id = ?').get(deliveryId) as { pay_amount: number; tip: number } | undefined;
+          if (driverUser?.stripe_account_id && delivery) {
+            const driverCents = Math.round((delivery.pay_amount + delivery.tip) * 100);
+            if (driverCents > 0) {
+              try {
+                const transfer = await stripe.transfers.create({
+                  amount: driverCents,
+                  currency: 'usd',
+                  destination: driverUser.stripe_account_id,
+                  transfer_group: `order_${orderId}`,
+                  metadata: { orderId: String(orderId), type: 'driver_payout' },
+                });
+                db.prepare('UPDATE orders SET driver_transfer_id = ? WHERE id = ?').run(transfer.id, orderId);
+              } catch (e) {
+                console.error('Driver transfer failed:', e);
+              }
+            }
+          }
+        }
+      }
+    }
 
     // Fire-and-forget delivery receipt email
     if (!isSimulated && orderId) {

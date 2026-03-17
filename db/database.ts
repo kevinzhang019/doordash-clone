@@ -524,6 +524,15 @@ const restCols = (db.prepare("PRAGMA table_info(restaurants)").all() as { name: 
     CREATE INDEX IF NOT EXISTS idx_messages_order_id ON messages(order_id);
   `);
 
+  // --- Payout transfer tracking columns on orders ---
+  const orderColsPayout = (db.prepare("PRAGMA table_info(orders)").all() as { name: string }[]).map(c => c.name);
+  if (!orderColsPayout.includes('restaurant_transfer_id')) {
+    db.exec('ALTER TABLE orders ADD COLUMN restaurant_transfer_id TEXT');
+  }
+  if (!orderColsPayout.includes('driver_transfer_id')) {
+    db.exec('ALTER TABLE orders ADD COLUMN driver_transfer_id TEXT');
+  }
+
   // --- Stripe Connect columns ---
   const restColsStripe = (db.prepare("PRAGMA table_info(restaurants)").all() as { name: string }[]).map(c => c.name);
   if (!restColsStripe.includes('stripe_account_id')) {
