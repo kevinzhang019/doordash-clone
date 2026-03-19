@@ -128,6 +128,7 @@ export const config = {
     '/api/cart/:path*',
     '/api/orders/:path*',
     '/api/reviews',
+    '/api/reviews/:path*',
     '/api/addresses',
     '/api/addresses/:path*',
     '/restaurant-dashboard/:path*',
