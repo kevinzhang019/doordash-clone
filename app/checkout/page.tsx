@@ -9,6 +9,8 @@ import { useAuth } from '@/components/providers/AuthProvider';
 import { useRequireAuth } from '@/lib/useRequireAuth';
 import { getItemDeal, dealSavings, ItemDeal } from '@/lib/dealUtils';
 import { Deal } from '@/lib/types';
+import { useDashPass } from '@/lib/useDashPass';
+import { calculateFees } from '@/lib/feeCalculation';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 
@@ -17,8 +19,6 @@ const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
   : null;
 
 const TIP_PRESET_RATES = [0.15, 0.18, 0.20, 0.25];
-const TAX_RATE = 0.085;
-
 const roundToHalf = (n: number) => Math.round(n / 0.5) * 0.5;
 
 interface AppliedPromo {
@@ -31,7 +31,7 @@ interface AppliedPromo {
 
 function CheckoutForm() {
   useRequireAuth('customer');
-  const { cartItems, cartTotal, clearCart } = useCart();
+  const { cartItems, cartTotal, clearCart, refreshCart } = useCart();
   const { deliveryAddress, deliveryCoords, getRestaurantDeliveryInfo } = useLocation();
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
@@ -57,7 +57,6 @@ function CheckoutForm() {
 
   const info = restaurantId ? getRestaurantDeliveryInfo(restaurantId) : null;
   const deliveryFee = info?.deliveryFee ?? 2.99;
-  const SERVICE_FEE_RATE = 0.05;
 
   const [restaurantIsSeeded, setRestaurantIsSeeded] = useState(false);
   const [ownerDeals, setOwnerDeals] = useState<Deal[]>([]);
@@ -119,10 +118,11 @@ function CheckoutForm() {
     ? Math.max(0, parseFloat(customTip) || 0)
     : tipPercent !== null ? roundToHalf(cartTotal * tipPercent) : 0;
 
+  const { hasDashPass } = useDashPass();
+
   const discountedSubtotal = cartTotal - totalDealSavings - (appliedPromo?.savings ?? 0);
-  const taxAmount = discountedSubtotal * TAX_RATE;
-  const serviceFee = Math.round(discountedSubtotal * SERVICE_FEE_RATE * 100) / 100;
-  const displayDeliveryFee = deliveryFee + serviceFee;
+  const fees = calculateFees({ discountedSubtotal, rawDeliveryFee: deliveryFee, hasDashPass });
+  const { displayDeliveryFee, dashPassSavings, tax: taxAmount } = fees;
   const estimatedTotal = discountedSubtotal + displayDeliveryFee + tipAmount + taxAmount;
 
   const stripeEnabled = !!stripePromise && !!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY &&
@@ -230,6 +230,8 @@ function CheckoutForm() {
         paymentIntentId = paymentIntent.id;
       }
 
+      const expectedCartItemIds = cartItems.map(ci => ci.id);
+
       const res = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -238,18 +240,37 @@ function CheckoutForm() {
           deliveryLat: deliveryCoords?.lat ?? null,
           deliveryLng: deliveryCoords?.lng ?? null,
           tip: tipAmount,
-          deliveryFee: displayDeliveryFee,
+          deliveryFee: deliveryFee,
           discountSaved: totalDealSavings,
           promoCodeId: appliedPromo?.id ?? null,
           paymentIntentId: paymentIntentId ?? null,
           deliveryInstructions: deliveryInstructions.trim() || null,
           handoffOption,
+          expectedCartItemIds,
+          dashpassSavings: dashPassSavings,
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
+        if (data.error === 'cart_modified' && data.missingCartItemIds?.length > 0) {
+          const missingIds = new Set<number>(data.missingCartItemIds);
+          const removedNames = cartItems
+            .filter(ci => missingIds.has(ci.id))
+            .map(ci => ci.name)
+            .filter((n): n is string => Boolean(n));
+          const restaurantId = cartItems[0]?.restaurant_id;
+          await refreshCart();
+          const params = new URLSearchParams();
+          removedNames.forEach(name => params.append('removedItem', name));
+          if (restaurantId) {
+            router.push(`/restaurants/${restaurantId}?${params.toString()}`);
+          } else {
+            router.push(`/?${params.toString()}`);
+          }
+          return;
+        }
         setError(data.error || 'Failed to place order');
         setLoading(false);
         return;
@@ -358,13 +379,29 @@ function CheckoutForm() {
                 <span className="text-sm font-bold">-${appliedPromo.savings.toFixed(2)}</span>
               </div>
             )}
+            {hasDashPass && dashPassSavings > 0 && (
+              <div className="flex items-center justify-between bg-purple-600 text-white rounded-lg px-3 py-2 mb-2">
+                <div className="flex items-center gap-1.5 text-sm font-semibold">
+                  <span>👑</span>
+                  DashPass savings
+                </div>
+                <span className="text-sm font-bold">-${dashPassSavings.toFixed(2)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-gray-600 text-sm">
               <span>Subtotal</span>
               <span>${cartTotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-gray-600 text-sm">
               <span>Delivery + fees</span>
-              <span>{displayDeliveryFee === 0 ? 'Free' : `$${displayDeliveryFee.toFixed(2)}`}</span>
+              {hasDashPass && dashPassSavings > 0 ? (
+                <span className="flex items-center gap-1.5">
+                  <span className="line-through text-gray-400">${(deliveryFee + Math.round(discountedSubtotal * 0.05 * 100) / 100).toFixed(2)}</span>
+                  <span className="text-purple-600 font-semibold">{displayDeliveryFee === 0 ? '$0.00' : `$${displayDeliveryFee.toFixed(2)}`}</span>
+                </span>
+              ) : (
+                <span>{displayDeliveryFee === 0 ? 'Free' : `$${displayDeliveryFee.toFixed(2)}`}</span>
+              )}
             </div>
             {tipAmount > 0 && (
               <div className="flex justify-between text-gray-600 text-sm">

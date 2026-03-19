@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify } from 'jose';
 import type { UserRole } from '@/lib/types';
 
-const secret = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'fallback-secret-change-in-production'
-);
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required');
+}
+const secret = new TextEncoder().encode(process.env.JWT_SECRET);
 
 // Determine which role owns this route (null = shared page, no specific role)
 function roleForPath(pathname: string): UserRole | null {
@@ -19,7 +20,8 @@ function roleForPath(pathname: string): UserRole | null {
       pathname.startsWith('/orders') ||
       pathname.startsWith('/api/cart') || pathname.startsWith('/api/orders') ||
       pathname.startsWith('/api/reviews') || pathname.startsWith('/api/promo') ||
-      (pathname.startsWith('/api/stripe') && !pathname.startsWith('/api/stripe/connect'))) return 'customer';
+      pathname.startsWith('/api/dashpass') ||
+      (pathname.startsWith('/api/stripe') && !pathname.startsWith('/api/stripe/connect') && !pathname.startsWith('/api/stripe/webhook'))) return 'customer';
   // Shared pages: /settings, /api/settings, /api/addresses, /api/messages, /, etc.
   return null;
 }
@@ -30,6 +32,7 @@ const PROTECTED_APIS = [
   '/api/driver',
   '/api/settings', '/api/messages', '/api/addresses',
   '/api/stripe/connect',
+  '/api/dashpass',
 ];
 
 export async function proxy(request: NextRequest) {
@@ -37,6 +40,11 @@ export async function proxy(request: NextRequest) {
   const isAuthPage = pathname === '/login' || pathname === '/register';
   const isProtectedApi = PROTECTED_APIS.some(r => pathname === r || pathname.startsWith(r));
   const isApiRoute = pathname.startsWith('/api/');
+
+  // Stripe webhook must bypass auth — it uses its own signature verification
+  if (pathname.startsWith('/api/stripe/webhook')) {
+    return NextResponse.next();
+  }
 
   const existingGuestId = request.cookies.get('guest_id')?.value;
   const guestId = existingGuestId || crypto.randomUUID();
@@ -132,10 +140,13 @@ export const config = {
     '/api/messages/:path*',
     '/api/promo/:path*',
     '/api/stripe/:path*',
+    '/api/dashpass/:path*',
     '/driver-setup',
     '/stripe-return',
     '/stripe-refresh',
     '/api/driver-ratings',
     '/api/driver-ratings/:path*',
+    '/api/restaurants',
+    '/api/restaurants/:path*',
   ],
 };

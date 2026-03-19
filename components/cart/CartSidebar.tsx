@@ -3,18 +3,21 @@
 import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { LazyMotion, domAnimation, m, AnimatePresence, useMotionValue, useTransform } from 'framer-motion';
 import { useCart } from '@/components/providers/CartProvider';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useLocation } from '@/components/providers/LocationProvider';
-import { getItemDeal, dealSavings } from '@/lib/dealUtils';
-
-const TAX_RATE = 0.085;
+import { getItemDeal, dealSavings, ItemDeal } from '@/lib/dealUtils';
+import { Deal } from '@/lib/types';
+import { useDashPass } from '@/lib/useDashPass';
+import { calculateFees } from '@/lib/feeCalculation';
 
 function SidebarCartItem({
   item,
   onRemove,
   onUpdateQty,
+  onEdit,
 }: {
   item: {
     id: number;
@@ -24,10 +27,13 @@ function SidebarCartItem({
     quantity: number;
     image_url?: string;
     special_requests?: string | null;
+    restaurant_id?: number;
+    menu_item_id?: number;
     selections?: { name: string; price_modifier: number; quantity?: number; group_name?: string | null }[];
   };
   onRemove: (id: number) => void;
   onUpdateQty: (id: number, qty: number) => void;
+  onEdit: (item: { id: number; restaurant_id?: number; menu_item_id?: number }) => void;
 }) {
   const x = useMotionValue(0);
   const bg = useTransform(x, [-90, 0], ['#fee2e2', '#f7f8f9']);
@@ -138,6 +144,17 @@ function SidebarCartItem({
               <m.button
                 whileHover={{ scale: 1.2 }}
                 whileTap={{ scale: 0.85 }}
+                onClick={() => onEdit(item)}
+                className="ml-1 text-gray-400 hover:text-[#FF3008] transition-colors cursor-pointer"
+                title="Edit item"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </m.button>
+              <m.button
+                whileHover={{ scale: 1.2 }}
+                whileTap={{ scale: 0.85 }}
                 onClick={() => onRemove(item.id)}
                 className="ml-1 text-gray-400 hover:text-red-500 transition-colors cursor-pointer"
               >
@@ -167,15 +184,23 @@ export default function CartSidebar() {
   const { cartItems, cartTotal, isSidebarOpen, closeSidebar, removeItem, updateQuantity, clearCart, reorderSkipped, setReorderSkipped } = useCart();
   const { user } = useAuth();
   const { getRestaurantDeliveryInfo, deliveryAddress } = useLocation();
+  const router = useRouter();
   const sidebarRef = useRef<HTMLDivElement>(null);
   const [removingIds, setRemovingIds] = useState<number[]>([]);
   const [restaurantIsSeeded, setRestaurantIsSeeded] = useState(false);
+  const [ownerDeals, setOwnerDeals] = useState<Deal[]>([]);
   const fetchedRestaurantIdRef = useRef<number | null>(null);
 
   const handleRemove = (id: number) => {
     if (removingIds.includes(id)) return;
     setRemovingIds((prev) => [...prev, id]);
     setTimeout(() => removeItem(id), 280);
+  };
+
+  const handleEdit = (item: { id: number; restaurant_id?: number; menu_item_id?: number }) => {
+    if (!item.restaurant_id) return;
+    closeSidebar();
+    router.push(`/restaurants/${item.restaurant_id}?editCartItem=${item.id}`);
   };
 
   // Close on outside click
@@ -208,20 +233,41 @@ export default function CartSidebar() {
     fetchedRestaurantIdRef.current = restaurantId;
     fetch(`/api/restaurants/${restaurantId}`)
       .then(r => r.ok ? r.json() : null)
-      .then(data => { if (data) setRestaurantIsSeeded(data.isSeeded ?? false); })
+      .then(data => {
+        if (data) {
+          setRestaurantIsSeeded(data.isSeeded ?? false);
+          setOwnerDeals(data.ownerDeals ?? []);
+        }
+      })
       .catch(() => {});
   }, [restaurantId]);
 
-  const totalDealSavings = restaurantIsSeeded && deliveryAddress
-    ? cartItems.reduce((sum, item) => {
+  const totalDealSavings = (() => {
+    if (restaurantIsSeeded && deliveryAddress) {
+      // Auto-generated deals for seeded restaurants
+      return cartItems.reduce((sum, item) => {
         const deal = getItemDeal(item.menu_item_id, deliveryAddress);
         return sum + (deal ? dealSavings(deal, item.effective_price ?? item.price ?? 0, item.quantity) : 0);
-      }, 0)
-    : 0;
+      }, 0);
+    }
+    if (!restaurantIsSeeded && ownerDeals.length > 0) {
+      // Owner-created deals for user restaurants
+      return cartItems.reduce((sum, item) => {
+        const deal = ownerDeals.find(d => d.menu_item_id === item.menu_item_id);
+        if (!deal) return sum;
+        const itemDeal: ItemDeal = { deal_type: deal.deal_type, discount_value: deal.discount_value };
+        return sum + dealSavings(itemDeal, item.effective_price ?? item.price ?? 0, item.quantity);
+      }, 0);
+    }
+    return 0;
+  })();
+
+  const { hasDashPass } = useDashPass();
 
   const discountedSubtotal = cartTotal - totalDealSavings;
-  const taxAmount = discountedSubtotal * TAX_RATE;
-  const estimatedTotal = discountedSubtotal + deliveryFee + taxAmount;
+  const fees = calculateFees({ discountedSubtotal, rawDeliveryFee: deliveryFee, hasDashPass });
+  const { displayDeliveryFee, dashPassSavings, tax: taxAmount } = fees;
+  const estimatedTotal = discountedSubtotal + displayDeliveryFee + taxAmount;
 
   return (
     <LazyMotion features={domAnimation}>
@@ -360,6 +406,7 @@ export default function CartSidebar() {
                         item={item}
                         onRemove={handleRemove}
                         onUpdateQty={updateQuantity}
+                        onEdit={handleEdit}
                       />
                     ))}
                   </AnimatePresence>
@@ -394,6 +441,30 @@ export default function CartSidebar() {
                     </m.div>
                   )}
 
+                  {/* DashPass banner */}
+                  {hasDashPass && dashPassSavings > 0 && (
+                    <m.div
+                      initial={{ opacity: 0, scale: 0.97 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      className="bg-purple-50 border border-purple-200 text-purple-800 rounded-xl px-4 py-2.5 flex items-center justify-between text-sm font-semibold mb-1"
+                    >
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-base">👑</span>
+                        <span>DashPass savings</span>
+                      </div>
+                      <span className="text-purple-600">-${dashPassSavings.toFixed(2)}</span>
+                    </m.div>
+                  )}
+                  {!hasDashPass && deliveryFee > 0 && (
+                    <Link
+                      href="/settings?dashpass=learn"
+                      onClick={closeSidebar}
+                      className="block bg-purple-50 border border-purple-100 rounded-xl px-4 py-2 text-xs text-purple-700 font-medium hover:bg-purple-100 transition-colors mb-1"
+                    >
+                      Save ${(deliveryFee + Math.round(discountedSubtotal * 0.05 * 0.5 * 100) / 100).toFixed(2)} with DashPass — Learn more
+                    </Link>
+                  )}
+
                   {/* Price breakdown */}
                   <div className="flex justify-between text-gray-600 text-sm">
                     <span>Subtotal</span>
@@ -408,8 +479,15 @@ export default function CartSidebar() {
                     </div>
                   )}
                   <div className="flex justify-between text-gray-600 text-sm">
-                    <span>Delivery fee</span>
-                    <span>{deliveryFee === 0 ? 'Free' : `$${deliveryFee.toFixed(2)}`}</span>
+                    <span>Delivery + fees</span>
+                    {hasDashPass && dashPassSavings > 0 ? (
+                      <span className="flex items-center gap-1.5">
+                        <span className="line-through text-gray-400">${(deliveryFee + Math.round(discountedSubtotal * 0.05 * 100) / 100).toFixed(2)}</span>
+                        <span className="text-purple-600 font-semibold">{displayDeliveryFee === 0 ? '$0.00' : `$${displayDeliveryFee.toFixed(2)}`}</span>
+                      </span>
+                    ) : (
+                      <span>{displayDeliveryFee === 0 ? 'Free' : `$${displayDeliveryFee.toFixed(2)}`}</span>
+                    )}
                   </div>
                   <div className="flex justify-between text-gray-600 text-sm">
                     <span>Est. tax (8.5%)</span>

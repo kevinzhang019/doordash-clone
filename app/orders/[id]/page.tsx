@@ -80,7 +80,7 @@ function calcEtaMins(order: Order): number | null {
   const { delivery_min, delivery_max } = order;
   if (!delivery_min || !delivery_max) return null;
   const effectiveStatus = displayStatus(order.status, order.driver_user_id);
-  const placedMs = new Date(order.placed_at + 'Z').getTime();
+  const placedMs = new Date(order.placed_at).getTime();
   if (effectiveStatus === 'placed' || effectiveStatus === 'preparing') {
     return Math.max(0, Math.round((placedMs + delivery_max * 60000 - Date.now()) / 60000)) + 5;
   }
@@ -408,7 +408,7 @@ export default function OrderDetailPage() {
               {order.restaurant_name}
             </Link>
             <p className="text-gray-500 text-sm mt-0.5">
-              {new Date(order.placed_at + 'Z').toLocaleDateString('en-US', {
+              {new Date(order.placed_at).toLocaleDateString('en-US', {
                 year: 'numeric', month: 'long', day: 'numeric',
                 hour: '2-digit', minute: '2-digit',
               })}
@@ -484,6 +484,15 @@ export default function OrderDetailPage() {
                 Deals applied!
               </div>
               <span className="text-sm font-bold">-${(order.discount_saved ?? 0).toFixed(2)}</span>
+            </div>
+          )}
+          {(order.dashpass_savings ?? 0) > 0 && (
+            <div className="flex items-center justify-between bg-purple-600 text-white rounded-lg px-3 py-2 mb-1">
+              <div className="flex items-center gap-1.5 text-sm font-semibold">
+                <span>👑</span>
+                DashPass savings
+              </div>
+              <span className="text-sm font-bold">-${(order.dashpass_savings ?? 0).toFixed(2)}</span>
             </div>
           )}
           <div className="flex justify-between text-gray-600 text-sm">

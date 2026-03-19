@@ -138,6 +138,9 @@ export interface Order {
   promo_discount?: number;
   existing_driver_rating?: number | null;
   item_count?: number;
+  delivery_instructions?: string | null;
+  handoff_option?: string;
+  dashpass_savings?: number;
 }
 
 export interface Message {
@@ -170,6 +173,7 @@ export interface OrderItem {
   name: string;
   price: number;
   quantity: number;
+  special_requests?: string | null;
   selections?: OrderItemSelection[];
 }
 
@@ -202,6 +206,8 @@ export interface DriverJob {
   tip: number;
   estimatedMinutes: number;
   totalMiles: number;
+  deliveryInstructions?: string | null;
+  handoffOption?: string;
 }
 
 export interface DriverSession {

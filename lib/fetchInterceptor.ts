@@ -14,7 +14,8 @@ function roleForUrl(url: string): UserRole | null {
       pathname.startsWith('/api/orders') ||
       pathname.startsWith('/api/reviews') ||
       pathname.startsWith('/api/promo') ||
-      (pathname.startsWith('/api/stripe') && !pathname.startsWith('/api/stripe/connect'))
+      pathname.startsWith('/api/dashpass') ||
+      (pathname.startsWith('/api/stripe') && !pathname.startsWith('/api/stripe/connect') && !pathname.startsWith('/api/stripe/webhook'))
     ) return 'customer';
     return null;
   } catch {

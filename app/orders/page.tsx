@@ -46,7 +46,7 @@ export default function OrdersPage() {
   }
 
   const totalSpent = orders.reduce((sum, o) => sum + o.total, 0);
-  const totalSaved = orders.reduce((sum, o) => sum + (o.discount_saved ?? 0) + (o.promo_discount ?? 0), 0);
+  const totalSaved = orders.reduce((sum, o) => sum + (o.discount_saved ?? 0) + (o.promo_discount ?? 0) + (o.dashpass_savings ?? 0), 0);
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
@@ -62,7 +62,9 @@ export default function OrdersPage() {
           <div className="bg-[#FF3008]/5 rounded-2xl border border-[#FF3008]/20 p-5">
             <p className="text-xs font-medium text-[#FF3008] uppercase tracking-wide mb-1">Total Saved</p>
             <p className="text-2xl font-bold text-[#FF3008]">${totalSaved.toFixed(2)}</p>
-            <p className="text-xs text-[#FF3008]/60 mt-0.5">from deals</p>
+            <p className="text-xs text-[#FF3008]/60 mt-0.5">
+              {orders.some(o => (o.dashpass_savings ?? 0) > 0) ? 'from deals & DashPass' : 'from deals'}
+            </p>
           </div>
         )}
       </div>
@@ -75,7 +77,7 @@ export default function OrdersPage() {
                 <div>
                   <h3 className="font-semibold text-gray-900">{order.restaurant_name}</h3>
                   <p className="text-gray-500 text-sm mt-0.5">
-                    {new Date(order.placed_at + 'Z').toLocaleDateString('en-US', {
+                    {new Date(order.placed_at).toLocaleDateString('en-US', {
                       year: 'numeric',
                       month: 'long',
                       day: 'numeric',
