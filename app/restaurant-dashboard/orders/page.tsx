@@ -40,6 +40,7 @@ export default function RestaurantOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
+  const [confirmCancelId, setConfirmCancelId] = useState<number | null>(null);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchOrders = async () => {
@@ -69,8 +70,8 @@ export default function RestaurantOrdersPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const cancelOrder = async (orderId: number) => {
-    if (!confirm('Cancel this order? The customer will be refunded and notified by email.')) return;
     setCancellingId(orderId);
+    setConfirmCancelId(null);
     try {
       await fetch(`/api/restaurant-dashboard/orders/${orderId}`, { method: 'DELETE' });
       await fetchOrders();
@@ -157,7 +158,7 @@ export default function RestaurantOrdersPage() {
                 <div className="flex items-center gap-3 ml-4 flex-shrink-0">
                   <span className="font-semibold text-gray-900">${Math.max(0, order.subtotal - (order.discount_saved ?? 0)).toFixed(2)}</span>
 
-                  {order.status === 'placed' && (
+                  {order.status === 'placed' && confirmCancelId !== order.id && (
                     <button
                       onClick={() => updateStatus(order.id, 'preparing')}
                       disabled={updatingId === order.id}
@@ -167,7 +168,7 @@ export default function RestaurantOrdersPage() {
                     </button>
                   )}
 
-                  {order.status === 'preparing' && (
+                  {order.status === 'preparing' && confirmCancelId !== order.id && (
                     <button
                       onClick={() => updateStatus(order.id, 'ready')}
                       disabled={updatingId === order.id}
@@ -177,17 +178,36 @@ export default function RestaurantOrdersPage() {
                     </button>
                   )}
 
-                  {order.status === 'ready' && (
+                  {order.status === 'ready' && confirmCancelId !== order.id && (
                     <span className="text-sm text-green-600 font-medium">Waiting for driver</span>
                   )}
 
-                  <button
-                    onClick={() => cancelOrder(order.id)}
-                    disabled={cancellingId === order.id || updatingId === order.id}
-                    className="text-sm font-medium text-red-600 hover:text-red-700 px-3 py-2 rounded-xl hover:bg-red-50 transition-colors disabled:opacity-50 cursor-pointer"
-                  >
-                    {cancellingId === order.id ? 'Cancelling...' : 'Cancel'}
-                  </button>
+                  {confirmCancelId === order.id ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-600">Cancel order?</span>
+                      <button
+                        onClick={() => cancelOrder(order.id)}
+                        disabled={cancellingId === order.id}
+                        className="bg-red-600 text-white text-sm font-semibold px-3 py-2 rounded-xl hover:bg-red-700 transition-colors disabled:opacity-50 cursor-pointer"
+                      >
+                        {cancellingId === order.id ? 'Cancelling...' : 'Yes, cancel'}
+                      </button>
+                      <button
+                        onClick={() => setConfirmCancelId(null)}
+                        className="text-sm font-medium text-gray-600 px-3 py-2 rounded-xl hover:bg-gray-200 transition-colors cursor-pointer"
+                      >
+                        Keep
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirmCancelId(order.id)}
+                      disabled={cancellingId === order.id || updatingId === order.id}
+                      className="text-sm font-medium text-red-600 hover:text-red-700 px-3 py-2 rounded-xl hover:bg-red-50 transition-colors disabled:opacity-50 cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
