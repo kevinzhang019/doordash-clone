@@ -15,7 +15,7 @@ interface SessionSummary {
 }
 
 function formatTime(iso: string) {
-  return new Date(iso + 'Z').toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
 function formatDuration(mins: number) {
@@ -28,7 +28,7 @@ function groupByMonthDay(sessions: SessionSummary[]) {
   const monthMap = new Map<string, Map<string, SessionSummary[]>>();
 
   for (const s of sessions) {
-    const d = new Date(s.started_at + 'Z');
+    const d = new Date(s.started_at);
     const monthKey = d.toLocaleDateString([], { year: 'numeric', month: 'long' });
     const dayKey = d.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
     if (!monthMap.has(monthKey)) monthMap.set(monthKey, new Map());

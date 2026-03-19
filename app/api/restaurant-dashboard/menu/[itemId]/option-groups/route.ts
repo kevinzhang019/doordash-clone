@@ -68,51 +68,31 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const { groups } = await request.json();
     if (!Array.isArray(groups)) return Response.json({ error: 'groups must be an array' }, { status: 400 });
 
-    // Delete existing groups (cascade should delete options too, but delete explicitly to be safe)
-    const { data: existingGroups } = await supabase
-      .from('menu_item_option_groups')
-      .select('id')
-      .eq('menu_item_id', parseInt(itemId));
-
-    if (existingGroups && existingGroups.length > 0) {
-      const existingGroupIds = existingGroups.map(g => g.id);
-      await supabase.from('menu_item_options').delete().in('group_id', existingGroupIds);
-    }
-    await supabase.from('menu_item_option_groups').delete().eq('menu_item_id', parseInt(itemId));
-
-    // Insert new groups and options
-    for (let gi = 0; gi < groups.length; gi++) {
-      const g = groups[gi];
-      if (!g.name?.trim()) continue;
-
-      const { data: newGroup } = await supabase
-        .from('menu_item_option_groups')
-        .insert({
-          menu_item_id: parseInt(itemId),
-          name: g.name.trim(),
-          required: !!g.required,
-          max_selections: g.max_selections ?? null,
-          sort_order: gi,
-          selection_type: g.selection_type === 'quantity' ? 'quantity' : 'check',
-        })
-        .select()
-        .single();
-
-      if (!newGroup) continue;
-
-      const opts = Array.isArray(g.options) ? g.options : [];
-      const optRows = opts
-        .filter((o: { name?: string }, oi: number) => o.name?.trim())
-        .map((o: { name: string; price_modifier?: number | string }, oi: number) => ({
-          group_id: newGroup.id,
-          name: o.name.trim(),
+    // Atomic replace via PostgreSQL function (prevents partial state from concurrent reads)
+    const groupsPayload = groups.map((g: { id?: number; name?: string; required?: boolean; max_selections?: number | null; selection_type?: string; options?: { id?: number; name?: string; price_modifier?: number | string }[] }, gi: number) => ({
+      id: g.id ?? null,
+      name: g.name?.trim() ?? '',
+      required: !!g.required,
+      max_selections: g.max_selections ?? null,
+      selection_type: g.selection_type === 'quantity' ? 'quantity' : 'check',
+      options: (Array.isArray(g.options) ? g.options : [])
+        .filter((o: { name?: string }) => o.name?.trim())
+        .map((o: { id?: number; name?: string; price_modifier?: number | string }, oi: number) => ({
+          id: o.id ?? null,
+          name: (o.name ?? '').trim(),
           price_modifier: parseFloat(String(o.price_modifier)) || 0,
-          sort_order: oi,
-        }));
+        })),
+    }));
 
-      if (optRows.length > 0) {
-        await supabase.from('menu_item_options').insert(optRows);
-      }
+    const { data: success, error: rpcError } = await supabase.rpc('replace_menu_item_option_groups', {
+      p_menu_item_id: parseInt(itemId),
+      p_restaurant_id: restaurantId,
+      p_groups: groupsPayload,
+    });
+
+    if (rpcError) throw rpcError;
+    if (success === false) {
+      return Response.json({ error: 'Item not found' }, { status: 404 });
     }
 
     return Response.json({ success: true });

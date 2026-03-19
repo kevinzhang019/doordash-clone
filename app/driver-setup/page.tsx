@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useRequireAuth } from '@/lib/useRequireAuth';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function DriverSetupPage() {
   const { user } = useAuth();
@@ -63,8 +63,8 @@ export default function DriverSetupPage() {
     <div className="min-h-screen bg-black flex flex-col items-center justify-center px-4 py-12">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-[#FF3008] rounded-full mb-4">
-            <span className="text-white font-bold text-2xl">D</span>
+          <div className="inline-flex items-center justify-center mb-4">
+            <img src="/logo.png" alt="DashDoor" className="w-16 h-16 object-contain" />
           </div>
           <h1 className="text-2xl font-bold text-white">Set up your payout account</h1>
           <p className="text-gray-400 mt-2 text-sm">
@@ -100,7 +100,7 @@ export default function DriverSetupPage() {
               </div>
               <div>
                 <p className="text-sm font-medium text-white">Secured by Stripe</p>
-                <p className="text-xs text-gray-500 mt-0.5">Bank details handled by Stripe — never stored by DoorDash.</p>
+                <p className="text-xs text-gray-500 mt-0.5">Bank details handled by Stripe — never stored by DashDoor.</p>
               </div>
             </div>
           </div>

@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useState, useEffect, useRef } from 'react';
-import { MenuItem, MenuItemOptionGroup, MenuItemOption, Deal } from '@/lib/types';
+import { MenuItem, MenuItemOptionGroup, MenuItemOption, Deal, CartItemSelection } from '@/lib/types';
 import { useCart } from '@/components/providers/CartProvider';
 
 interface SelectionDraft {
@@ -20,6 +20,10 @@ interface MenuItemCardProps {
   onCollapse: () => void;
   deal?: Deal | null;
   isAcceptingOrders?: boolean;
+  editCartItemId?: number;
+  initialSelections?: CartItemSelection[];
+  initialSpecialRequests?: string;
+  onEditComplete?: () => void;
 }
 
 function getDealLabel(deal: Deal): string {
@@ -30,8 +34,8 @@ function getDealLabel(deal: Deal): string {
 
 const ANIM_MS = 300;
 
-export default function MenuItemCard({ item, isExpanded, onExpand, onCollapse, deal, isAcceptingOrders = true }: MenuItemCardProps) {
-  const { addItem, clearCartAndAdd } = useCart();
+export default function MenuItemCard({ item, isExpanded, onExpand, onCollapse, deal, isAcceptingOrders = true, editCartItemId, initialSelections, initialSpecialRequests, onEditComplete }: MenuItemCardProps) {
+  const { addItem, clearCartAndAdd, updateCartItemSelections } = useCart();
 
   const cardRef = useRef<HTMLDivElement>(null);
   const savedScrollY = useRef(0);
@@ -48,6 +52,7 @@ export default function MenuItemCard({ item, isExpanded, onExpand, onCollapse, d
   const [specialRequests, setSpecialRequests] = useState('');
   // isClosing stays true for ANIM_MS after isExpanded goes false so the exit animation plays
   const [isClosing, setIsClosing] = useState(false);
+  const didPrePopulateRef = useRef(false);
 
   // Panel is visible when expanded or mid-close-animation
   const showPanel = isExpanded || isClosing;
@@ -62,6 +67,7 @@ export default function MenuItemCard({ item, isExpanded, onExpand, onCollapse, d
     if (wasExpanded && !isExpanded) {
       setShowErrors(false);
       setIsClosing(true);
+      didPrePopulateRef.current = false;
       // Scroll back simultaneously with the close animation (only when explicitly cancelled/added)
       if (restoreScrollOnClose.current) {
         restoreScrollOnClose.current = false;
@@ -81,6 +87,39 @@ export default function MenuItemCard({ item, isExpanded, onExpand, onCollapse, d
       .catch(() => {})
       .finally(() => setLoadingGroups(false));
   }, [isExpanded, item.id]);
+
+  // Pre-populate selections when editing an existing cart item
+  useEffect(() => {
+    if (!isExpanded || !editCartItemId || !initialSelections || groups.length === 0 || didPrePopulateRef.current) return;
+    didPrePopulateRef.current = true;
+
+    const newSelected = new Map<number, SelectionDraft[]>();
+    const newQtySelections = new Map<number, Map<number, number>>();
+
+    for (const group of groups) {
+      if (group.selection_type === 'quantity') {
+        const qtyMap = new Map<number, number>();
+        for (const sel of initialSelections) {
+          if (!sel.option_id) continue;
+          const opt = group.options?.find(o => o.id === sel.option_id);
+          if (opt) qtyMap.set(opt.id, sel.quantity ?? 1);
+        }
+        if (qtyMap.size > 0) newQtySelections.set(group.id, qtyMap);
+      } else {
+        const groupSels: SelectionDraft[] = [];
+        for (const sel of initialSelections) {
+          if (!sel.option_id) continue;
+          const opt = group.options?.find(o => o.id === sel.option_id);
+          if (opt) groupSels.push({ option_id: opt.id, name: opt.name, price_modifier: opt.price_modifier, quantity: 1, group_name: group.name });
+        }
+        if (groupSels.length > 0) newSelected.set(group.id, groupSels);
+      }
+    }
+
+    setSelected(newSelected);
+    setQtySelections(newQtySelections);
+    setSpecialRequests(initialSpecialRequests ?? '');
+  }, [isExpanded, editCartItemId, groups, initialSelections, initialSpecialRequests]);
 
   const handleAddClick = () => {
     if (!isAcceptingOrders) return;
@@ -241,6 +280,18 @@ export default function MenuItemCard({ item, isExpanded, onExpand, onCollapse, d
     collapseWithScroll();
   };
 
+  const handleUpdateCart = async () => {
+    if (unfilledRequired.length > 0) { setShowErrors(true); return; }
+    if (!editCartItemId) return;
+    setSubmitting(true);
+    const allSelections = buildAllSelections();
+    const result = await updateCartItemSelections(editCartItemId, allSelections, specialRequests);
+    setSubmitting(false);
+    if (result.error) { alert(result.error); return; }
+    onEditComplete?.();
+    collapseWithScroll();
+  };
+
   return (
     <div
       ref={cardRef}
@@ -304,6 +355,15 @@ export default function MenuItemCard({ item, isExpanded, onExpand, onCollapse, d
         <div style={{ overflow: 'hidden' }}>
           {showPanel && (
             <div className="border-t border-gray-100 px-4 pb-4" onClick={e => e.stopPropagation()}>
+              {/* Edit mode banner */}
+              {editCartItemId && (
+                <div className="mt-3 bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                  <p className="text-blue-700 text-xs font-semibold">Editing your cart item</p>
+                </div>
+              )}
               {/* Deal banner inside expanded panel */}
               {deal && (
                 <div className="mt-3 bg-red-50 border border-[#FF3008]/20 rounded-lg px-3 py-2 flex items-center gap-2">
@@ -497,13 +557,23 @@ export default function MenuItemCard({ item, isExpanded, onExpand, onCollapse, d
                 >
                   Cancel
                 </button>
-                <button
-                  onClick={handleAddToCart}
-                  disabled={submitting}
-                  className="flex-1 bg-[#FF3008] text-white font-semibold py-2.5 rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm cursor-pointer"
-                >
-                  {submitting ? 'Adding...' : `Add to Cart • $${effectivePrice.toFixed(2)}`}
-                </button>
+                {editCartItemId ? (
+                  <button
+                    onClick={handleUpdateCart}
+                    disabled={submitting}
+                    className="flex-1 bg-[#FF3008] text-white font-semibold py-2.5 rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm cursor-pointer"
+                  >
+                    {submitting ? 'Updating...' : `Update • $${effectivePrice.toFixed(2)}`}
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleAddToCart}
+                    disabled={submitting}
+                    className="flex-1 bg-[#FF3008] text-white font-semibold py-2.5 rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm cursor-pointer"
+                  >
+                    {submitting ? 'Adding...' : `Add to Cart • $${effectivePrice.toFixed(2)}`}
+                  </button>
+                )}
               </div>
             </div>
           )}

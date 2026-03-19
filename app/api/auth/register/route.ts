@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
     }
 
     const passwordHash = await bcrypt.hash(password, 12);
-    const { data } = await supabase
+    const { data, error: insertError } = await supabase
       .from('users')
       .insert({
         email: email.toLowerCase().trim(),
@@ -49,6 +49,14 @@ export async function POST(request: NextRequest) {
       })
       .select()
       .single();
+
+    // Handle unique constraint violation from concurrent registration race
+    if (insertError) {
+      if (insertError.code === '23505') {
+        return Response.json({ error: 'An account with this email already exists for this role' }, { status: 409 });
+      }
+      throw insertError;
+    }
 
     const userId = data!.id;
     const token = await signToken({ userId, email: email.toLowerCase().trim(), name: name.trim(), role });

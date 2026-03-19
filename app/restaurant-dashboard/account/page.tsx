@@ -181,7 +181,7 @@ export default function RestaurantAccountPage() {
           {profileSaved && <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-3">Profile saved!</div>}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Full name</label>
-            <input type="text" required value={name} onChange={e => setName(e.target.value)} className={inputCls} />
+            <input type="text" required value={name} onChange={e => setName(e.target.value.replace(/\b\w/g, c => c.toUpperCase()))} className={inputCls} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">Email address</label>

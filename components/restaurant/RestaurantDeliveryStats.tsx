@@ -31,19 +31,19 @@ export default function RestaurantDeliveryStats({ restaurantId, restaurantLat, r
       <div>
         {hasDashPass ? (
           <>
-            <p className="font-bold text-green-600">
-              $0.00
+            <p className="font-bold text-[#FF3008]">
+              Free
               {fee > 0 && <span className="ml-1 line-through text-gray-400 text-sm font-normal">${fee.toFixed(2)}</span>}
             </p>
-            <p className="text-xs text-purple-600 font-medium">DashPass</p>
+            <p className="text-xs text-[#FF3008] font-medium">PassDash</p>
           </>
         ) : (
           <>
             <p className="font-bold text-gray-900">
-              {fee === 0 ? 'Free' : `$${fee.toFixed(2)}`}
+              {fee === 0 ? <span className="text-green-600">Free</span> : `$${fee.toFixed(2)}`}
+              <span className="ml-1 text-xs font-normal text-gray-500">Delivery</span>
             </p>
-            <p className="text-xs text-gray-500">Delivery Fee</p>
-            {fee > 0 && <p className="text-xs text-purple-600 mt-0.5">Free with DashPass</p>}
+            {fee > 0 && <p className="text-xs text-[#FF3008] mt-0.5">Free with PassDash</p>}
           </>
         )}
       </div>

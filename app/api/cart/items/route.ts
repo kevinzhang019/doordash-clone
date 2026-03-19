@@ -118,18 +118,12 @@ export async function POST(request: NextRequest) {
     }
 
     if (matchedCartItemId !== null) {
-      // Increment quantity on existing row
-      // Need to read current quantity first since Supabase doesn't support increment directly
-      const { data: currentItem } = await supabase
-        .from('cart_items')
-        .select('quantity')
-        .eq('id', matchedCartItemId)
-        .single();
-
-      await supabase
-        .from('cart_items')
-        .update({ quantity: (currentItem?.quantity ?? 0) + quantity })
-        .eq('id', matchedCartItemId);
+      // Atomic quantity increment via PostgreSQL function (prevents lost updates from concurrent requests)
+      await supabase.rpc('increment_cart_item_qty', {
+        p_item_id: matchedCartItemId,
+        p_user_id: userId,
+        p_increment: quantity,
+      });
     } else {
       // Insert new row
       const { data: insertedItem } = await supabase

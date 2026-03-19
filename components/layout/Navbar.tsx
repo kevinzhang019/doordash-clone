@@ -2,14 +2,14 @@
 
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useCart } from '@/components/providers/CartProvider';
-import { useLocation } from '@/components/providers/LocationProvider';
-import { useSearch } from '@/components/providers/SearchProvider';
 import { useCuisine } from '@/components/providers/CuisineProvider';
+import { useLocation } from '@/components/providers/LocationProvider';
 import { useModeContext } from '@/components/providers/ModeProvider';
+import { useSearch } from '@/components/providers/SearchProvider';
 import AddressAutocomplete, { AddressAutocompleteHandle } from '@/components/ui/AddressAutocomplete';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
 function CartPopup() {
@@ -470,10 +470,8 @@ export default function Navbar() {
             onClick={() => { setSearch(''); setSelectedCuisine('All'); setSortBy('relevance'); window.scrollTo({ top: 0, behavior: 'instant' }); }}
             className="flex items-center gap-2 flex-shrink-0"
           >
-            <div className="w-8 h-8 bg-[#FF3008] rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-sm">D</span>
-            </div>
-            <span className="text-[#FF3008] font-bold text-xl hidden sm:block">DoorDash</span>
+            <img src="/logo.png" alt="DashDoor" className="w-8 h-8 object-contain" />
+            <span className="text-[#FF3008] font-bold text-xl hidden sm:block">DashDoor</span>
           </Link>
 
           {/* Search bar */}

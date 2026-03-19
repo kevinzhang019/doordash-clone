@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
 
     return Response.json({ portalUrl: session.url });
   } catch (error) {
-    console.error('DashPass portal error:', error);
+    console.error('PassDash portal error:', error);
     return Response.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

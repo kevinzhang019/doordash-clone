@@ -104,7 +104,7 @@ export async function POST(request: NextRequest) {
 
   const hadActive = (deactivated?.length ?? 0) > 0;
 
-  const { data: newDeal } = await supabase
+  const { data: newDeal, error: insertError } = await supabase
     .from('deals')
     .insert({
       restaurant_id: restaurantId,
@@ -114,6 +114,12 @@ export async function POST(request: NextRequest) {
     })
     .select()
     .single();
+
+  // Handle unique partial index violation from concurrent deal creation race
+  if (insertError?.code === '23505') {
+    return Response.json({ error: 'This item already has an active deal' }, { status: 409 });
+  }
+  if (insertError) throw insertError;
 
   return Response.json({ dealId: newDeal?.id, previousDeactivated: hadActive });
 }

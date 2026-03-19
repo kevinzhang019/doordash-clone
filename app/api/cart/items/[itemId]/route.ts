@@ -25,7 +25,7 @@ export async function PUT(
     const body = await request.json();
     const supabase = getSupabaseAdmin();
 
-    // Selections update mode
+    // Selections update mode — atomic via PostgreSQL function (prevents partial state from concurrent reads)
     if (body.selections !== undefined) {
       const selectionList: SelectionDraft[] = Array.isArray(body.selections) ? body.selections : [];
       const specialRequestsStr = typeof body.specialRequests === 'string' ? body.specialRequests.trim() : '';
@@ -36,33 +36,15 @@ export async function PUT(
 
       const newSels = normalizeSelections(selectionList);
 
-      // Update special_requests
-      const { data: updatedItem, error: updateError } = await supabase
-        .from('cart_items')
-        .update({ special_requests: specialRequestsStr || null })
-        .eq('id', cartItemId)
-        .eq('user_id', userId)
-        .select()
-        .single();
+      const { data: success, error: rpcError } = await supabase.rpc('update_cart_item_selections', {
+        p_cart_item_id: cartItemId,
+        p_user_id: userId,
+        p_special_requests: specialRequestsStr,
+        p_selections: newSels,
+      });
 
-      if (updateError || !updatedItem) {
+      if (rpcError || success === false) {
         return Response.json({ error: 'Cart item not found' }, { status: 404 });
-      }
-
-      // Delete old selections
-      await supabase.from('cart_item_selections').delete().eq('cart_item_id', cartItemId);
-
-      // Insert new selections
-      if (newSels.length > 0) {
-        const selectionRows = newSels.map(sel => ({
-          cart_item_id: cartItemId,
-          option_id: sel.option_id,
-          name: sel.name,
-          price_modifier: sel.price_modifier,
-          quantity: sel.quantity,
-        }));
-
-        await supabase.from('cart_item_selections').insert(selectionRows);
       }
 
       return Response.json({ success: true });

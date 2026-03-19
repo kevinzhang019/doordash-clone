@@ -69,21 +69,83 @@ function SettingsContent() {
   const [dashPassAction, setDashPassAction] = useState<'idle' | 'subscribing' | 'canceling' | 'portal'>('idle');
   const [dashPassError, setDashPassError] = useState('');
   const [dashPassSuccess, setDashPassSuccess] = useState('');
+  const [dashPassTotalSaved, setDashPassTotalSaved] = useState<number | null>(null);
+  const [dashPassSyncing, setDashPassSyncing] = useState(false);
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleteError, setDeleteError] = useState('');
   const [deleting, setDeleting] = useState(false);
 
-  // Handle DashPass redirect query params
+  // Fetch total PassDash savings from orders
+  useEffect(() => {
+    if (!hasDashPass || !user) return;
+    fetch('/api/orders')
+      .then(r => r.ok ? r.json() : null)
+      .then((data: { orders?: Array<{ dashpass_savings?: number }> } | null) => {
+        if (!data?.orders) return;
+        const total = data.orders.reduce((sum, o) => sum + (o.dashpass_savings ?? 0), 0);
+        setDashPassTotalSaved(Math.round(total * 100) / 100);
+      })
+      .catch(() => {});
+  }, [hasDashPass, user]);
+
+  // Handle PassDash redirect query params
   useEffect(() => {
     const dp = searchParams.get('dashpass');
+    const sessionId = searchParams.get('session_id');
     if (dp === 'success') {
-      setDashPassSuccess('Welcome to DashPass! You now get $0 delivery fees and reduced service fees.');
-      refreshDashPass();
-      // Clean URL
+      setDashPassSyncing(true);
+      setDashPassError('');
       router.replace('/settings', { scroll: false });
-      setTimeout(() => setDashPassSuccess(''), 6000);
+
+      // Sync subscription from Stripe with retries, then confirm via status check
+      const syncAndConfirm = async () => {
+        const maxAttempts = 5;
+        let synced = false;
+
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          try {
+            const syncRes = await fetch('/api/dashpass/sync', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ sessionId }),
+            });
+            const syncData = await syncRes.json();
+            if (syncRes.ok && syncData.active) {
+              synced = true;
+              break;
+            }
+          } catch {
+            // Network error — will retry
+          }
+          // Wait before retrying (1s, 2s, 3s, 4s, 5s)
+          if (attempt < maxAttempts) {
+            await new Promise(r => setTimeout(r, attempt * 1000));
+          }
+        }
+
+        // Always refresh from DB — webhook may have written the row even if sync failed
+        await refreshDashPass();
+        setDashPassSyncing(false);
+
+        if (synced) {
+          setDashPassSuccess('Welcome to PassDash! You now get $0 delivery fees and reduced service fees.');
+          setTimeout(() => setDashPassSuccess(''), 6000);
+        } else {
+          // Check if the webhook activated it even though sync failed
+          const statusRes = await fetch('/api/dashpass/status').catch(() => null);
+          const statusData = statusRes?.ok ? await statusRes.json() : null;
+          if (statusData?.active) {
+            setDashPassSuccess('Welcome to PassDash! You now get $0 delivery fees and reduced service fees.');
+            setTimeout(() => setDashPassSuccess(''), 6000);
+          } else {
+            setDashPassError('Your payment was received but activation is taking longer than expected. Please refresh the page in a moment.');
+          }
+        }
+      };
+
+      syncAndConfirm();
     }
   }, [searchParams, refreshDashPass, router]);
 
@@ -271,7 +333,7 @@ function SettingsContent() {
         setDashPassError(data.error || 'Failed to cancel subscription');
         return;
       }
-      setDashPassSuccess(`Your DashPass benefits will end on ${new Date(data.endsAt).toLocaleDateString()}.`);
+      setDashPassSuccess(`Your PassDash benefits will end on ${new Date(data.endsAt).toLocaleDateString()}.`);
       setTimeout(() => setDashPassSuccess(''), 6000);
       await refreshDashPass();
     } catch {
@@ -292,7 +354,7 @@ function SettingsContent() {
         return;
       }
       if (data.portalUrl) {
-        window.location.href = data.portalUrl;
+        window.open(data.portalUrl, '_blank', 'noopener');
       }
     } catch {
       setDashPassError('Network error. Please try again.');
@@ -326,6 +388,116 @@ function SettingsContent() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-10">
       <h1 className="text-2xl font-bold text-gray-900 mb-8">Settings</h1>
+
+      {/* PassDash section */}
+      <section className="bg-white rounded-2xl border border-red-100 shadow-sm p-6 mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <span className="text-xl">👑</span>
+          <h2 className="text-lg font-semibold text-gray-900">PassDash</h2>
+          {hasDashPass && !dashPassSub?.canceled_at && (
+            <span className="ml-auto text-xs font-semibold bg-green-100 text-green-700 px-2.5 py-0.5 rounded-full">Active</span>
+          )}
+          {dashPassSub?.canceled_at && hasDashPass && (
+            <span className="ml-auto text-xs font-semibold bg-yellow-100 text-yellow-700 px-2.5 py-0.5 rounded-full">Ending soon</span>
+          )}
+        </div>
+
+        {dashPassSuccess && (
+          <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-3 mb-4">{dashPassSuccess}</div>
+        )}
+        {dashPassError && (
+          <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-4 py-3 mb-4">{dashPassError}</div>
+        )}
+
+        {dashPassLoading || dashPassSyncing ? (
+          <div className="animate-pulse h-24 bg-gray-100 rounded-xl" />
+        ) : hasDashPass ? (
+          <div>
+            {/* Savings overview */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+                <p className="text-xs text-gray-500 mb-0.5">Total saved with PassDash</p>
+                <p className="text-lg font-bold text-[#FF3008]">
+                  {dashPassTotalSaved !== null ? `$${dashPassTotalSaved.toFixed(2)}` : '—'}
+                </p>
+              </div>
+              <div className="bg-red-50 border border-red-100 rounded-xl px-4 py-3">
+                <p className="text-xs text-gray-500 mb-0.5">Monthly cost</p>
+                <p className="text-lg font-bold text-gray-900">$9.99</p>
+              </div>
+            </div>
+
+            {/* Status */}
+            {dashPassSub?.canceled_at ? (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 mb-4">
+                <p className="text-sm text-yellow-800 font-medium">
+                  Your PassDash benefits end on {new Date(dashPassSub.current_period_end).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.
+                </p>
+                <p className="text-xs text-yellow-600 mt-1">You&apos;ll continue to enjoy PassDash benefits until then.</p>
+              </div>
+            ) : (
+              <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 mb-4">
+                <p className="text-sm text-red-800 font-medium">
+                  Renews on {dashPassSub ? new Date(dashPassSub.current_period_end).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '—'}
+                </p>
+                <p className="text-xs text-red-600 mt-1">$0 delivery fees + 50% off service fees on every order.</p>
+              </div>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={handleDashPassPortal}
+                disabled={dashPassAction !== 'idle'}
+                className="flex-1 bg-gray-900 text-white font-semibold px-4 py-2.5 rounded-xl hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm cursor-pointer"
+              >
+                {dashPassAction === 'portal' ? 'Opening...' : 'Manage Billing'}
+              </button>
+              {!dashPassSub?.canceled_at && (
+                <button
+                  onClick={handleDashPassCancel}
+                  disabled={dashPassAction !== 'idle'}
+                  className="flex-1 border border-gray-200 text-gray-700 font-semibold px-4 py-2.5 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm cursor-pointer"
+                >
+                  {dashPassAction === 'canceling' ? 'Canceling...' : 'Cancel PassDash'}
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div>
+            <div className="bg-gradient-to-br from-red-50 to-red-100/50 border border-red-200 rounded-xl p-5 mb-4">
+              <p className="text-red-900 font-semibold text-base mb-3">$9.99/month</p>
+              <ul className="space-y-2">
+                <li className="flex items-center gap-2 text-sm text-red-800">
+                  <svg className="h-4 w-4 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                  $0 delivery fees on every order
+                </li>
+                <li className="flex items-center gap-2 text-sm text-red-800">
+                  <svg className="h-4 w-4 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                  50% off service fees
+                </li>
+                <li className="flex items-center gap-2 text-sm text-red-800">
+                  <svg className="h-4 w-4 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Cancel anytime
+                </li>
+              </ul>
+            </div>
+            <button
+              onClick={handleDashPassSubscribe}
+              disabled={dashPassAction !== 'idle'}
+              className="w-full bg-[#FF3008] text-white font-semibold py-3 rounded-xl hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+            >
+              {dashPassAction === 'subscribing' ? 'Redirecting to checkout...' : 'Subscribe to PassDash — $9.99/mo'}
+            </button>
+          </div>
+        )}
+      </section>
 
       {/* Profile section */}
       <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
@@ -415,100 +587,6 @@ function SettingsContent() {
             {profileSaving ? 'Saving...' : 'Save changes'}
           </button>
         </form>
-      </section>
-
-      {/* DashPass section */}
-      <section className="bg-white rounded-2xl border border-purple-100 shadow-sm p-6 mb-6">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-xl">👑</span>
-          <h2 className="text-lg font-semibold text-gray-900">DashPass</h2>
-          {hasDashPass && !dashPassSub?.canceled_at && (
-            <span className="ml-auto text-xs font-semibold bg-green-100 text-green-700 px-2.5 py-0.5 rounded-full">Active</span>
-          )}
-          {dashPassSub?.canceled_at && hasDashPass && (
-            <span className="ml-auto text-xs font-semibold bg-yellow-100 text-yellow-700 px-2.5 py-0.5 rounded-full">Ending soon</span>
-          )}
-        </div>
-
-        {dashPassSuccess && (
-          <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-3 mb-4">{dashPassSuccess}</div>
-        )}
-        {dashPassError && (
-          <div className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg px-4 py-3 mb-4">{dashPassError}</div>
-        )}
-
-        {dashPassLoading ? (
-          <div className="animate-pulse h-24 bg-gray-100 rounded-xl" />
-        ) : hasDashPass ? (
-          <div>
-            {dashPassSub?.canceled_at ? (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-xl px-4 py-3 mb-4">
-                <p className="text-sm text-yellow-800 font-medium">
-                  Your DashPass benefits end on {new Date(dashPassSub.current_period_end).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}.
-                </p>
-                <p className="text-xs text-yellow-600 mt-1">You&apos;ll continue to enjoy DashPass benefits until then.</p>
-              </div>
-            ) : (
-              <div className="bg-purple-50 border border-purple-200 rounded-xl px-4 py-3 mb-4">
-                <p className="text-sm text-purple-800 font-medium">
-                  Your DashPass renews on {dashPassSub ? new Date(dashPassSub.current_period_end).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '—'}
-                </p>
-                <p className="text-xs text-purple-600 mt-1">$0 delivery fees + 50% off service fees on every order.</p>
-              </div>
-            )}
-            <div className="flex gap-3">
-              <button
-                onClick={handleDashPassPortal}
-                disabled={dashPassAction !== 'idle'}
-                className="flex-1 bg-gray-900 text-white font-semibold px-4 py-2.5 rounded-xl hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm cursor-pointer"
-              >
-                {dashPassAction === 'portal' ? 'Opening...' : 'Manage Billing'}
-              </button>
-              {!dashPassSub?.canceled_at && (
-                <button
-                  onClick={handleDashPassCancel}
-                  disabled={dashPassAction !== 'idle'}
-                  className="flex-1 border border-gray-200 text-gray-700 font-semibold px-4 py-2.5 rounded-xl hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm cursor-pointer"
-                >
-                  {dashPassAction === 'canceling' ? 'Canceling...' : 'Cancel DashPass'}
-                </button>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div>
-            <div className="bg-gradient-to-br from-purple-50 to-purple-100/50 border border-purple-200 rounded-xl p-5 mb-4">
-              <p className="text-purple-900 font-semibold text-base mb-3">$9.99/month</p>
-              <ul className="space-y-2">
-                <li className="flex items-center gap-2 text-sm text-purple-800">
-                  <svg className="h-4 w-4 text-purple-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                  </svg>
-                  $0 delivery fees on every order
-                </li>
-                <li className="flex items-center gap-2 text-sm text-purple-800">
-                  <svg className="h-4 w-4 text-purple-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                  </svg>
-                  50% off service fees
-                </li>
-                <li className="flex items-center gap-2 text-sm text-purple-800">
-                  <svg className="h-4 w-4 text-purple-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                  </svg>
-                  Cancel anytime
-                </li>
-              </ul>
-            </div>
-            <button
-              onClick={handleDashPassSubscribe}
-              disabled={dashPassAction !== 'idle'}
-              className="w-full bg-purple-600 text-white font-semibold py-3 rounded-xl hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-            >
-              {dashPassAction === 'subscribing' ? 'Redirecting to checkout...' : 'Subscribe to DashPass — $9.99/mo'}
-            </button>
-          </div>
-        )}
       </section>
 
       {/* Change Password section */}

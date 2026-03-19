@@ -655,7 +655,7 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Carne Asada', price: 0.00 },
       { name: 'Pollo Asado', price: 0.00 },
       { name: 'Carnitas', price: 0.00 },
-      { name: 'Veggie', price: -2.00 },
+      { name: 'Veggie', price: 0.00 },
     ]);
     addGroup('Burrito Supremo', 'Casa Fuego', 'Size', false, 1, 2, [
       { name: 'Regular (as made)', price: 0.00 },
@@ -671,7 +671,7 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Grilled Chicken', price: 0.00 },
       { name: 'Carne Asada', price: 2.00 },
       { name: 'Carnitas', price: 1.00 },
-      { name: 'Tofu', price: -1.00 },
+      { name: 'Tofu', price: 0.00 },
     ]);
     addGroup('Pollo Bowl', 'Casa Fuego', 'Add-ons', false, null, 2, [
       { name: 'Extra Guacamole', price: 2.00 },
@@ -755,7 +755,7 @@ export function seedMenuItemOptions(db: Database.Database) {
     addGroup('Chicken Biryani', 'Spice Route', 'Protein', true, 1, 1, [
       { name: 'Chicken', price: 0.00 },
       { name: 'Lamb', price: 3.00 },
-      { name: 'Vegetable', price: -2.00 },
+      { name: 'Vegetable', price: 0.00 },
     ]);
     addGroup('Chicken Biryani', 'Spice Route', 'Add-ons', false, null, 2, [
       { name: 'Add Raita', price: 2.00 },
@@ -764,7 +764,7 @@ export function seedMenuItemOptions(db: Database.Database) {
 
     addGroup('Garlic Naan', 'Spice Route', 'Flavor', true, 1, 1, [
       { name: 'Garlic', price: 0.00 },
-      { name: 'Plain', price: -1.00 },
+      { name: 'Plain', price: 0.00 },
       { name: 'Garlic Cheese', price: 2.00 },
       { name: 'Garlic Chili', price: 0.00 },
     ]);
@@ -853,7 +853,7 @@ export function seedMenuItemOptions(db: Database.Database) {
     addGroup('Kung Pao Chicken', 'Golden Dragon', 'Protein', true, 1, 1, [
       { name: 'Chicken', price: 0.00 },
       { name: 'Shrimp', price: 3.00 },
-      { name: 'Tofu', price: -1.00 },
+      { name: 'Tofu', price: 0.00 },
     ]);
     addGroup('Kung Pao Chicken', 'Golden Dragon', 'Spice Level', true, 1, 2, [
       { name: 'Mild', price: 0.00 },
@@ -882,7 +882,7 @@ export function seedMenuItemOptions(db: Database.Database) {
     addGroup('Mapo Tofu', 'Golden Dragon', 'Protein', true, 1, 2, [
       { name: 'Ground Pork', price: 0.00 },
       { name: 'Ground Beef', price: 1.00 },
-      { name: 'Vegetarian (no meat)', price: -1.00 },
+      { name: 'Vegetarian (no meat)', price: 0.00 },
     ]);
     addGroup('Mapo Tofu', 'Golden Dragon', 'Add Rice', true, 1, 3, [
       { name: 'No rice', price: 0.00 },
@@ -891,7 +891,7 @@ export function seedMenuItemOptions(db: Database.Database) {
 
     addGroup('Beef with Broccoli', 'Golden Dragon', 'Protein', true, 1, 1, [
       { name: 'Beef', price: 0.00 },
-      { name: 'Chicken', price: -1.00 },
+      { name: 'Chicken', price: 0.00 },
       { name: 'Shrimp', price: 2.00 },
     ]);
     addGroup('Beef with Broccoli', 'Golden Dragon', 'Add Rice', true, 1, 2, [
@@ -907,7 +907,7 @@ export function seedMenuItemOptions(db: Database.Database) {
     addGroup('Yang Chow Fried Rice', 'Golden Dragon', 'Protein', true, 1, 2, [
       { name: 'Mixed', price: 0.00 },
       { name: 'Extra Shrimp', price: 3.00 },
-      { name: 'Vegetable', price: -1.00 },
+      { name: 'Vegetable', price: 0.00 },
     ]);
 
     addGroup('Dan Dan Noodles', 'Golden Dragon', 'Spice Level', true, 1, 1, [
@@ -923,7 +923,7 @@ export function seedMenuItemOptions(db: Database.Database) {
 
     addGroup('Beef Chow Fun', 'Golden Dragon', 'Protein', true, 1, 1, [
       { name: 'Beef', price: 0.00 },
-      { name: 'Chicken', price: -1.00 },
+      { name: 'Chicken', price: 0.00 },
       { name: 'Shrimp', price: 2.00 },
     ]);
     addGroup('Beef Chow Fun', 'Golden Dragon', 'Style', true, 1, 2, [
@@ -953,7 +953,7 @@ export function seedMenuItemOptions(db: Database.Database) {
     addGroup('Salade Niçoise', 'Le Petit Bistro', 'Protein', true, 1, 1, [
       { name: 'Tuna', price: 0.00 },
       { name: 'Seared Salmon', price: 4.00 },
-      { name: 'Vegetarian (no fish)', price: -2.00 },
+      { name: 'Vegetarian (no fish)', price: 0.00 },
     ]);
     addGroup('Salade Niçoise', 'Le Petit Bistro', 'Dressing', true, 1, 2, [
       { name: 'Dijon Vinaigrette', price: 0.00 },
@@ -1103,7 +1103,7 @@ export function seedMenuItemOptions(db: Database.Database) {
 
     addGroup('Lamb Souvlaki', 'Olive & Sea', 'Protein', true, 1, 1, [
       { name: 'Lamb', price: 0.00 },
-      { name: 'Chicken', price: -2.00 },
+      { name: 'Chicken', price: 0.00 },
       { name: 'Mixed Lamb & Chicken', price: 0.00 },
     ]);
     addGroup('Lamb Souvlaki', 'Olive & Sea', 'Add-ons', false, null, 2, [
@@ -1155,13 +1155,13 @@ export function seedMenuItemOptions(db: Database.Database) {
     addGroup('Pajeon (Korean Scallion Pancake)', 'Seoul Kitchen', 'Filling', true, 1, 1, [
       { name: 'Mixed Seafood', price: 0.00 },
       { name: 'Kimchi', price: 0.00 },
-      { name: 'Plain Scallion', price: -1.00 },
+      { name: 'Plain Scallion', price: 0.00 },
     ]);
 
     addGroup('Japchae', 'Seoul Kitchen', 'Protein', true, 1, 1, [
       { name: 'Beef', price: 0.00 },
       { name: 'Shrimp', price: 2.00 },
-      { name: 'Tofu', price: -1.00 },
+      { name: 'Tofu', price: 0.00 },
     ]);
     addGroup('Japchae', 'Seoul Kitchen', 'Add-ons', false, null, 2, [
       { name: 'Extra Glass Noodles', price: 2.00 },
@@ -1209,8 +1209,8 @@ export function seedMenuItemOptions(db: Database.Database) {
     addGroup('Bibimbap', 'Seoul Kitchen', 'Protein', true, 1, 1, [
       { name: 'Bulgogi Beef', price: 0.00 },
       { name: 'Grilled Chicken', price: 0.00 },
-      { name: 'Tofu', price: -1.00 },
-      { name: 'No Protein', price: -2.00 },
+      { name: 'Tofu', price: 0.00 },
+      { name: 'No Protein', price: 0.00 },
     ]);
     addGroup('Bibimbap', 'Seoul Kitchen', 'Gochujang Spice', true, 1, 2, [
       { name: 'No Gochujang', price: 0.00 },
@@ -1309,7 +1309,7 @@ export function seedMenuItemOptions(db: Database.Database) {
     addGroup('Tom Kha Gai', 'Thai Orchid', 'Protein', true, 1, 2, [
       { name: 'Chicken', price: 0.00 },
       { name: 'Shrimp', price: 3.00 },
-      { name: 'Tofu', price: -1.00 },
+      { name: 'Tofu', price: 0.00 },
     ]);
     addGroup('Tom Kha Gai', 'Thai Orchid', 'Add-ons', false, null, 3, [
       { name: 'Extra Coconut Milk', price: 1.00 },
@@ -1329,7 +1329,7 @@ export function seedMenuItemOptions(db: Database.Database) {
     addGroup('Green Curry with Chicken', 'Thai Orchid', 'Protein', true, 1, 1, [
       { name: 'Chicken', price: 0.00 },
       { name: 'Shrimp', price: 3.00 },
-      { name: 'Tofu', price: -1.00 },
+      { name: 'Tofu', price: 0.00 },
     ]);
     addGroup('Green Curry with Chicken', 'Thai Orchid', 'Spice Level', true, 1, 2, [
       { name: 'Mild', price: 0.00 },
@@ -1343,8 +1343,8 @@ export function seedMenuItemOptions(db: Database.Database) {
 
     addGroup('Massaman Beef Curry', 'Thai Orchid', 'Protein', true, 1, 1, [
       { name: 'Beef', price: 0.00 },
-      { name: 'Chicken', price: -1.00 },
-      { name: 'Tofu', price: -2.00 },
+      { name: 'Chicken', price: 0.00 },
+      { name: 'Tofu', price: 0.00 },
     ]);
     addGroup('Massaman Beef Curry', 'Thai Orchid', 'Spice Level', true, 1, 2, [
       { name: 'Mild', price: 0.00 },
@@ -1357,8 +1357,8 @@ export function seedMenuItemOptions(db: Database.Database) {
 
     addGroup('Pad Thai with Shrimp', 'Thai Orchid', 'Protein', true, 1, 1, [
       { name: 'Shrimp', price: 0.00 },
-      { name: 'Chicken', price: -1.00 },
-      { name: 'Tofu', price: -1.00 },
+      { name: 'Chicken', price: 0.00 },
+      { name: 'Tofu', price: 0.00 },
       { name: 'Mixed Shrimp & Chicken', price: 2.00 },
     ]);
     addGroup('Pad Thai with Shrimp', 'Thai Orchid', 'Spice Level', true, 1, 2, [
@@ -1377,7 +1377,7 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Pork', price: 0.00 },
       { name: 'Chicken', price: 0.00 },
       { name: 'Beef', price: 2.00 },
-      { name: 'Tofu', price: -1.00 },
+      { name: 'Tofu', price: 0.00 },
     ]);
     addGroup('Basil Stir-Fry (Pad Kra Pao)', 'Thai Orchid', 'Spice Level', true, 1, 2, [
       { name: 'Mild', price: 0.00 },
@@ -1808,7 +1808,7 @@ export function seedMenuItemOptions(db: Database.Database) {
     addGroup('Enchiladas Verdes', 'El Taquero', 'Protein', true, 1, 1, [
       { name: 'Chicken', price: 0.00 },
       { name: 'Beef', price: 2.00 },
-      { name: 'Bean & Cheese (vegetarian)', price: -1.00 },
+      { name: 'Bean & Cheese (vegetarian)', price: 0.00 },
     ]);
     addGroup('Enchiladas Verdes', 'El Taquero', 'Heat Level', true, 1, 2, [
       { name: 'Regular', price: 0.00 },
@@ -1927,7 +1927,7 @@ export function seedMenuItemOptions(db: Database.Database) {
 
     addGroup('Garlic Kulcha', 'Masala House', 'Flavor', true, 1, 1, [
       { name: 'Garlic Herb', price: 0.00 },
-      { name: 'Plain', price: -1.00 },
+      { name: 'Plain', price: 0.00 },
       { name: 'Garlic Cheese', price: 2.00 },
     ]);
     addGroup('Garlic Kulcha', 'Masala House', 'Quantity', false, 1, 2, [
@@ -1987,7 +1987,7 @@ export function seedMenuItemOptions(db: Database.Database) {
     addGroup('Mapo Tofu', 'Dragon Palace', 'Protein', true, 1, 2, [
       { name: 'Ground Pork', price: 0.00 },
       { name: 'Ground Beef', price: 1.00 },
-      { name: 'Vegetarian (no meat)', price: -1.00 },
+      { name: 'Vegetarian (no meat)', price: 0.00 },
     ]);
     addGroup('Mapo Tofu', 'Dragon Palace', 'Add Rice', true, 1, 3, [
       { name: 'No rice', price: 0.00 },
@@ -1996,7 +1996,7 @@ export function seedMenuItemOptions(db: Database.Database) {
 
     addGroup('Beef Ho Fun', 'Dragon Palace', 'Protein', true, 1, 1, [
       { name: 'Beef', price: 0.00 },
-      { name: 'Chicken', price: -1.00 },
+      { name: 'Chicken', price: 0.00 },
       { name: 'Shrimp', price: 2.00 },
     ]);
     addGroup('Beef Ho Fun', 'Dragon Palace', 'Style', true, 1, 2, [
@@ -2007,7 +2007,7 @@ export function seedMenuItemOptions(db: Database.Database) {
     addGroup('Yangzhou Fried Rice', 'Dragon Palace', 'Protein', true, 1, 1, [
       { name: 'Classic Mix (shrimp + char siu)', price: 0.00 },
       { name: 'Shrimp Only', price: 2.00 },
-      { name: 'Vegetable', price: -1.00 },
+      { name: 'Vegetable', price: 0.00 },
     ]);
     addGroup('Yangzhou Fried Rice', 'Dragon Palace', 'Size', false, 1, 2, [
       { name: 'Regular', price: 0.00 },
@@ -2017,7 +2017,7 @@ export function seedMenuItemOptions(db: Database.Database) {
     // ===== 16. BISTRO LÉON =====
     addGroup('Salade Lyonnaise', 'Bistro Léon', 'Egg', true, 1, 1, [
       { name: 'Poached Egg', price: 0.00 },
-      { name: 'No Egg', price: -1.00 },
+      { name: 'No Egg', price: 0.00 },
     ]);
     addGroup('Salade Lyonnaise', 'Bistro Léon', 'Add-ons', false, null, 2, [
       { name: 'Extra Lardons', price: 2.00 },
@@ -2136,7 +2136,7 @@ export function seedMenuItemOptions(db: Database.Database) {
     addGroup('Moussaka', 'Aegean Table', 'Side', true, 1, 1, [
       { name: 'Greek Salad', price: 0.00 },
       { name: 'Crusty Bread', price: 0.00 },
-      { name: 'No Side', price: -2.00 },
+      { name: 'No Side', price: 0.00 },
     ]);
     addGroup('Moussaka', 'Aegean Table', 'Add-ons', false, null, 2, [
       { name: 'Extra Béchamel', price: 1.00 },
@@ -2179,7 +2179,7 @@ export function seedMenuItemOptions(db: Database.Database) {
     addGroup('Sundubu Jjigae', 'Hangang BBQ', 'Protein', true, 1, 2, [
       { name: 'Clams + Pork', price: 0.00 },
       { name: 'Seafood Mix', price: 3.00 },
-      { name: 'Tofu Only', price: -2.00 },
+      { name: 'Tofu Only', price: 0.00 },
     ]);
     addGroup('Sundubu Jjigae', 'Hangang BBQ', 'Add-ons', false, null, 3, [
       { name: 'Extra Tofu', price: 1.50 },
@@ -2189,7 +2189,7 @@ export function seedMenuItemOptions(db: Database.Database) {
     addGroup('Pajeon', 'Hangang BBQ', 'Filling', true, 1, 1, [
       { name: 'Mixed Seafood', price: 0.00 },
       { name: 'Kimchi', price: 0.00 },
-      { name: 'Plain Scallion', price: -1.00 },
+      { name: 'Plain Scallion', price: 0.00 },
     ]);
 
     addGroup('Banchan Platter', 'Hangang BBQ', 'Add-ons', false, null, 1, [
@@ -2281,7 +2281,7 @@ export function seedMenuItemOptions(db: Database.Database) {
     addGroup('Tom Kha Gai', 'Siam Street', 'Protein', true, 1, 2, [
       { name: 'Chicken', price: 0.00 },
       { name: 'Shrimp', price: 3.00 },
-      { name: 'Tofu', price: -1.00 },
+      { name: 'Tofu', price: 0.00 },
     ]);
     addGroup('Tom Kha Gai', 'Siam Street', 'Add-ons', false, null, 3, [
       { name: 'Extra Coconut Milk', price: 1.00 },
@@ -2310,7 +2310,7 @@ export function seedMenuItemOptions(db: Database.Database) {
     addGroup('Khao Soi', 'Siam Street', 'Protein', true, 1, 1, [
       { name: 'Braised Chicken', price: 0.00 },
       { name: 'Braised Beef', price: 2.00 },
-      { name: 'Tofu', price: -1.00 },
+      { name: 'Tofu', price: 0.00 },
     ]);
     addGroup('Khao Soi', 'Siam Street', 'Spice Level', true, 1, 2, [
       { name: 'Mild', price: 0.00 },
@@ -2326,7 +2326,7 @@ export function seedMenuItemOptions(db: Database.Database) {
       { name: 'Pork', price: 0.00 },
       { name: 'Chicken', price: 0.00 },
       { name: 'Beef', price: 2.00 },
-      { name: 'Tofu', price: -1.00 },
+      { name: 'Tofu', price: 0.00 },
     ]);
     addGroup('Phat Kraphao Moo Saap', 'Siam Street', 'Spice Level', true, 1, 2, [
       { name: 'Medium', price: 0.00 },

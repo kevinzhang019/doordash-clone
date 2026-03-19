@@ -26,15 +26,7 @@ export default function RestaurantDashboardPage() {
   const [reviewCount, setReviewCount] = useState(0);
   const [avgRating, setAvgRating] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  const [noRestaurant, setNoRestaurant] = useState(false);
-  const [setupDismissed, setSetupDismissed] = useState(false);
   const [toggleLoading, setToggleLoading] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setSetupDismissed(localStorage.getItem('restaurantSetupDismissed') === '1');
-    }
-  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -45,12 +37,6 @@ export default function RestaurantDashboardPage() {
           fetch('/api/restaurant-dashboard/menu'),
           fetch('/api/restaurant-dashboard/reviews'),
         ]);
-
-        if (rRes.status === 404) {
-          setNoRestaurant(true);
-          setLoading(false);
-          return;
-        }
 
         const rData = await rRes.json();
         const hData = await hRes.json();
@@ -103,51 +89,12 @@ export default function RestaurantDashboardPage() {
     }
   };
 
-  const dismissSetupBanner = () => {
-    localStorage.setItem('restaurantSetupDismissed', '1');
-    setSetupDismissed(true);
-  };
-
   if (loading) {
     return (
       <div className="space-y-4">
         {[1, 2, 3].map(i => (
           <div key={i} className="bg-white rounded-2xl h-32 animate-pulse border border-gray-100" />
         ))}
-      </div>
-    );
-  }
-
-  if (noRestaurant) {
-    return (
-      <div className="space-y-4">
-        {!setupDismissed && (
-          <div className="flex items-start justify-between bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4">
-            <div>
-              <p className="text-amber-800 font-semibold text-sm">You haven&apos;t set up your restaurant yet.</p>
-              <Link href="/restaurant-setup" className="text-amber-700 text-sm font-medium hover:underline mt-0.5 inline-block">
-                Set up now →
-              </Link>
-            </div>
-            <button
-              onClick={dismissSetupBanner}
-              className="text-amber-500 hover:text-amber-700 cursor-pointer ml-4 flex-shrink-0"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        )}
-        <div className="text-center py-16">
-          <p className="text-gray-500 text-lg mb-4">No restaurant set up yet.</p>
-          <Link
-            href="/restaurant-setup"
-            className="inline-block bg-[#FF3008] text-white font-semibold px-6 py-3 rounded-xl hover:bg-red-600 transition-colors"
-          >
-            Set up your restaurant
-          </Link>
-        </div>
       </div>
     );
   }
@@ -190,7 +137,7 @@ export default function RestaurantDashboardPage() {
 
       {/* Restaurant card */}
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
-        <div className="relative h-48">
+        <div className="relative h-64">
           <Image
             src={restaurant.image_url}
             alt={restaurant.name}
@@ -207,14 +154,6 @@ export default function RestaurantDashboardPage() {
             open ? 'bg-green-500 text-white' : 'bg-gray-800/80 text-white'
           }`}>
             {open ? 'Open Now' : 'Closed'}
-          </div>
-        </div>
-        <div className="p-5">
-          <p className="text-gray-600 text-sm">{restaurant.description}</p>
-          <div className="flex gap-4 mt-4 text-sm text-gray-500">
-            <span>⭐ {restaurant.rating.toFixed(1)}</span>
-            <span>🚗 ${restaurant.delivery_fee.toFixed(2)} delivery</span>
-            <span>⏱️ {restaurant.delivery_min}–{restaurant.delivery_max} min</span>
           </div>
         </div>
       </div>

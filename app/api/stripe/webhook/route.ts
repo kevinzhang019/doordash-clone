@@ -2,15 +2,19 @@ import { NextRequest } from 'next/server';
 import Stripe from 'stripe';
 import { getSupabaseAdmin } from '@/lib/supabase';
 
-// Helper to extract period end from subscription object (handles different Stripe SDK versions)
-function getSubscriptionData(sub: Record<string, unknown>) {
+// Extract period end from subscription — in Stripe SDK v20+ current_period_end
+// moved from Subscription to SubscriptionItem, so we read it from items.data[0].
+function getSubscriptionData(sub: Stripe.Subscription) {
+  const periodEnd = sub.items.data[0]?.current_period_end;
   return {
-    id: sub.id as string,
-    currentPeriodEnd: new Date((sub.current_period_end as number) * 1000).toISOString(),
-    customer: sub.customer as string,
+    id: sub.id,
+    currentPeriodEnd: periodEnd
+      ? new Date(periodEnd * 1000).toISOString()
+      : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // fallback: 30 days
+    customer: typeof sub.customer === 'string' ? sub.customer : sub.customer.id,
     metadata: sub.metadata as Record<string, string> | undefined,
-    status: sub.status as string,
-    cancelAtPeriodEnd: sub.cancel_at_period_end as boolean,
+    status: sub.status,
+    cancelAtPeriodEnd: sub.cancel_at_period_end,
   };
 }
 
@@ -46,33 +50,36 @@ export async function POST(request: NextRequest) {
         const userId = parseInt(session.metadata?.user_id ?? '');
         if (!userId) break;
 
-        const rawSub = await stripe.subscriptions.retrieve(session.subscription as string) as unknown as Record<string, unknown>;
-        const sub = getSubscriptionData(rawSub);
+        const retrievedSub = await stripe.subscriptions.retrieve(session.subscription as string, { expand: ['items.data'] });
+        const sub = getSubscriptionData(retrievedSub);
 
+        const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id ?? sub.customer;
         await supabase.from('dashpass_subscriptions').upsert({
           user_id: userId,
-          stripe_customer_id: session.customer as string,
+          stripe_customer_id: customerId,
           stripe_subscription_id: sub.id,
           status: 'active',
           current_period_end: sub.currentPeriodEnd,
+          canceled_at: null,
           updated_at: new Date().toISOString(),
         }, { onConflict: 'user_id' });
         break;
       }
 
       case 'invoice.paid': {
-        const invoice = event.data.object as unknown as Record<string, unknown>;
-        const subId = invoice.subscription as string | null;
+        const invoice = event.data.object as Stripe.Invoice;
+        const subRef = invoice.parent?.subscription_details?.subscription;
+        const subId = typeof subRef === 'string' ? subRef : subRef?.id ?? null;
         if (!subId) break;
 
-        const rawSub = await stripe.subscriptions.retrieve(subId) as unknown as Record<string, unknown>;
-        const sub = getSubscriptionData(rawSub);
+        const retrievedSub = await stripe.subscriptions.retrieve(subId, { expand: ['items.data'] });
+        const sub = getSubscriptionData(retrievedSub);
         const userId = parseInt(sub.metadata?.user_id ?? '');
         if (!userId) break;
 
         await supabase.from('dashpass_subscriptions').upsert({
           user_id: userId,
-          stripe_customer_id: invoice.customer as string,
+          stripe_customer_id: sub.customer,
           stripe_subscription_id: sub.id,
           status: 'active',
           current_period_end: sub.currentPeriodEnd,
@@ -83,8 +90,9 @@ export async function POST(request: NextRequest) {
       }
 
       case 'invoice.payment_failed': {
-        const invoice = event.data.object as unknown as Record<string, unknown>;
-        const subId = invoice.subscription as string | null;
+        const invoice = event.data.object as Stripe.Invoice;
+        const subRef = invoice.parent?.subscription_details?.subscription;
+        const subId = typeof subRef === 'string' ? subRef : subRef?.id ?? null;
         if (!subId) break;
 
         await supabase.from('dashpass_subscriptions')
@@ -94,8 +102,12 @@ export async function POST(request: NextRequest) {
       }
 
       case 'customer.subscription.updated': {
-        const rawSub = event.data.object as unknown as Record<string, unknown>;
-        const sub = getSubscriptionData(rawSub);
+        // Webhook payload may not include items — retrieve with expansion
+        const updatedSubRaw = event.data.object as Stripe.Subscription;
+        const updatedSub = updatedSubRaw.items?.data?.length
+          ? updatedSubRaw
+          : await stripe.subscriptions.retrieve(updatedSubRaw.id, { expand: ['items.data'] });
+        const sub = getSubscriptionData(updatedSub);
         const userId = parseInt(sub.metadata?.user_id ?? '');
         if (!userId) break;
 
@@ -112,12 +124,13 @@ export async function POST(request: NextRequest) {
       }
 
       case 'customer.subscription.deleted': {
-        const rawSub = event.data.object as unknown as Record<string, unknown>;
-        const sub = getSubscriptionData(rawSub);
+        // Subscription is already deleted — do NOT try to retrieve it from Stripe.
+        // Use the event payload directly; we only need the ID for the DB update.
+        const deletedSub = event.data.object as Stripe.Subscription;
 
         await supabase.from('dashpass_subscriptions')
           .update({ status: 'canceled', updated_at: new Date().toISOString() })
-          .eq('stripe_subscription_id', sub.id);
+          .eq('stripe_subscription_id', deletedSub.id);
         break;
       }
     }

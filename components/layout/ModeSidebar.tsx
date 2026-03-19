@@ -1,8 +1,8 @@
 'use client';
 
-import { LazyMotion, domAnimation, m, AnimatePresence } from 'framer-motion';
 import { useModeContext } from '@/components/providers/ModeProvider';
 import type { UserRole } from '@/lib/types';
+import { AnimatePresence, LazyMotion, domAnimation, m } from 'framer-motion';
 
 const MODES: { role: UserRole; label: string; subtitle: string; icon: React.ReactNode }[] = [
   {
@@ -72,12 +72,7 @@ export default function ModeSidebar() {
           >
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-5 border-b border-white/20">
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 bg-white rounded-full flex items-center justify-center">
-                  <span className="text-[#FF3008] font-bold text-xs">D</span>
-                </div>
-                <span className="text-white font-bold text-lg">DoorDash</span>
-              </div>
+              <p className="text-white/70 text-sm font-semibold uppercase tracking-wider">Sign in as</p>
               <button
                 onClick={closeMode}
                 className="text-white/80 hover:text-white transition-colors p-1 cursor-pointer"
@@ -89,13 +84,8 @@ export default function ModeSidebar() {
               </button>
             </div>
 
-            {/* Label */}
-            <div className="px-5 pt-5 pb-2">
-              <p className="text-white/70 text-xs font-semibold uppercase tracking-wider">Sign in as</p>
-            </div>
-
             {/* Mode list */}
-            <div className="flex flex-col gap-2 px-3 pb-4">
+            <div className="flex flex-col gap-2 px-3 pt-3 pb-4">
               {MODES.map(({ role, label, subtitle, icon }) => (
                 <button
                   key={role}

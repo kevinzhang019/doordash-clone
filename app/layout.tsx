@@ -12,10 +12,22 @@ import ModeSidebar from '@/components/layout/ModeSidebar';
 import CartSidebar from '@/components/cart/CartSidebar';
 import OnboardingModal from '@/components/ui/OnboardingModal';
 import FloatingDriverChat from '@/components/chat/FloatingDriverChat';
+import CartAutoRemovedWatcher from '@/components/cart/CartAutoRemovedWatcher';
 
 export const metadata: Metadata = {
-  title: 'DoorDash - Food Delivery',
-  description: 'Order food from your favorite restaurants',
+  title: 'DashEats - Food Delivery',
+  description: 'Order food from your favorite local restaurants. Fast delivery, real-time tracking, and great deals.',
+  openGraph: {
+    title: 'DashEats - Food Delivery',
+    description: 'Order food from your favorite local restaurants. Fast delivery, real-time tracking, and great deals.',
+    type: 'website',
+    siteName: 'DashEats',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'DashEats - Food Delivery',
+    description: 'Order food from your favorite local restaurants. Fast delivery, real-time tracking, and great deals.',
+  },
 };
 
 export default function RootLayout({
@@ -34,6 +46,7 @@ export default function RootLayout({
                 <CartProvider>
                   <ChatSeenProvider>
                     <ModeSidebar />
+                    <CartAutoRemovedWatcher />
                     <OnboardingModal />
                     <Navbar />
                     <CartSidebar />

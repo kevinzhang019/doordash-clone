@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
   if (!userId) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
   if (!process.env.STRIPE_SECRET_KEY || !process.env.STRIPE_DASHPASS_PRICE_ID) {
-    return Response.json({ error: 'Stripe not configured for DashPass' }, { status: 500 });
+    return Response.json({ error: 'Stripe not configured for PassDash' }, { status: 500 });
   }
 
   try {
@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
 
     if (existing && existing.status === 'active' && new Date(existing.current_period_end) > new Date()) {
-      return Response.json({ error: 'You already have an active DashPass subscription' }, { status: 409 });
+      return Response.json({ error: 'You already have an active PassDash subscription' }, { status: 409 });
     }
 
     // Get user email
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
       customer: customerId,
       mode: 'subscription',
       line_items: [{ price: process.env.STRIPE_DASHPASS_PRICE_ID, quantity: 1 }],
-      success_url: `${origin}/settings?dashpass=success`,
+      success_url: `${origin}/settings?dashpass=success&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/settings?dashpass=canceled`,
       metadata: { user_id: userId.toString() },
       subscription_data: {
@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
 
     return Response.json({ checkoutUrl: session.url });
   } catch (error) {
-    console.error('DashPass subscribe error:', error);
+    console.error('PassDash subscribe error:', error);
     return Response.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

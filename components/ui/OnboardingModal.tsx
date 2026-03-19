@@ -56,6 +56,15 @@ export default function OnboardingModal() {
       return;
     }
 
+    // If there was already a valid address and the user actively changed it
+    // (e.g. via the navbar dropdown), trust the new address immediately.
+    // The per-page-visit effect below handles re-verification on home visits.
+    if (statusRef.current === 'valid') {
+      return;
+    }
+
+    // Only reaches here on initial mount (status === 'loading') — verify the
+    // address loaded from localStorage/DB is still saved in the account.
     return verify(deliveryAddress);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted, deliveryAddress]);

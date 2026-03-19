@@ -11,6 +11,7 @@ import RestaurantDeliveryStats from '@/components/restaurant/RestaurantDeliveryS
 import VirtualRestaurantAddress from '@/components/restaurant/VirtualRestaurantAddress';
 import VirtualRestaurantMap from '@/components/restaurant/VirtualRestaurantMap';
 import ScrollToTop from '@/components/ui/ScrollToTop';
+import CartErrorNotice from '@/components/restaurant/CartErrorNotice';
 
 export const dynamic = 'force-dynamic';
 
@@ -98,6 +99,9 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <RoleRedirect allowed="customer" />
       <ScrollToTop />
+      <Suspense fallback={null}>
+        <CartErrorNotice />
+      </Suspense>
       {/* Restaurant Header */}
       <div className="relative w-full h-40 sm:h-52 rounded-2xl overflow-hidden mb-6">
         <Image
@@ -137,6 +141,8 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
         <div className="w-px bg-gray-200" />
         <RestaurantDeliveryStats
           restaurantId={restaurant.id}
+          restaurantLat={restaurant.lat}
+          restaurantLng={restaurant.lng}
           fallbackFee={restaurant.delivery_fee}
           fallbackMin={restaurant.delivery_min}
           fallbackMax={restaurant.delivery_max}

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { MenuItem, Deal } from '@/lib/types';
+import { MenuItem, Deal, CartItemSelection } from '@/lib/types';
 import MenuItemCard from './MenuItemCard';
 
 const ANIM_MS = 300;
@@ -9,12 +9,33 @@ const ANIM_MS = 300;
 interface MenuSectionProps {
   items: MenuItem[];
   deals?: Deal[];
+  isAcceptingOrders?: boolean;
+  editCartItemId?: number;
+  editMenuItemId?: number;
+  editSelections?: CartItemSelection[];
+  editSpecialRequests?: string;
+  onEditComplete?: () => void;
 }
 
-export default function MenuSection({ items, deals }: MenuSectionProps) {
+export default function MenuSection({ items, deals, isAcceptingOrders = true, editCartItemId, editMenuItemId, editSelections, editSpecialRequests, onEditComplete }: MenuSectionProps) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const cardWrapperRefs = useRef<Map<number, HTMLDivElement | null>>(new Map());
   const switchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auto-expand and scroll when editing a cart item
+  useEffect(() => {
+    if (editMenuItemId == null || !items.some(item => item.id === editMenuItemId)) return;
+    setExpandedId(editMenuItemId);
+    // Scroll card top to viewport top after expansion animation fully paints
+    setTimeout(() => {
+      requestAnimationFrame(() => {
+        const wrapper = cardWrapperRefs.current.get(editMenuItemId);
+        if (!wrapper) return;
+        const rect = wrapper.getBoundingClientRect();
+        window.scrollTo({ top: window.scrollY + rect.top, behavior: 'smooth' });
+      });
+    }, ANIM_MS);
+  }, [editMenuItemId, items]);
 
   // Collapse on outside click
   useEffect(() => {
@@ -54,6 +75,11 @@ export default function MenuSection({ items, deals }: MenuSectionProps) {
             onExpand={() => handleExpand(item.id)}
             onCollapse={() => setExpandedId(null)}
             deal={deals?.find(d => d.menu_item_id === item.id) ?? null}
+            isAcceptingOrders={isAcceptingOrders}
+            editCartItemId={item.id === editMenuItemId ? editCartItemId : undefined}
+            initialSelections={item.id === editMenuItemId ? editSelections : undefined}
+            initialSpecialRequests={item.id === editMenuItemId ? editSpecialRequests : undefined}
+            onEditComplete={item.id === editMenuItemId ? onEditComplete : undefined}
           />
         </div>
       ))}

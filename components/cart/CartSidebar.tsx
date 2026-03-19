@@ -441,27 +441,27 @@ export default function CartSidebar() {
                     </m.div>
                   )}
 
-                  {/* DashPass banner */}
+                  {/* PassDash banner */}
                   {hasDashPass && dashPassSavings > 0 && (
                     <m.div
                       initial={{ opacity: 0, scale: 0.97 }}
                       animate={{ opacity: 1, scale: 1 }}
-                      className="bg-purple-50 border border-purple-200 text-purple-800 rounded-xl px-4 py-2.5 flex items-center justify-between text-sm font-semibold mb-1"
+                      className="bg-red-50 border border-red-200 text-red-800 rounded-xl px-4 py-2.5 flex items-center justify-between text-sm font-semibold mb-1"
                     >
                       <div className="flex items-center gap-1.5">
                         <span className="text-base">👑</span>
-                        <span>DashPass savings</span>
+                        <span>PassDash savings</span>
                       </div>
-                      <span className="text-purple-600">-${dashPassSavings.toFixed(2)}</span>
+                      <span className="text-[#FF3008]">-${dashPassSavings.toFixed(2)}</span>
                     </m.div>
                   )}
                   {!hasDashPass && deliveryFee > 0 && (
                     <Link
                       href="/settings?dashpass=learn"
                       onClick={closeSidebar}
-                      className="block bg-purple-50 border border-purple-100 rounded-xl px-4 py-2 text-xs text-purple-700 font-medium hover:bg-purple-100 transition-colors mb-1"
+                      className="block bg-red-50 border border-red-100 rounded-xl px-4 py-2 text-xs text-red-700 font-medium hover:bg-red-100 transition-colors mb-1"
                     >
-                      Save ${(deliveryFee + Math.round(discountedSubtotal * 0.05 * 0.5 * 100) / 100).toFixed(2)} with DashPass — Learn more
+                      Save ${(deliveryFee + Math.round(discountedSubtotal * 0.05 * 0.5 * 100) / 100).toFixed(2)} with PassDash — Learn more
                     </Link>
                   )}
 
@@ -483,7 +483,7 @@ export default function CartSidebar() {
                     {hasDashPass && dashPassSavings > 0 ? (
                       <span className="flex items-center gap-1.5">
                         <span className="line-through text-gray-400">${(deliveryFee + Math.round(discountedSubtotal * 0.05 * 100) / 100).toFixed(2)}</span>
-                        <span className="text-purple-600 font-semibold">{displayDeliveryFee === 0 ? '$0.00' : `$${displayDeliveryFee.toFixed(2)}`}</span>
+                        <span className="text-[#FF3008] font-semibold">{displayDeliveryFee === 0 ? '$0.00' : `$${displayDeliveryFee.toFixed(2)}`}</span>
                       </span>
                     ) : (
                       <span>{displayDeliveryFee === 0 ? 'Free' : `$${displayDeliveryFee.toFixed(2)}`}</span>

@@ -502,7 +502,7 @@ export default function OrderDetailPage() {
             <div className="flex items-center justify-between bg-red-50 border border-red-200 text-red-800 rounded-xl px-4 py-2.5 mb-1">
               <div className="flex items-center gap-1.5 text-sm font-semibold">
                 <span>👑</span>
-                DashPass savings
+                PassDash savings
               </div>
               <span className="text-sm font-bold text-[#FF3008]">-${(order.dashpass_savings ?? 0).toFixed(2)}</span>
             </div>

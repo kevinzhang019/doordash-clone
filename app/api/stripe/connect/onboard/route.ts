@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000';
   const accountLink = await stripe.accountLinks.create({
     account: stripeAccountId!,
     refresh_url: `${baseUrl}/stripe-refresh?role=${userRole}`,

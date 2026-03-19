@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/components/providers/AuthProvider';
 
-interface DashPassSubscription {
+interface PassDashSubscription {
   id: number;
   status: string;
   current_period_end: string;
@@ -11,40 +11,67 @@ interface DashPassSubscription {
   created_at: string;
 }
 
+function hasSessionToken(): boolean {
+  if (typeof window === 'undefined') return false;
+  return !!sessionStorage.getItem('session_token_customer');
+}
+
 export function useDashPass() {
   const { user } = useAuth();
-  const [hasDashPass, setHasDashPass] = useState(false);
+  const [hasDashPass, setHasPassDash] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [subscription, setSubscription] = useState<DashPassSubscription | null>(null);
+  const [subscription, setSubscription] = useState<PassDashSubscription | null>(null);
+  // Track whether we've done the initial fetch to avoid flashing wrong state
+  const hasFetched = useRef(false);
 
   const refresh = useCallback(async () => {
-    if (!user) {
-      setHasDashPass(false);
+    // Use sessionStorage token presence — doesn't depend on React user state timing
+    if (!hasSessionToken()) {
+      setHasPassDash(false);
+      setSubscription(null);
+      setLoading(false);
+      hasFetched.current = true;
+      return;
+    }
+    try {
+      // Only show loading spinner on initial fetch, not on refreshes
+      // This prevents the PassDash section from flickering to "subscribe" on re-fetches
+      if (!hasFetched.current) {
+        setLoading(true);
+      }
+      const res = await fetch('/api/dashpass/status');
+      if (res.ok) {
+        const data = await res.json();
+        setHasPassDash(data.active);
+        setSubscription(data.subscription);
+      } else {
+        setHasPassDash(false);
+        setSubscription(null);
+      }
+    } catch {
+      // On network error during refresh, keep current state instead of
+      // flashing "not subscribed" — only clear on definitive server response
+      if (!hasFetched.current) {
+        setHasPassDash(false);
+        setSubscription(null);
+      }
+    } finally {
+      setLoading(false);
+      hasFetched.current = true;
+    }
+  }, []);
+
+  // Fetch on mount and whenever user changes (login/logout)
+  useEffect(() => {
+    // On logout, immediately clear PassDash state
+    if (!user && hasFetched.current) {
+      setHasPassDash(false);
       setSubscription(null);
       setLoading(false);
       return;
     }
-    try {
-      const res = await fetch('/api/dashpass/status');
-      if (res.ok) {
-        const data = await res.json();
-        setHasDashPass(data.active);
-        setSubscription(data.subscription);
-      } else {
-        setHasDashPass(false);
-        setSubscription(null);
-      }
-    } catch {
-      setHasDashPass(false);
-      setSubscription(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
-
-  useEffect(() => {
     refresh();
-  }, [refresh]);
+  }, [refresh, user]);
 
   return { hasDashPass, loading, subscription, refresh };
 }

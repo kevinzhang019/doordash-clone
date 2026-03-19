@@ -53,12 +53,9 @@ export function haversineDistance(
 }
 
 export function deliveryFeeFromDistance(miles: number): number {
-  const raw = Math.max(0, Math.min(0.49 + miles * 0.65, 9.99));
-  if (raw <= 0) return 0;
-  // Round up to nearest $X.49 or $X.99
-  const dollars = Math.floor(raw);
-  const cents = raw - dollars;
-  return cents <= 0.49 ? dollars + 0.49 : dollars + 0.99;
+  const raw = 0.99 + 1.3 * miles;
+  // Round up to nearest .49 or .99 (e.g. 0.49, 0.99, 1.49, 1.99, ...)
+  return Math.ceil((raw + 0.01) / 0.50) * 0.50 - 0.01;
 }
 
 export function deliveryTimeFromDistance(miles: number): { min: number; max: number } {

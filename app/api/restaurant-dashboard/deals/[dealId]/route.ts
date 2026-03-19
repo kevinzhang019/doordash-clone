@@ -40,7 +40,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     if (conflict) return Response.json({ error: 'This item already has an active deal. Deactivate it before activating another.' }, { status: 409 });
   }
 
-  await supabase.from('deals').update({ is_active: !!is_active }).eq('id', parseInt(dealId));
+  const { error: updateError } = await supabase.from('deals').update({ is_active: !!is_active }).eq('id', parseInt(dealId));
+
+  // Handle unique partial index violation from concurrent activation race
+  if (updateError?.code === '23505') {
+    return Response.json({ error: 'This item already has an active deal. Deactivate it before activating another.' }, { status: 409 });
+  }
+  if (updateError) throw updateError;
+
   return Response.json({ ok: true });
 }
 

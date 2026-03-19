@@ -29,10 +29,19 @@ export async function PUT(request: NextRequest) {
     if (!valid) return Response.json({ error: 'Current password is incorrect' }, { status: 400 });
 
     const hash = await bcrypt.hash(newPassword, 12);
-    await supabase
+    // Optimistic lock: only update if password_hash hasn't changed since we read it
+    // This prevents a concurrent password change from being silently overwritten
+    const { data: updated } = await supabase
       .from('users')
       .update({ password_hash: hash })
-      .eq('id', userId);
+      .eq('id', userId)
+      .eq('password_hash', user.password_hash)
+      .select('id')
+      .maybeSingle();
+
+    if (!updated) {
+      return Response.json({ error: 'Password was changed by another session. Please try again.' }, { status: 409 });
+    }
 
     return Response.json({ success: true });
   } catch (error) {

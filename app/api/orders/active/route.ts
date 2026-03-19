@@ -7,12 +7,10 @@ export async function GET(request: NextRequest) {
 
   const supabase = getSupabaseAdmin();
 
-  // Fetch orders that are not delivered, with restaurant info and driver info
   const { data: orders, error } = await supabase
     .from('orders')
     .select('id, status, placed_at, total, estimated_delivery_at, delivered_at, restaurant_id, driver_user_id, restaurants(name, delivery_min, delivery_max)')
     .eq('user_id', userId)
-    .not('status', 'eq', 'delivered')
     .order('placed_at', { ascending: false })
     .limit(20);
 

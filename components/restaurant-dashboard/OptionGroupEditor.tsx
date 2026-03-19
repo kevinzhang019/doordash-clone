@@ -3,11 +3,13 @@
 import { useState } from 'react';
 
 export interface OptionDraft {
+  id?: number;
   name: string;
   price_modifier: number;
 }
 
 export interface OptionGroupDraft {
+  id?: number;
   name: string;
   required: boolean;
   max_selections: number | null;
@@ -124,7 +126,7 @@ export default function OptionGroupEditor({ groups, onChange }: OptionGroupEdito
                     }}
                     className="border border-gray-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-[#FF3008] bg-white"
                   >
-                    <option value="check">Check / Radio</option>
+                    <option value="check">Checkboxes</option>
                     <option value="quantity">Quantity pick</option>
                   </select>
                 </div>

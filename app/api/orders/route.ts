@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Verify DashPass subscription server-side
+    // Verify PassDash subscription server-side
     let hasDashPass = false;
     const { data: dashPassSub } = await supabase
       .from('dashpass_subscriptions')
@@ -161,17 +161,17 @@ export async function POST(request: NextRequest) {
       hasDashPass = true;
     }
 
-    // If client claims DashPass savings but server finds no active subscription, reject
+    // If client claims PassDash savings but server finds no active subscription, reject
     if (clientDashpassSavings > 0 && !hasDashPass) {
       if (paymentIntentId && process.env.STRIPE_SECRET_KEY) {
         try {
           const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
           await stripe.paymentIntents.cancel(paymentIntentId);
         } catch (cancelError) {
-          console.error('Failed to cancel payment intent after DashPass mismatch:', cancelError);
+          console.error('Failed to cancel payment intent after PassDash mismatch:', cancelError);
         }
       }
-      return Response.json({ error: 'DashPass subscription is not active. Please refresh and try again.' }, { status: 403 });
+      return Response.json({ error: 'PassDash subscription is not active. Please refresh and try again.' }, { status: 403 });
     }
 
     // Compute raw cart total for fee calculation
@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
       return sum + (basePrice + selectionTotal) * item.quantity;
     }, 0) ?? 0;
 
-    // Server-side fee calculation with DashPass — clientDeliveryFee is the raw base delivery fee
+    // Server-side fee calculation with PassDash — clientDeliveryFee is the raw base delivery fee
     const rawDeliveryFee = typeof clientDeliveryFee === 'number' && isFinite(clientDeliveryFee) ? clientDeliveryFee : 2.99;
     const serverFees = calculateFees({
       discountedSubtotal: cartTotal - verifiedDealSavings,
@@ -190,7 +190,7 @@ export async function POST(request: NextRequest) {
       hasDashPass,
     });
 
-    const verifiedDashPassSavings = hasDashPass ? serverFees.dashPassSavings : 0;
+    const verifiedPassDashSavings = hasDashPass ? serverFees.dashPassSavings : 0;
 
     const { data: result, error: rpcError } = await supabase.rpc('place_order', {
       p_user_id: userId,
@@ -232,10 +232,10 @@ export async function POST(request: NextRequest) {
 
     const orderId = result.orderId ?? result.orderid ?? result.order_id;
 
-    // Store DashPass savings on the order
-    if (verifiedDashPassSavings > 0) {
+    // Store PassDash savings on the order
+    if (verifiedPassDashSavings > 0) {
       await supabase.from('orders')
-        .update({ dashpass_savings: Math.round(verifiedDashPassSavings * 100) / 100 })
+        .update({ dashpass_savings: Math.round(verifiedPassDashSavings * 100) / 100 })
         .eq('id', orderId);
     }
 
@@ -249,13 +249,6 @@ export async function POST(request: NextRequest) {
         // Don't fail the order — the authorization is still valid and can be retried
       }
     }
-
-    // Save delivery preferences for this address
-    const savedInstructions = (typeof deliveryInstructions === 'string' && deliveryInstructions.trim()) ? deliveryInstructions.trim() : null;
-    await supabase.from('user_addresses').update({
-      delivery_instructions: savedInstructions,
-      handoff_option: handoffOption ?? 'hand_off'
-    }).eq('user_id', userId).eq('address', deliveryAddress.trim());
 
     // Fire-and-forget: send order confirmation email
     const { data: orderForEmail } = await supabase

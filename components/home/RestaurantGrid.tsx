@@ -8,7 +8,7 @@ import { useSearch } from '@/components/providers/SearchProvider';
 import { useCuisine, SortOption } from '@/components/providers/CuisineProvider';
 
 interface RestaurantGridProps {
-  restaurants: (Restaurant & { review_count: number })[];
+  restaurants: (Restaurant & { review_count: number; is_open: boolean })[];
 }
 
 const CUISINES = ['All', 'Italian', 'Japanese', 'Mexican', 'Indian', 'Chinese', 'French', 'Mediterranean', 'Korean', 'Thai', 'American'];
@@ -135,11 +135,11 @@ export default function RestaurantGrid({ restaurants }: RestaurantGridProps) {
         </div>
       ) : (
         <div
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 transition-opacity duration-400"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 will-change-[opacity] transition-opacity duration-400"
           style={{ opacity: visible ? 1 : 0 }}
         >
           {sorted.map((restaurant) => (
-            <RestaurantCard key={restaurant.id} restaurant={restaurant} />
+            <RestaurantCard key={restaurant.id} restaurant={restaurant} isOpen={restaurant.is_open} />
           ))}
         </div>
       )}

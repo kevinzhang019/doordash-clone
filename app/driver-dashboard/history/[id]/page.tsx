@@ -24,11 +24,11 @@ interface SessionDetail {
 }
 
 function formatTime(iso: string) {
-  return new Date(iso + 'Z').toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 }
 
 function formatDate(iso: string) {
-  return new Date(iso + 'Z').toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+  return new Date(iso).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 }
 
 function formatDuration(mins: number) {

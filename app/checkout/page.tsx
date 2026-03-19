@@ -45,6 +45,7 @@ function CheckoutForm() {
   const [deliveryInstructions, setDeliveryInstructions] = useState('');
   const [handoffOption, setHandoffOption] = useState<'hand_off' | 'leave_at_door'>('hand_off');
   const [prefsLoaded, setPrefsLoaded] = useState(false);
+  const [matchedAddressId, setMatchedAddressId] = useState<number | null>(null);
 
   // Promo code state
   const [promoInput, setPromoInput] = useState('');
@@ -80,10 +81,11 @@ function CheckoutForm() {
     if (!deliveryAddress || prefsLoaded) return;
     fetch('/api/addresses')
       .then(r => r.ok ? r.json() : null)
-      .then((data: { addresses?: Array<{ address: string; delivery_instructions?: string | null; handoff_option?: string | null }> } | null) => {
+      .then((data: { addresses?: Array<{ id: number; address: string; delivery_instructions?: string | null; handoff_option?: string | null }> } | null) => {
         if (!data?.addresses) return;
         const match = data.addresses.find((a) => a.address === deliveryAddress);
         if (match) {
+          setMatchedAddressId(match.id);
           if (match.delivery_instructions) setDeliveryInstructions(match.delivery_instructions);
           if (match.handoff_option === 'leave_at_door' || match.handoff_option === 'hand_off') {
             setHandoffOption(match.handoff_option);
@@ -276,6 +278,18 @@ function CheckoutForm() {
         return;
       }
 
+      // Update delivery instructions on the saved address (by ID — reliable, no string matching)
+      if (matchedAddressId !== null) {
+        fetch(`/api/addresses/${matchedAddressId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            delivery_instructions: deliveryInstructions.trim() || null,
+            handoff_option: handoffOption,
+          }),
+        }).catch(() => {});
+      }
+
       await clearCart();
       router.push(`/orders/${data.orderId}`);
     } catch {
@@ -380,12 +394,12 @@ function CheckoutForm() {
               </div>
             )}
             {hasDashPass && dashPassSavings > 0 && (
-              <div className="flex items-center justify-between bg-purple-600 text-white rounded-lg px-3 py-2 mb-2">
+              <div className="flex items-center justify-between bg-red-50 border border-red-200 text-red-800 rounded-xl px-4 py-2.5 mb-2">
                 <div className="flex items-center gap-1.5 text-sm font-semibold">
                   <span>👑</span>
-                  DashPass savings
+                  PassDash savings
                 </div>
-                <span className="text-sm font-bold">-${dashPassSavings.toFixed(2)}</span>
+                <span className="text-sm font-bold text-[#FF3008]">-${dashPassSavings.toFixed(2)}</span>
               </div>
             )}
             <div className="flex justify-between text-gray-600 text-sm">
@@ -397,7 +411,7 @@ function CheckoutForm() {
               {hasDashPass && dashPassSavings > 0 ? (
                 <span className="flex items-center gap-1.5">
                   <span className="line-through text-gray-400">${(deliveryFee + Math.round(discountedSubtotal * 0.05 * 100) / 100).toFixed(2)}</span>
-                  <span className="text-purple-600 font-semibold">{displayDeliveryFee === 0 ? '$0.00' : `$${displayDeliveryFee.toFixed(2)}`}</span>
+                  <span className="text-[#FF3008] font-semibold">{displayDeliveryFee === 0 ? '$0.00' : `$${displayDeliveryFee.toFixed(2)}`}</span>
                 </span>
               ) : (
                 <span>{displayDeliveryFee === 0 ? 'Free' : `$${displayDeliveryFee.toFixed(2)}`}</span>

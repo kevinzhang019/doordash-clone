@@ -11,6 +11,7 @@ export default function DealsPage() {
   const [togglingId, setTogglingId] = useState<number | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [error, setError] = useState('');
+  const [banner, setBanner] = useState<{ message: string; type: 'error' | 'info' } | null>(null);
 
   // Form state
   const [selectedItemId, setSelectedItemId] = useState('');
@@ -51,17 +52,26 @@ export default function DealsPage() {
       setDealType('percentage_off');
       setDiscountValue('20');
       await load();
+      if (data.previousDeactivated) {
+        setBanner({ message: 'The previous active deal for this item was automatically deactivated.', type: 'info' });
+        setTimeout(() => setBanner(null), 5000);
+      }
     }
     setSaving(false);
   };
 
   const handleToggle = async (deal: Deal) => {
     setTogglingId(deal.id);
-    await fetch(`/api/restaurant-dashboard/deals/${deal.id}`, {
+    const res = await fetch(`/api/restaurant-dashboard/deals/${deal.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ is_active: !deal.is_active }),
     });
+    if (!res.ok) {
+      const data = await res.json();
+      setBanner({ message: data.error || 'Failed to update deal', type: 'error' });
+      setTimeout(() => setBanner(null), 5000);
+    }
     await load();
     setTogglingId(null);
   };
@@ -172,6 +182,18 @@ export default function DealsPage() {
       </div>
 
       {/* Existing deals */}
+      {banner && (
+        <div className={`mb-4 flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium ${
+          banner.type === 'error'
+            ? 'bg-red-50 border border-red-200 text-red-700'
+            : 'bg-amber-50 border border-amber-200 text-amber-700'
+        }`}>
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+          </svg>
+          {banner.message}
+        </div>
+      )}
       {deals.length === 0 ? (
         <div className="text-center py-10 text-gray-400">
           <p className="text-4xl mb-3">🏷️</p>
@@ -194,23 +216,25 @@ export default function DealsPage() {
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-2 flex-shrink-0">
+              <div className="flex items-center gap-3 flex-shrink-0">
                 {/* Active toggle */}
-                <button
-                  onClick={() => handleToggle(deal)}
-                  disabled={togglingId === deal.id}
-                  title={deal.is_active ? 'Deactivate' : 'Activate'}
-                  className={`relative w-10 h-6 rounded-full transition-colors cursor-pointer disabled:opacity-50 ${
-                    deal.is_active ? 'bg-green-500' : 'bg-gray-300'
-                  }`}
-                >
-                  <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                    deal.is_active ? 'translate-x-5' : 'translate-x-1'
-                  }`} />
-                </button>
-                <span className={`text-xs font-medium w-16 ${deal.is_active ? 'text-green-600' : 'text-gray-400'}`}>
-                  {deal.is_active ? 'Active' : 'Inactive'}
-                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handleToggle(deal)}
+                    disabled={togglingId === deal.id}
+                    title={deal.is_active ? 'Deactivate' : 'Activate'}
+                    className={`relative inline-flex h-6 w-10 items-center rounded-full transition-colors cursor-pointer disabled:opacity-50 ${
+                      deal.is_active ? 'bg-green-500' : 'bg-gray-300'
+                    }`}
+                  >
+                    <span className={`inline-block h-4 w-4 bg-white rounded-full shadow transition-transform ${
+                      deal.is_active ? 'translate-x-5' : 'translate-x-1'
+                    }`} />
+                  </button>
+                  <span className={`text-xs font-medium w-12 ${deal.is_active ? 'text-green-600' : 'text-gray-400'}`}>
+                    {deal.is_active ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
                 <button
                   onClick={() => handleDelete(deal.id)}
                   disabled={deletingId === deal.id}

@@ -196,7 +196,7 @@ export default function FloatingDriverChat() {
       {/* ── Chat panel ──────────────────────────────────────────────────────── */}
       <div
         className={`fixed bottom-24 right-6 z-50 w-80 bg-white rounded-2xl shadow-2xl overflow-hidden
-          transition-all duration-300 ease-out origin-bottom-right
+          transition-[opacity,transform] duration-300 ease-out origin-bottom-right will-change-[transform,opacity]
           ${open
             ? 'opacity-100 scale-100 translate-y-0 pointer-events-auto'
             : 'opacity-0 scale-95 translate-y-3 pointer-events-none'
@@ -352,7 +352,7 @@ export default function FloatingDriverChat() {
         aria-label={open ? 'Close chat' : 'Open chat with driver'}
         className={`fixed bottom-6 right-6 z-50 w-14 h-14 bg-[#FF3008] rounded-full shadow-xl
           flex items-center justify-center cursor-pointer hover:bg-red-700
-          transition-all duration-300 ease-out
+          transition-[opacity,transform,background-color] duration-300 ease-out will-change-[transform,opacity]
           ${bubbleIn
             ? 'scale-100 opacity-100 translate-y-0 pointer-events-auto'
             : 'scale-0 opacity-0 translate-y-4 pointer-events-none'
@@ -364,12 +364,12 @@ export default function FloatingDriverChat() {
           <span className="absolute inset-0 rounded-full bg-[#FF3008] animate-ping opacity-40" />
         )}
 
-        <span className={`absolute transition-all duration-200 ${open ? 'opacity-100 rotate-0' : 'opacity-0 rotate-90'}`}>
+        <span className={`absolute transition-[opacity,transform] duration-200 ${open ? 'opacity-100 rotate-0' : 'opacity-0 rotate-90'}`}>
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </span>
-        <span className={`absolute transition-all duration-200 ${open ? 'opacity-0 -rotate-90' : 'opacity-100 rotate-0'}`}>
+        <span className={`absolute transition-[opacity,transform] duration-200 ${open ? 'opacity-0 -rotate-90' : 'opacity-100 rotate-0'}`}>
           <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
           </svg>

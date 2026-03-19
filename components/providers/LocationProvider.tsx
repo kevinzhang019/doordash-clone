@@ -92,21 +92,15 @@ export function LocationProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     _triggerAddressLoad = async () => {
       try {
-        const guestAddr = deliveryAddressRef.current;
-        const guestCoords = deliveryCoordsRef.current;
-
-        // If there's a guest address in memory, save it to the user's account (migration also
-        // happens server-side via x-guest-id header, but this ensures in-memory addr is saved too)
-        if (guestAddr && guestCoords) {
-          await fetch('/api/addresses', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ address: guestAddr, lat: guestCoords.lat, lng: guestCoords.lng }),
-          });
+        // If localStorage already has a valid address, keep it — don't overwrite with DB default
+        const existingAddr = localStorage.getItem('deliveryAddress');
+        const existingLat = parseFloat(localStorage.getItem('deliveryLat') || '');
+        const existingLng = parseFloat(localStorage.getItem('deliveryLng') || '');
+        if (existingAddr && existingAddr !== 'Current Location' && !isNaN(existingLat) && !isNaN(existingLng)) {
           return;
         }
 
-        // No in-memory address — load from DB (migration of guest DB addresses also happens here)
+        // No local address — load from DB (guest address migration happens server-side via x-guest-id header)
         const res = await fetch('/api/addresses');
         if (!res.ok) return;
         const data = await res.json();

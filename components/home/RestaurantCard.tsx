@@ -63,8 +63,7 @@ export default function RestaurantCard({ restaurant, isOpen }: RestaurantCardPro
           <p className="mt-2 text-sm text-gray-600">
             {hasDashPass ? (
               <>
-                <span className="font-semibold text-green-600">$0.00</span>
-                <span className="ml-1 text-purple-600 text-xs font-medium">DashPass</span>
+                <span className="font-semibold text-[#FF3008]">Free with PassDash</span>
                 {deliveryFee > 0 && (
                   <span className="ml-1 line-through text-gray-400 text-xs">${deliveryFee.toFixed(2)}</span>
                 )}
@@ -79,7 +78,7 @@ export default function RestaurantCard({ restaurant, isOpen }: RestaurantCardPro
                 </span>
                 {' '}Delivery Fee
                 {deliveryFee > 0 && (
-                  <span className="block text-xs text-purple-600 mt-0.5">$0.00 with DashPass</span>
+                  <span className="ml-1.5 text-xs text-[#FF3008]">Free with PassDash</span>
                 )}
               </>
             )}

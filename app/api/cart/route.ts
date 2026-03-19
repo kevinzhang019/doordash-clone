@@ -29,7 +29,14 @@ export async function GET(request: NextRequest) {
       .order('id');
 
     if (!cartItems || cartItems.length === 0) {
-      return Response.json({ cartItems: [] });
+      const { data: autoRemovals } = await supabase
+        .from('cart_auto_removals')
+        .select('item_name, restaurant_id')
+        .eq('user_id', userId);
+      if (autoRemovals && autoRemovals.length > 0) {
+        await supabase.from('cart_auto_removals').delete().eq('user_id', userId);
+      }
+      return Response.json({ cartItems: [], autoRemovedItems: autoRemovals ?? [] });
     }
 
     // Flatten the joined data to match the original shape
@@ -81,7 +88,20 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return Response.json({ cartItems: flattenedItems });
+    // Check for server-side removals (e.g. owner edited option groups)
+    const { data: autoRemovals } = await supabase
+      .from('cart_auto_removals')
+      .select('item_name, restaurant_id')
+      .eq('user_id', userId);
+
+    if (autoRemovals && autoRemovals.length > 0) {
+      await supabase.from('cart_auto_removals').delete().eq('user_id', userId);
+    }
+
+    return Response.json({
+      cartItems: flattenedItems,
+      autoRemovedItems: autoRemovals ?? [],
+    });
   } catch (error) {
     console.error('Get cart error:', error);
     return Response.json({ error: 'Internal server error' }, { status: 500 });

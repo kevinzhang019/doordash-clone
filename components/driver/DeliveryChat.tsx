@@ -21,7 +21,9 @@ export default function DeliveryChat({ orderId, currentUserId, isActive }: Deliv
 
   const fetchMessages = async () => {
     try {
-      const res = await fetch(`/api/messages/${orderId}`);
+      const res = await fetch(`/api/messages/${orderId}`, {
+        headers: { 'X-Session-Role': 'driver' },
+      });
       if (res.ok) {
         const data = await res.json();
         setMessages(data.messages ?? []);
@@ -41,7 +43,9 @@ export default function DeliveryChat({ orderId, currentUserId, isActive }: Deliv
   useEffect(() => {
     const initialFetch = async () => {
       try {
-        const res = await fetch(`/api/messages/${orderId}`);
+        const res = await fetch(`/api/messages/${orderId}`, {
+          headers: { 'X-Session-Role': 'driver' },
+        });
         if (res.ok) {
           const data = await res.json();
           const msgs = data.messages ?? [];
@@ -75,7 +79,7 @@ export default function DeliveryChat({ orderId, currentUserId, isActive }: Deliv
     try {
       await fetch(`/api/messages/${orderId}`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Session-Role': 'driver' },
         body: JSON.stringify({ content: content.trim() }),
       });
       setContent('');

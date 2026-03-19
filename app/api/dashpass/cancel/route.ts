@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
 
     return Response.json({ endsAt: sub.current_period_end });
   } catch (error) {
-    console.error('DashPass cancel error:', error);
+    console.error('PassDash cancel error:', error);
     return Response.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

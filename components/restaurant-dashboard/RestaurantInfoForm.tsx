@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Image from 'next/image';
 import type { Restaurant } from '@/lib/types';
 import AddressAutocomplete from '@/components/ui/AddressAutocomplete';
 
@@ -142,7 +143,26 @@ export default function RestaurantInfoForm({ restaurant, onSaved }: RestaurantIn
         </div>
 
         <div className="sm:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Restaurant image</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">Restaurant image <span className="text-gray-400 font-normal">(optional)</span></label>
+          <div className="relative mt-1 mb-2 w-full h-40 rounded-xl border border-gray-200 overflow-hidden bg-gray-50">
+            {imageUrl && !uploadingImage ? (
+              <Image
+                src={imageUrl}
+                alt="preview"
+                fill
+                className="object-cover"
+                unoptimized
+                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+            ) : (
+              <div className="w-full h-full flex flex-col items-center justify-center gap-1 text-gray-300">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span className="text-xs">{uploadingImage ? 'Uploading...' : 'No image'}</span>
+              </div>
+            )}
+          </div>
           <input
             type="file"
             accept="image/jpeg,image/png,image/webp"
@@ -151,17 +171,6 @@ export default function RestaurantInfoForm({ restaurant, onSaved }: RestaurantIn
             className="w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#FF3008] file:text-white hover:file:bg-red-600 file:cursor-pointer border border-gray-200 rounded-xl px-3 py-2 focus:outline-none disabled:opacity-50"
           />
           {uploadingImage && <p className="text-xs text-gray-400 mt-1">Uploading...</p>}
-          {imageUrl && !uploadingImage && (
-            <div className="mt-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={imageUrl}
-                alt="preview"
-                className="w-full h-40 object-cover rounded-xl border border-gray-200"
-                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-              />
-            </div>
-          )}
         </div>
       </div>
 

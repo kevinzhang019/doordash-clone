@@ -102,12 +102,14 @@ export async function POST(request: NextRequest) {
       // Migrate guest addresses first
       if (guestId) await migrateGuestAddresses(supabase, guestId, userId);
 
-      const { data: existing } = await supabase
+      const { data: existingRows } = await supabase
         .from('user_addresses')
         .select('id, is_active')
         .eq('user_id', userId)
         .eq('address', address)
-        .maybeSingle();
+        .limit(1);
+
+      const existing = existingRows?.[0] ?? null;
 
       if (existing && !existing.is_active) {
         await supabase
@@ -123,12 +125,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (guestId) {
-      const { data: existing } = await supabase
+      const { data: existingRows } = await supabase
         .from('guest_addresses')
         .select('id, is_active')
         .eq('guest_id', guestId)
         .eq('address', address)
-        .maybeSingle();
+        .limit(1);
+
+      const existing = existingRows?.[0] ?? null;
 
       if (existing && !existing.is_active) {
         await supabase

@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
     return Response.json({ active, subscription: sub });
   } catch (error) {
-    console.error('DashPass status error:', error);
+    console.error('PassDash status error:', error);
     return Response.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

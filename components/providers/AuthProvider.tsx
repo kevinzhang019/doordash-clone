@@ -12,13 +12,11 @@ if (typeof window !== 'undefined') {
   const ROLES = ['customer', 'driver', 'restaurant'] as const;
   const hasAnySession = ROLES.some(r => sessionStorage.getItem(`session_token_${r}`));
   if (!hasAnySession) {
-    for (const role of ROLES) {
-      const saved = localStorage.getItem(`last_token_${role}`);
-      if (saved) sessionStorage.setItem(`session_token_${role}`, saved);
-    }
-    const savedRole = localStorage.getItem('last_active_role');
-    if (savedRole && !sessionStorage.getItem('active_role')) {
-      sessionStorage.setItem('active_role', savedRole);
+    // Only auto-login customer accounts — driver/restaurant sessions require explicit login
+    const savedCustomerToken = localStorage.getItem('last_token_customer');
+    if (savedCustomerToken) {
+      sessionStorage.setItem('session_token_customer', savedCustomerToken);
+      sessionStorage.setItem('active_role', 'customer');
     }
   }
 

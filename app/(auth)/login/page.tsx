@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useCart } from '@/components/providers/CartProvider';
 import type { UserRole } from '@/lib/types';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
 
 const ROLES: { role: UserRole; label: string; icon: string; subtitle: string }[] = [
   { role: 'customer',   label: 'Customer',          icon: '🛒', subtitle: 'Order food for delivery' },
@@ -70,8 +70,8 @@ function LoginPageInner() {
     <div className="min-h-screen flex items-center justify-center py-12 px-4">
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-[#FF3008] rounded-full mb-4">
-            <span className="text-white font-bold text-2xl">D</span>
+          <div className="inline-flex items-center justify-center mb-4">
+            <img src="/logo.png" alt="DashDoor" className="w-16 h-16 object-contain" />
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
           <p className="text-gray-500 mt-1">

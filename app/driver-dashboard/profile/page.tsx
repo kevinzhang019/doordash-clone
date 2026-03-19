@@ -214,7 +214,7 @@ export default function DriverSettingsPage() {
             <form onSubmit={handleProfileSave} className="space-y-4">
               {error && <p className="text-red-400 text-sm">{error}</p>}
               {saved && <p className="text-green-400 text-sm">Saved!</p>}
-              <div><label className={label}>Full name</label><input type="text" required value={name} onChange={e => setName(e.target.value)} className={input} /></div>
+              <div><label className={label}>Full name</label><input type="text" required value={name} onChange={e => setName(e.target.value.replace(/\b\w/g, c => c.toUpperCase()))} className={input} /></div>
               <div><label className={label}>Email address</label><input type="email" required value={email} onChange={e => setEmail(e.target.value)} className={input} /></div>
               <div>
                 <label className={label}>Phone <span className="text-gray-600 font-normal">(optional)</span></label>

@@ -1,12 +1,12 @@
 'use client';
 
+import { useAuth } from '@/components/providers/AuthProvider';
+import NewOrderNotification from '@/components/restaurant-dashboard/NewOrderNotification';
+import { useRequireAuth } from '@/lib/useRequireAuth';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { useAuth } from '@/components/providers/AuthProvider';
-import { useRequireAuth } from '@/lib/useRequireAuth';
-import NewOrderNotification from '@/components/restaurant-dashboard/NewOrderNotification';
+import { useEffect, useRef, useState } from 'react';
 
 const NAV_ITEMS = [
   { href: '/restaurant-dashboard', label: 'Overview', icon: '📊' },
@@ -27,7 +27,9 @@ export default function RestaurantDashboardLayout({ children }: { children: Reac
   const router = useRouter();
   const [profileOpen, setProfileOpen] = useState(false);
   const [hasRestaurant, setHasRestaurant] = useState<boolean | null>(null);
+  const [activeOrderCount, setActiveOrderCount] = useState(0);
   const profileRef = useRef<HTMLDivElement>(null);
+  const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (authLoading) return;
@@ -46,6 +48,28 @@ export default function RestaurantDashboardLayout({ children }: { children: Reac
       })
       .catch(() => setHasRestaurant(true));
   }, [router, authLoading]);
+
+  useEffect(() => {
+    if (!hasRestaurant) return;
+    let cancelled = false;
+    const poll = async () => {
+      try {
+        const res = await fetch('/api/restaurant-dashboard/orders');
+        if (!cancelled && res.ok) {
+          const data = await res.json();
+          setActiveOrderCount(Array.isArray(data.orders) ? data.orders.filter((o: { status: string }) => o.status !== 'ready').length : 0);
+        }
+      } catch {}
+      if (!cancelled) {
+        pollTimeoutRef.current = setTimeout(poll, 5000);
+      }
+    };
+    poll();
+    return () => {
+      cancelled = true;
+      if (pollTimeoutRef.current) clearTimeout(pollTimeoutRef.current);
+    };
+  }, [hasRestaurant]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -78,9 +102,7 @@ export default function RestaurantDashboardLayout({ children }: { children: Reac
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <Link href="/restaurant-dashboard" className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-[#FF3008] rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-sm">D</span>
-            </div>
+            <img src="/logo.png" alt="DashDoor" className="w-8 h-8 object-contain" />
             <span className="font-semibold text-gray-900">Restaurant Dashboard</span>
           </Link>
 
@@ -140,6 +162,7 @@ export default function RestaurantDashboardLayout({ children }: { children: Reac
           <nav className="space-y-1">
             {NAV_ITEMS.map(({ href, label, icon }) => {
               const active = href === '/restaurant-dashboard' ? pathname === href : pathname.startsWith(href);
+              const isOrders = href === '/restaurant-dashboard/orders';
               return (
                 <Link
                   key={href}
@@ -149,7 +172,14 @@ export default function RestaurantDashboardLayout({ children }: { children: Reac
                   }`}
                 >
                   <span>{icon}</span>
-                  {label}
+                  <span className="flex-1">{label}</span>
+                  {isOrders && activeOrderCount > 0 && (
+                    <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[20px] text-center ${
+                      active ? 'bg-white text-[#FF3008]' : 'bg-[#FF3008] text-white'
+                    }`}>
+                      {activeOrderCount}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -161,6 +191,7 @@ export default function RestaurantDashboardLayout({ children }: { children: Reac
           <div className="flex">
             {NAV_ITEMS.map(({ href, label, icon }) => {
               const active = href === '/restaurant-dashboard' ? pathname === href : pathname.startsWith(href);
+              const isOrders = href === '/restaurant-dashboard/orders';
               return (
                 <Link
                   key={href}
@@ -169,7 +200,14 @@ export default function RestaurantDashboardLayout({ children }: { children: Reac
                     active ? 'text-[#FF3008]' : 'text-gray-500'
                   }`}
                 >
-                  <span className="text-lg">{icon}</span>
+                  <span className="relative text-lg">
+                    {icon}
+                    {isOrders && activeOrderCount > 0 && (
+                      <span className="absolute -top-1 -right-2 bg-[#FF3008] text-white text-[10px] font-bold px-1 py-0.5 rounded-full min-w-[16px] text-center leading-none">
+                        {activeOrderCount}
+                      </span>
+                    )}
+                  </span>
                   {label}
                 </Link>
               );

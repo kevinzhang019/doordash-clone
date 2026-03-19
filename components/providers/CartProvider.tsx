@@ -71,6 +71,11 @@ function normalizeSels(sels: SelectionDraft[]) {
     .sort((a, b) => (a.option_id ?? 0) - (b.option_id ?? 0) || a.name.localeCompare(b.name));
 }
 
+export interface AutoRemovedItem {
+  item_name: string;
+  restaurant_id: number;
+}
+
 interface CartContextType {
   cartItems: CartItem[];
   cartCount: number;
@@ -79,8 +84,10 @@ interface CartContextType {
   loading: boolean;
   lastAddedItem: CartItem | null;
   reorderSkipped: string[];
+  autoRemovedItems: AutoRemovedItem[];
   clearLastAdded: () => void;
   setReorderSkipped: (items: string[]) => void;
+  clearAutoRemovedItems: () => void;
   openSidebar: () => void;
   closeSidebar: () => void;
   addItem: (menuItemId: number, selections?: SelectionDraft[], specialRequests?: string) => Promise<{ error?: string; conflictingRestaurant?: string }>;
@@ -102,6 +109,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [lastAddedItem, setLastAddedItem] = useState<CartItem | null>(null);
   const [reorderSkipped, setReorderSkipped] = useState<string[]>([]);
+  const [autoRemovedItems, setAutoRemovedItems] = useState<AutoRemovedItem[]>([]);
 
   // Tracks whether auth resolved with no user (confirmed guest session)
   const wasGuestRef = useRef(false);
@@ -129,7 +137,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       // Another tab mutated the cart — re-fetch from server (source of truth)
       fetch('/api/cart')
         .then(r => r.ok ? r.json() : null)
-        .then(data => { if (data) setCartItems(data.cartItems || []); })
+        .then(data => {
+          if (data) {
+            setCartItems(data.cartItems || []);
+            if (data.autoRemovedItems?.length > 0) {
+              setAutoRemovedItems(prev => [...prev, ...data.autoRemovedItems]);
+            }
+          }
+        })
         .catch(() => {});
     };
     return () => { ch.close(); cartChannelRef.current = null; };
@@ -192,6 +207,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         if (res.ok) {
           const data = await res.json();
           setCartItems(data.cartItems || []);
+          if (data.autoRemovedItems?.length > 0) {
+            setAutoRemovedItems(prev => [...prev, ...data.autoRemovedItems]);
+          }
         }
       } catch {
         // silent fail
@@ -214,6 +232,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         const data = await res.json();
         const items: CartItem[] = data.cartItems || [];
         setCartItems(items);
+        if (data.autoRemovedItems?.length > 0) {
+          setAutoRemovedItems(prev => [...prev, ...data.autoRemovedItems]);
+        }
         return items;
       }
     } catch {
@@ -224,12 +245,33 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return [];
   }, [user]);
 
+  // Poll every 20s for server-side cart changes (e.g. owner edits option groups)
+  useEffect(() => {
+    if (!user) return;
+    const id = setInterval(async () => {
+      try {
+        const res = await fetch('/api/cart');
+        if (res.ok) {
+          const data = await res.json();
+          setCartItems(data.cartItems || []);
+          if (data.autoRemovedItems?.length > 0) {
+            setAutoRemovedItems(prev => [...prev, ...data.autoRemovedItems]);
+          }
+        }
+      } catch {
+        // silent fail
+      }
+    }, 20000);
+    return () => clearInterval(id);
+  }, [user]);
+
   const cartCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
   const cartTotal = cartItems.reduce((sum, item) => sum + (item.effective_price ?? item.price ?? 0) * item.quantity, 0);
 
   const openSidebar = () => setIsSidebarOpen(true);
   const closeSidebar = () => { setIsSidebarOpen(false); setReorderSkipped([]); };
   const clearLastAdded = () => setLastAddedItem(null);
+  const clearAutoRemovedItems = () => setAutoRemovedItems([]);
 
   const addItem = async (menuItemId: number, selections: SelectionDraft[] = [], specialRequests = ''): Promise<{ error?: string; conflictingRestaurant?: string }> => {
     if (!user) {
@@ -344,6 +386,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         await removeItem(cartItemId);
         return;
       }
+      // Optimistic update so subtotal reflects new quantity immediately
+      setCartItems(prev => prev.map(item => item.id === cartItemId ? { ...item, quantity } : item));
       await fetch(`/api/cart/items/${cartItemId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -352,7 +396,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       await refreshCart();
       broadcastCartChange();
     } catch {
-      // silent fail
+      await refreshCart(); // revert to server state on error
     }
   };
 
@@ -411,6 +455,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       cartItems, cartCount, cartTotal,
       isSidebarOpen, loading,
       lastAddedItem, reorderSkipped,
+      autoRemovedItems, clearAutoRemovedItems,
       clearLastAdded, setReorderSkipped,
       openSidebar, closeSidebar,
       addItem, removeItem, updateQuantity, updateCartItemSelections, clearCart, clearCartAndAdd,

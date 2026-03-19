@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { useAuth } from '@/components/providers/AuthProvider';
 import { useRequireAuth } from '@/lib/useRequireAuth';
 import AddressAutocomplete from '@/components/ui/AddressAutocomplete';
@@ -236,13 +237,16 @@ export default function RestaurantSetupPage() {
               {uploadingImage && <p className="text-xs text-gray-400 mt-1">Uploading...</p>}
               {imageUrl && !uploadingImage && (
                 <div className="mt-2">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={imageUrl}
-                    alt="Restaurant preview"
-                    className="w-full max-h-64 object-contain rounded-xl border border-gray-200 bg-gray-50"
-                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                  />
+                  <div className="relative w-full h-64">
+                    <Image
+                      src={imageUrl}
+                      alt="Restaurant preview"
+                      fill
+                      className="object-contain rounded-xl border border-gray-200 bg-gray-50"
+                      unoptimized
+                      onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                  </div>
                 </div>
               )}
             </div>
