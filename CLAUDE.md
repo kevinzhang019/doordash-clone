@@ -136,3 +136,5 @@ Bella Napoli (Italian), Sakura Garden (Japanese), Casa Fuego (Mexican), Spice Ro
 - Boolean columns use actual `true`/`false` in PostgreSQL (not 0/1 like SQLite)
 - Supabase relation queries replace SQL JOINs: `supabase.from('orders').select('*, restaurants(name)')`
 - The old `db/database.ts` and `db/seed.ts` files are kept as reference but are no longer used
+- **Stripe SDK v20+ breaking change**: `current_period_end` moved from `Subscription` to `SubscriptionItem`. Access it via `sub.items.data[0].current_period_end`. Similarly, `Invoice.subscription` moved to `invoice.parent.subscription_details.subscription`. Always expand items when retrieving subscriptions: `stripe.subscriptions.retrieve(id, { expand: ['items.data'] })`.
+- **`orders` table has a CHECK constraint** (`orders_status_check`) limiting the `status` column to allowed values. When adding new status values (e.g. `'cancelled'`), you must run a migration to drop and recreate the constraint to include the new value — otherwise the UPDATE will silently fail at the DB level.
