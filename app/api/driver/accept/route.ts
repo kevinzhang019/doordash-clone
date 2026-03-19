@@ -18,9 +18,13 @@ export async function POST(request: NextRequest) {
       // driver can pick up without waiting for a non-existent owner.
       const { data: orderRow } = await supabase
         .from('orders')
-        .select('restaurant_id')
+        .select('restaurant_id, status')
         .eq('id', orderId)
         .maybeSingle();
+
+      if (orderRow?.status === 'cancelled') {
+        return Response.json({ error: 'order_cancelled' }, { status: 409 });
+      }
 
       let isOwned = false;
       if (orderRow) {
@@ -44,7 +48,8 @@ export async function POST(request: NextRequest) {
           dispatch_expires_at: null,
         })
         .eq('id', orderId)
-        .is('driver_user_id', null);
+        .is('driver_user_id', null)
+        .neq('status', 'cancelled');
 
       const { data: updated } = await updateQuery.select('id').maybeSingle();
 
