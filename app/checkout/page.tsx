@@ -410,7 +410,7 @@ function CheckoutForm() {
               <span>Delivery + fees</span>
               {hasDashPass && dashPassSavings > 0 ? (
                 <span className="flex items-center gap-1.5">
-                  <span className="line-through text-gray-400">${(deliveryFee + Math.round(discountedSubtotal * 0.05 * 100) / 100).toFixed(2)}</span>
+                  <span className="line-through text-gray-400">${(dashPassSavings + displayDeliveryFee).toFixed(2)}</span>
                   <span className="text-[#FF3008] font-semibold">{displayDeliveryFee === 0 ? '$0.00' : `$${displayDeliveryFee.toFixed(2)}`}</span>
                 </span>
               ) : (

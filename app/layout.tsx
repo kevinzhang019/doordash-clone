@@ -13,6 +13,7 @@ import CartSidebar from '@/components/cart/CartSidebar';
 import OnboardingModal from '@/components/ui/OnboardingModal';
 import FloatingDriverChat from '@/components/chat/FloatingDriverChat';
 import CartAutoRemovedWatcher from '@/components/cart/CartAutoRemovedWatcher';
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
   title: 'DashDoor - Food Delivery',
@@ -61,6 +62,7 @@ export default function RootLayout({
             </LocationProvider>
           </ModeProvider>
         </AuthProvider>
+        <Analytics />
       </body>
     </html>
   );

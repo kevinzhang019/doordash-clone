@@ -53,9 +53,9 @@ export function haversineDistance(
 }
 
 export function deliveryFeeFromDistance(miles: number): number {
-  const raw = 0.99 + 1.3 * miles;
-  // Round up to nearest .49 or .99 (e.g. 0.49, 0.99, 1.49, 1.99, ...)
-  return Math.ceil((raw + 0.01) / 0.50) * 0.50 - 0.01;
+  // DoorDash-like pricing: $1.99 base, +$0.75/mile, capped at $7.99, rounded to .99
+  const raw = Math.max(1.99, 1.49 + 0.75 * miles);
+  return Math.min(7.99, Math.ceil(raw) - 0.01);
 }
 
 export function deliveryTimeFromDistance(miles: number): { min: number; max: number } {

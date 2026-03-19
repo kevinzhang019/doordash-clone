@@ -130,14 +130,14 @@ function SettingsContent() {
         setDashPassSyncing(false);
 
         if (synced) {
-          setDashPassSuccess('Welcome to PassDash! You now get $0 delivery fees and reduced service fees.');
+          setDashPassSuccess('Welcome to PassDash! You now get $0 delivery fees on every order.');
           setTimeout(() => setDashPassSuccess(''), 6000);
         } else {
           // Check if the webhook activated it even though sync failed
           const statusRes = await fetch('/api/dashpass/status').catch(() => null);
           const statusData = statusRes?.ok ? await statusRes.json() : null;
           if (statusData?.active) {
-            setDashPassSuccess('Welcome to PassDash! You now get $0 delivery fees and reduced service fees.');
+            setDashPassSuccess('Welcome to PassDash! You now get $0 delivery fees on every order.');
             setTimeout(() => setDashPassSuccess(''), 6000);
           } else {
             setDashPassError('Your payment was received but activation is taking longer than expected. Please refresh the page in a moment.');
@@ -440,7 +440,7 @@ function SettingsContent() {
                 <p className="text-sm text-red-800 font-medium">
                   Renews on {dashPassSub ? new Date(dashPassSub.current_period_end).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '—'}
                 </p>
-                <p className="text-xs text-red-600 mt-1">$0 delivery fees + 50% off service fees on every order.</p>
+                <p className="text-xs text-red-600 mt-1">$0 delivery fees on every order.</p>
               </div>
             )}
 
@@ -473,12 +473,6 @@ function SettingsContent() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                   </svg>
                   $0 delivery fees on every order
-                </li>
-                <li className="flex items-center gap-2 text-sm text-red-800">
-                  <svg className="h-4 w-4 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                  </svg>
-                  50% off service fees
                 </li>
                 <li className="flex items-center gap-2 text-sm text-red-800">
                   <svg className="h-4 w-4 text-red-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
