@@ -41,6 +41,7 @@ export default function RestaurantOrdersPage() {
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [cancellingId, setCancellingId] = useState<number | null>(null);
   const [confirmCancelId, setConfirmCancelId] = useState<number | null>(null);
+  const [cancelError, setCancelError] = useState<string | null>(null);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchOrders = async () => {
@@ -72,9 +73,16 @@ export default function RestaurantOrdersPage() {
   const cancelOrder = async (orderId: number) => {
     setCancellingId(orderId);
     setConfirmCancelId(null);
+    setCancelError(null);
     try {
-      await fetch(`/api/restaurant-dashboard/orders/${orderId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/restaurant-dashboard/orders/${orderId}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setCancelError(data.error || `Error ${res.status}`);
+      }
       await fetchOrders();
+    } catch (err) {
+      setCancelError(String(err));
     } finally {
       setCancellingId(null);
     }
@@ -117,6 +125,13 @@ export default function RestaurantOrdersPage() {
           </Link>
         </div>
       </div>
+
+      {cancelError && (
+        <div className="mb-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3 flex items-center justify-between">
+          <span>Failed to cancel order: {cancelError}</span>
+          <button onClick={() => setCancelError(null)} className="ml-4 text-red-400 hover:text-red-600 cursor-pointer">✕</button>
+        </div>
+      )}
 
       {orders.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-100 p-12 text-center">
