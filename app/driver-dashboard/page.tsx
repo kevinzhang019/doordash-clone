@@ -326,11 +326,21 @@ export default function DriverDashboardPage() {
       try {
         const res = await fetch(`/api/driver/orders/${orderId}`);
         const data = await res.json();
+        if (data.status === 'cancelled') {
+          // Restaurant cancelled the order — boot driver back to waiting
+          setCurrentJob(null);
+          setDeliveryId(null);
+          setRouteInfo(null);
+          setOrderStatus(null);
+          setPhase('active_waiting');
+          showTakenNotice('Order was cancelled by the restaurant.');
+          return;
+        }
         if (data.status) setOrderStatus(data.status);
       } catch { /* ignore */ }
       if (phaseRef.current === 'job_accepted_pickup') pollOrderStatus(orderId);
     }, 3000);
-  }, [stopOrderStatusPoll]);
+  }, [stopOrderStatusPoll, showTakenNotice]);
 
   useEffect(() => {
     if (phase === 'active_waiting') {

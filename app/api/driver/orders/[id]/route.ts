@@ -16,12 +16,14 @@ export async function GET(
   const supabase = getSupabaseAdmin();
   const { data: order } = await supabase
     .from('orders')
-    .select('status')
+    .select('status, driver_user_id')
     .eq('id', orderId)
-    .eq('driver_user_id', userId)
     .maybeSingle();
 
-  if (!order) return Response.json({ error: 'Not found' }, { status: 404 });
+  // Allow if driver is currently assigned, or if the order was cancelled (driver_user_id cleared)
+  if (!order || (order.driver_user_id !== userId && order.status !== 'cancelled')) {
+    return Response.json({ error: 'Not found' }, { status: 404 });
+  }
 
   return Response.json({ status: order.status });
 }

@@ -91,6 +91,9 @@ export async function DELETE(
   // Remove from driver available jobs queue
   await supabase.from('driver_available_jobs').delete().eq('order_id', orderId);
 
+  // Delete any in-progress driver delivery for this order so it isn't recorded in their history
+  await supabase.from('driver_deliveries').delete().eq('order_id', orderId).eq('status', 'accepted');
+
   // Issue Stripe refund
   if (order.payment_intent_id) {
     try {
