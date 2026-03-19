@@ -18,6 +18,11 @@ import { Analytics } from '@vercel/analytics/next';
 export const metadata: Metadata = {
   title: 'DashDoor - Food Delivery',
   description: 'Order food from your favorite local restaurants. Fast delivery, real-time tracking, and great deals.',
+  icons: {
+    icon: '/logo.png',
+    shortcut: '/logo.png',
+    apple: '/logo.png',
+  },
   openGraph: {
     title: 'DashDoor - Food Delivery',
     description: 'Order food from your favorite local restaurants. Fast delivery, real-time tracking, and great deals.',

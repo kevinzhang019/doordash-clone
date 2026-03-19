@@ -6,7 +6,7 @@ import { useCuisine } from '@/components/providers/CuisineProvider';
 import { useLocation } from '@/components/providers/LocationProvider';
 import { useModeContext } from '@/components/providers/ModeProvider';
 import { useSearch } from '@/components/providers/SearchProvider';
-import AddressAutocomplete, { AddressAutocompleteHandle } from '@/components/ui/AddressAutocomplete';
+import AddressAutocomplete from '@/components/ui/AddressAutocomplete';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -149,9 +149,7 @@ function AddressDropdown({ onClose }: { onClose: () => void }) {
   const { deliveryAddress, setDeliveryLocation, requestGPS, gpsStatus } = useLocation();
   const { user } = useAuth();
   const [inputAddress, setInputAddress] = useState('');
-  const [pendingCoords, setPendingCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
-  const autocompleteRef = useRef<AddressAutocompleteHandle>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editInstructions, setEditInstructions] = useState('');
   const [editHandoff, setEditHandoff] = useState<'hand_off' | 'leave_at_door'>('hand_off');
@@ -204,13 +202,8 @@ function AddressDropdown({ onClose }: { onClose: () => void }) {
   const handleChange = (addr: string, coords?: { lat: number; lng: number }) => {
     setInputAddress(addr);
     if (coords) {
-      // User selected from Google autocomplete — save immediately and close
-      setPendingCoords(null);
       setDeliveryLocation(addr, coords.lat, coords.lng);
       onClose();
-    } else {
-      // User is typing — clear any pending GPS coords
-      setPendingCoords(null);
     }
   };
 
@@ -218,21 +211,11 @@ function AddressDropdown({ onClose }: { onClose: () => void }) {
     try {
       const { address, lat, lng } = await requestGPS();
       if (address) {
-        setInputAddress(address);
-        setPendingCoords({ lat, lng });
-        autocompleteRef.current?.fill(address);
-        // Don't save yet — user confirms by pressing Enter
+        setDeliveryLocation(address, lat, lng);
+        onClose();
       }
     } catch {
       // denied — gpsStatus already set to 'denied'
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && inputAddress && pendingCoords) {
-      e.preventDefault();
-      setDeliveryLocation(inputAddress, pendingCoords.lat, pendingCoords.lng);
-      onClose();
     }
   };
 
@@ -252,10 +235,8 @@ function AddressDropdown({ onClose }: { onClose: () => void }) {
       <div className="p-4 border-b border-gray-100">
         <div className="flex items-center gap-2">
           <AddressAutocomplete
-            ref={autocompleteRef}
             value={inputAddress}
             onChange={handleChange}
-            onKeyDown={handleKeyDown}
             placeholder="Search for an address"
             wrapperClassName="flex-1 min-w-0"
             className="w-full py-2.5 pr-3 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-sm transition-colors"

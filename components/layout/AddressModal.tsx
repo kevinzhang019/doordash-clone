@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import AddressAutocomplete, { AddressAutocompleteHandle } from '@/components/ui/AddressAutocomplete';
+import AddressAutocomplete from '@/components/ui/AddressAutocomplete';
 import { useLocation } from '@/components/providers/LocationProvider';
 import { useAuth } from '@/components/providers/AuthProvider';
 
@@ -24,9 +24,7 @@ export default function AddressModal({ onClose, required }: AddressModalProps) {
   const { setDeliveryLocation, requestGPS, gpsStatus } = useLocation();
   const { user } = useAuth();
   const [inputAddress, setInputAddress] = useState('');
-  const [pendingCoords, setPendingCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
-  const autocompleteRef = useRef<AddressAutocompleteHandle>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editInstructions, setEditInstructions] = useState('');
   const [editHandoff, setEditHandoff] = useState<'hand_off' | 'leave_at_door'>('hand_off');
@@ -72,11 +70,8 @@ export default function AddressModal({ onClose, required }: AddressModalProps) {
   const handleSelect = (addr: string, coords?: { lat: number; lng: number }) => {
     setInputAddress(addr);
     if (coords) {
-      setPendingCoords(null);
       setDeliveryLocation(addr, coords.lat, coords.lng);
       onClose();
-    } else {
-      setPendingCoords(null);
     }
   };
 
@@ -89,20 +84,11 @@ export default function AddressModal({ onClose, required }: AddressModalProps) {
     try {
       const { address, lat, lng } = await requestGPS();
       if (address) {
-        setInputAddress(address);
-        setPendingCoords({ lat, lng });
-        autocompleteRef.current?.fill(address);
+        setDeliveryLocation(address, lat, lng);
+        onClose();
       }
     } catch {
       // denied — do nothing
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && inputAddress && pendingCoords) {
-      e.preventDefault();
-      setDeliveryLocation(inputAddress, pendingCoords.lat, pendingCoords.lng);
-      onClose();
     }
   };
 
@@ -133,10 +119,8 @@ export default function AddressModal({ onClose, required }: AddressModalProps) {
         <div className="px-6 py-5 space-y-4">
           {/* Autocomplete */}
           <AddressAutocomplete
-            ref={autocompleteRef}
             value={inputAddress}
             onChange={handleSelect}
-            onKeyDown={handleKeyDown}
             placeholder="Enter your delivery address"
             wrapperClassName="w-full"
             className="w-full py-3.5 pr-4 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#FF3008] focus:border-transparent text-base bg-gray-50"

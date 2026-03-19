@@ -1,14 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useLocation } from '@/components/providers/LocationProvider';
-import AddressAutocomplete, { AddressAutocompleteHandle } from '@/components/ui/AddressAutocomplete';
+import AddressAutocomplete from '@/components/ui/AddressAutocomplete';
 
 export default function HomeAddressBar() {
   const { deliveryAddress, setDeliveryLocation, requestGPS, gpsStatus } = useLocation();
   const [inputAddress, setInputAddress] = useState('');
-  const [pendingCoords, setPendingCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const autocompleteRef = useRef<AddressAutocompleteHandle>(null);
 
   useEffect(() => {
     setInputAddress(deliveryAddress || '');
@@ -17,10 +15,7 @@ export default function HomeAddressBar() {
   const handleChange = (addr: string, c?: { lat: number; lng: number }) => {
     setInputAddress(addr);
     if (c) {
-      setPendingCoords(null);
       setDeliveryLocation(addr, c.lat, c.lng);
-    } else {
-      setPendingCoords(null);
     }
   };
 
@@ -29,30 +24,18 @@ export default function HomeAddressBar() {
       const { address, lat, lng } = await requestGPS();
       if (address) {
         setInputAddress(address);
-        setPendingCoords({ lat, lng });
-        autocompleteRef.current?.fill(address);
-        // Don't save yet — user confirms by pressing Enter
+        setDeliveryLocation(address, lat, lng);
       }
     } catch {
       // denied — do nothing
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && inputAddress && pendingCoords) {
-      e.preventDefault();
-      setDeliveryLocation(inputAddress, pendingCoords.lat, pendingCoords.lng);
-      setPendingCoords(null);
-    }
-  };
-
   return (
     <div className="bg-white rounded-xl p-1.5 flex items-center max-w-xl gap-1">
       <AddressAutocomplete
-        ref={autocompleteRef}
         value={inputAddress}
         onChange={handleChange}
-        onKeyDown={handleKeyDown}
         placeholder="Enter delivery address"
         wrapperClassName="flex-1 min-w-0"
         className="w-full py-2.5 pr-3 border-0 bg-transparent focus:outline-none focus:ring-0 text-gray-900 text-sm"
