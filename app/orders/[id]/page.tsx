@@ -118,6 +118,8 @@ function ReviewSection({ orderId, restaurantName, restaurantId }: { orderId: num
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     fetch(`/api/orders/${orderId}`)
@@ -147,19 +149,53 @@ function ReviewSection({ orderId, restaurantName, restaurantId }: { orderId: num
     }
   };
 
+  const handleDelete = async () => {
+    if (!existingReview || deleting) return;
+    setDeleteError('');
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/reviews/${existingReview.id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setDeleteError(data.error || 'Failed to delete review');
+        return;
+      }
+      setExistingReview(null);
+      setSubmitted(false);
+      setRating(5);
+      setComment('');
+    } catch {
+      setDeleteError('Something went wrong. Please try again.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   if (existingReview) {
     return (
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mb-6">
-        <Link href={`/restaurants/${restaurantId}#review-${existingReview.id}`} className="flex items-center gap-1 font-semibold text-gray-900 hover:text-[#FF3008] transition-colors mb-4 w-fit group">
-          My Review
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400 group-hover:text-[#FF3008] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </Link>
+        <div className="flex items-center justify-between mb-4">
+          <Link href={`/restaurants/${restaurantId}#review-${existingReview.id}`} className="flex items-center gap-1 font-semibold text-gray-900 hover:text-[#FF3008] transition-colors w-fit group">
+            My Review
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-gray-400 group-hover:text-[#FF3008] transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="text-sm text-gray-400 hover:text-red-500 transition-colors disabled:opacity-50 cursor-pointer"
+          >
+            {deleting ? 'Deleting...' : 'Delete'}
+          </button>
+        </div>
         {submitted && (
           <div className="bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg px-4 py-3 mb-4">
             Thanks for your review! It helps others discover great food.
           </div>
+        )}
+        {deleteError && (
+          <p className="text-red-600 text-sm mb-3">{deleteError}</p>
         )}
         <div className="flex gap-1 mb-2">
           {[1,2,3,4,5].map(s => (

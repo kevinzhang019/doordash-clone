@@ -6,7 +6,7 @@ function getResend(): Resend | null {
   return new Resend(process.env.RESEND_API_KEY);
 }
 
-const FROM = process.env.RESEND_FROM_EMAIL || 'DashEats <orders@resend.dev>';
+const FROM = process.env.RESEND_FROM_EMAIL || 'DashDoor <orders@resend.dev>';
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
 function orderItemsList(items: OrderItem[]): string {
@@ -23,14 +23,14 @@ function baseTemplate(title: string, body: string): string {
     <body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
       <div style="max-width:560px;margin:40px auto;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
         <div style="background:#FF3008;padding:24px 32px;">
-          <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">DashEats</h1>
+          <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:700;">DashDoor</h1>
         </div>
         <div style="padding:32px;">
           <h2 style="margin:0 0 16px;color:#111827;font-size:18px;font-weight:700;">${title}</h2>
           ${body}
         </div>
         <div style="padding:16px 32px;background:#f3f4f6;border-top:1px solid #e5e7eb;">
-          <p style="margin:0;color:#9ca3af;font-size:12px;">© ${new Date().getFullYear()} DashEats. Questions? Reply to this email.</p>
+          <p style="margin:0;color:#9ca3af;font-size:12px;">© ${new Date().getFullYear()} DashDoor. Questions? Reply to this email.</p>
         </div>
       </div>
     </body>

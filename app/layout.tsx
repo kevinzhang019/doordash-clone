@@ -15,17 +15,17 @@ import FloatingDriverChat from '@/components/chat/FloatingDriverChat';
 import CartAutoRemovedWatcher from '@/components/cart/CartAutoRemovedWatcher';
 
 export const metadata: Metadata = {
-  title: 'DashEats - Food Delivery',
+  title: 'DashDoor - Food Delivery',
   description: 'Order food from your favorite local restaurants. Fast delivery, real-time tracking, and great deals.',
   openGraph: {
-    title: 'DashEats - Food Delivery',
+    title: 'DashDoor - Food Delivery',
     description: 'Order food from your favorite local restaurants. Fast delivery, real-time tracking, and great deals.',
     type: 'website',
-    siteName: 'DashEats',
+    siteName: 'DashDoor',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'DashEats - Food Delivery',
+    title: 'DashDoor - Food Delivery',
     description: 'Order food from your favorite local restaurants. Fast delivery, real-time tracking, and great deals.',
   },
 };

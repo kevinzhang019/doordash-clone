@@ -44,12 +44,22 @@ async function getRestaurantData(id: number) {
     menu[item.category].push(item);
   }
 
-  const { data: reviews } = await supabase
+  const { data: rawReviews } = await supabase
     .from('reviews')
-    .select('*')
+    .select('*, users(avatar_url, name)')
     .eq('restaurant_id', id)
     .order('created_at', { ascending: false })
     .limit(20);
+
+  const reviews = (rawReviews ?? []).map(({ users, ...r }) => {
+    const u = users as { avatar_url: string | null; name: string } | null;
+    let reviewer_name = r.reviewer_name;
+    if (u?.name) {
+      const parts = u.name.trim().split(' ');
+      reviewer_name = parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0]}.` : parts[0];
+    }
+    return { ...r, reviewer_name, reviewer_avatar_url: u?.avatar_url ?? null };
+  });
 
   const { data: hours } = await supabase
     .from('restaurant_hours')
@@ -66,7 +76,7 @@ async function getRestaurantData(id: number) {
   return {
     restaurant: restaurant as Restaurant,
     menu,
-    reviews: (reviews ?? []) as Review[],
+    reviews: reviews as Review[],
     hours: (hours ?? []) as HoursRow[],
     ownerDeals: (ownerDeals ?? []) as Deal[],
   };
@@ -157,7 +167,7 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
             <p className="font-bold text-gray-900 text-sm">
               <VirtualRestaurantAddress restaurantId={restaurant.id} storedAddress={restaurant.address} restaurantLat={restaurant.lat} restaurantLng={restaurant.lng} isOwned={isOwned} />
             </p>
-            <RestaurantDistance restaurantId={restaurant.id} />
+            <RestaurantDistance restaurantId={restaurant.id} restaurantLat={restaurant.lat} restaurantLng={restaurant.lng} />
           </div>
         </div>
       </div>
@@ -202,9 +212,19 @@ export default async function RestaurantPage({ params }: RestaurantPageProps) {
               <div key={review.id} id={`review-${review.id}`} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 scroll-mt-20">
                 <div className="flex items-start justify-between gap-4 mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-full bg-[#FF3008] flex items-center justify-center flex-shrink-0">
-                      <span className="text-white font-bold text-base">{review.reviewer_name[0]}</span>
-                    </div>
+                    {review.reviewer_avatar_url ? (
+                      <Image
+                        src={review.reviewer_avatar_url}
+                        alt={review.reviewer_name}
+                        width={44}
+                        height={44}
+                        className="w-11 h-11 rounded-full object-cover flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-11 h-11 rounded-full bg-[#FF3008] flex items-center justify-center flex-shrink-0">
+                        <span className="text-white font-bold text-base">{review.reviewer_name[0]}</span>
+                      </div>
+                    )}
                     <div>
                       <p className="font-semibold text-gray-900">{review.reviewer_name}</p>
                       <p className="text-gray-400 text-sm">

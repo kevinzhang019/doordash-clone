@@ -4,11 +4,13 @@ import { useLocation } from '@/components/providers/LocationProvider';
 
 interface Props {
   restaurantId: number;
+  restaurantLat?: number | null;
+  restaurantLng?: number | null;
 }
 
-export default function RestaurantDistance({ restaurantId }: Props) {
+export default function RestaurantDistance({ restaurantId, restaurantLat, restaurantLng }: Props) {
   const { getRestaurantDeliveryInfo } = useLocation();
-  const info = getRestaurantDeliveryInfo(restaurantId);
+  const info = getRestaurantDeliveryInfo(restaurantId, restaurantLat, restaurantLng);
 
   if (!info) return null;
 

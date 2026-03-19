@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useState, useCallback } from 'react';
 import { Review } from '@/lib/types';
 
@@ -74,9 +75,19 @@ function ReviewCard({ review, onReplyUpdated }: { review: Review; onReplyUpdated
       {/* Review header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-full ${color} flex items-center justify-center flex-shrink-0`}>
-            <span className="text-white font-bold text-sm">{initials}</span>
-          </div>
+          {review.reviewer_avatar_url ? (
+            <Image
+              src={review.reviewer_avatar_url}
+              alt={review.reviewer_name}
+              width={40}
+              height={40}
+              className="w-10 h-10 rounded-full object-cover flex-shrink-0"
+            />
+          ) : (
+            <div className={`w-10 h-10 rounded-full ${color} flex items-center justify-center flex-shrink-0`}>
+              <span className="text-white font-bold text-sm">{initials}</span>
+            </div>
+          )}
           <div>
             <p className="font-semibold text-gray-900">{review.reviewer_name}</p>
             <p className="text-xs text-gray-400">
