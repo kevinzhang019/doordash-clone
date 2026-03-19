@@ -46,7 +46,7 @@ export default function OrdersPage() {
   }
 
   const totalSpent = orders.reduce((sum, o) => sum + o.total, 0);
-  const totalSaved = orders.reduce((sum, o) => sum + (o.discount_saved ?? 0) + (o.promo_discount ?? 0) + (o.dashpass_savings ?? 0), 0);
+  const totalSaved = orders.reduce((sum, o) => sum + (o.discount_saved ?? 0) + (o.promo_discount ?? 0), 0);
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
@@ -63,7 +63,7 @@ export default function OrdersPage() {
             <p className="text-xs font-medium text-[#FF3008] uppercase tracking-wide mb-1">Total Saved</p>
             <p className="text-2xl font-bold text-[#FF3008]">${totalSaved.toFixed(2)}</p>
             <p className="text-xs text-[#FF3008]/60 mt-0.5">
-              {orders.some(o => (o.dashpass_savings ?? 0) > 0) ? 'from deals & DashPass' : 'from deals'}
+              from deals
             </p>
           </div>
         )}
@@ -92,11 +92,13 @@ export default function OrdersPage() {
                   <span className={`inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${
                     order.status === 'delivered'
                       ? 'bg-green-100 text-green-700'
+                      : order.status === 'cancelled'
+                      ? 'bg-red-100 text-red-700'
                       : (order.status === 'placed' || (!order.driver_user_id && (order.status === 'ready' || order.status === 'preparing' || order.status === 'picked_up')))
                       ? 'bg-blue-100 text-blue-700'
                       : 'bg-yellow-100 text-yellow-700'
                   }`}>
-                    {!order.driver_user_id && (order.status === 'ready' || order.status === 'preparing' || order.status === 'picked_up') ? 'Preparing' : order.status === 'placed' ? 'Placed' : order.status}
+                    {order.status === 'cancelled' ? 'Cancelled' : !order.driver_user_id && (order.status === 'ready' || order.status === 'preparing' || order.status === 'picked_up') ? 'Preparing' : order.status === 'placed' ? 'Placed' : order.status}
                   </span>
                 </div>
               </div>

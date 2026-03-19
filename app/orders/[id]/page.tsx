@@ -291,7 +291,7 @@ export default function OrderDetailPage() {
 
   const pollOrder = (currentStatus: string) => {
     if (pollRef.current) clearTimeout(pollRef.current);
-    if (currentStatus === 'delivered') return;
+    if (currentStatus === 'delivered' || currentStatus === 'cancelled') return;
     pollRef.current = setTimeout(async () => {
       if (!orderId) return;
       try {
@@ -313,7 +313,7 @@ export default function OrderDetailPage() {
 
   // Start polling once we have the order
   useEffect(() => {
-    if (order && order.status !== 'delivered') {
+    if (order && order.status !== 'delivered' && order.status !== 'cancelled') {
       pollOrder(order.status);
     }
     return () => { if (pollRef.current) clearTimeout(pollRef.current); };
@@ -341,22 +341,28 @@ export default function OrderDetailPage() {
   }
 
   const etaMins = calcEtaMins(order);
-  const isActive = order.status !== 'delivered';
+  const isActive = order.status !== 'delivered' && order.status !== 'cancelled';
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
-      {/* Success Banner */}
+      {/* Status Banner */}
       <div className={`rounded-2xl p-6 mb-6 flex gap-4 items-start ${
         order.status === 'delivered'
           ? 'bg-green-50 border border-green-200'
+          : order.status === 'cancelled'
+          ? 'bg-red-50 border border-red-200'
           : 'bg-blue-50 border border-blue-200'
       }`}>
         <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${
-          order.status === 'delivered' ? 'bg-green-500' : 'bg-blue-500'
+          order.status === 'delivered' ? 'bg-green-500' : order.status === 'cancelled' ? 'bg-red-500' : 'bg-blue-500'
         }`}>
           {order.status === 'delivered' ? (
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : order.status === 'cancelled' ? (
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           ) : (
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -366,11 +372,14 @@ export default function OrderDetailPage() {
         </div>
         <div>
           <h1 className="text-lg font-bold text-gray-900">
-            {order.status === 'delivered' ? 'Order Delivered!' : 'Order Confirmed!'}
+            {order.status === 'delivered' ? 'Order Delivered!' : order.status === 'cancelled' ? 'Order Cancelled' : 'Order Confirmed!'}
           </h1>
           <p className="text-gray-600 text-sm mt-0.5">
-            Your order from <span className="font-semibold">{order.restaurant_name}</span>{' '}
-            {order.status === 'delivered' ? 'has been delivered.' : 'is on its way.'}
+            {order.status === 'cancelled' ? (
+              <>Your order from <span className="font-semibold">{order.restaurant_name}</span> was cancelled by the restaurant. A full refund has been issued.</>
+            ) : (
+              <>Your order from <span className="font-semibold">{order.restaurant_name}</span>{' '}{order.status === 'delivered' ? 'has been delivered.' : 'is on its way.'}</>
+            )}
           </p>
           {isActive && (
             <p className="text-sm font-medium text-blue-700 mt-1">
@@ -385,7 +394,9 @@ export default function OrderDetailPage() {
       </div>
 
       {/* Status Progress */}
-      <OrderStatusProgress status={order.status} driverUserId={order.driver_user_id} />
+      {order.status !== 'cancelled' && (
+        <OrderStatusProgress status={order.status} driverUserId={order.driver_user_id} />
+      )}
 
       {/* Driver card */}
       {order.driver_name && order.status !== 'delivered' && (
@@ -416,11 +427,12 @@ export default function OrderDetailPage() {
           </div>
           <span className={`px-3 py-1 rounded-full text-sm font-medium capitalize ${
             order.status === 'delivered' ? 'bg-green-100 text-green-700'
+            : order.status === 'cancelled' ? 'bg-red-100 text-red-700'
             : displayStatus(order.status, order.driver_user_id) === 'preparing' ? 'bg-blue-100 text-blue-700'
             : order.status === 'picked_up' ? 'bg-purple-100 text-purple-700'
             : 'bg-yellow-100 text-yellow-700'
           }`}>
-            {STATUS_LABELS[displayStatus(order.status, order.driver_user_id)] ?? order.status}
+            {order.status === 'cancelled' ? 'Cancelled' : (STATUS_LABELS[displayStatus(order.status, order.driver_user_id)] ?? order.status)}
           </span>
         </div>
 
@@ -487,12 +499,12 @@ export default function OrderDetailPage() {
             </div>
           )}
           {(order.dashpass_savings ?? 0) > 0 && (
-            <div className="flex items-center justify-between bg-purple-600 text-white rounded-lg px-3 py-2 mb-1">
+            <div className="flex items-center justify-between bg-red-50 border border-red-200 text-red-800 rounded-xl px-4 py-2.5 mb-1">
               <div className="flex items-center gap-1.5 text-sm font-semibold">
                 <span>👑</span>
                 DashPass savings
               </div>
-              <span className="text-sm font-bold">-${(order.dashpass_savings ?? 0).toFixed(2)}</span>
+              <span className="text-sm font-bold text-[#FF3008]">-${(order.dashpass_savings ?? 0).toFixed(2)}</span>
             </div>
           )}
           <div className="flex justify-between text-gray-600 text-sm">
@@ -536,8 +548,8 @@ export default function OrderDetailPage() {
         )}
       </div>
 
-      {/* Chat — only when driver is assigned and not yet delivered */}
-      {order.driver_user_id && user && order.status !== 'delivered' && (
+      {/* Chat — only when driver is assigned and not yet delivered/cancelled */}
+      {order.driver_user_id && user && order.status !== 'delivered' && order.status !== 'cancelled' && (
         <OrderChat
           orderId={order.id}
           currentUserId={user.id}

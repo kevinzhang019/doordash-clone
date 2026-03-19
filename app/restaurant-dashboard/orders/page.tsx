@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
 type OrderItem = { name: string; quantity: number; price: number; special_requests: string | null };
@@ -38,6 +39,7 @@ export default function RestaurantOrdersPage() {
   const [orders, setOrders] = useState<ActiveOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchOrders = async () => {
@@ -66,6 +68,17 @@ export default function RestaurantOrdersPage() {
     return () => { if (pollRef.current) clearTimeout(pollRef.current); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const cancelOrder = async (orderId: number) => {
+    if (!confirm('Cancel this order? The customer will be refunded and notified by email.')) return;
+    setCancellingId(orderId);
+    try {
+      await fetch(`/api/restaurant-dashboard/orders/${orderId}`, { method: 'DELETE' });
+      await fetchOrders();
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
   const updateStatus = async (orderId: number, status: 'preparing' | 'ready') => {
     setUpdatingId(orderId);
     try {
@@ -93,7 +106,15 @@ export default function RestaurantOrdersPage() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Active Orders</h1>
-        <span className="text-sm text-gray-500">{orders.length} order{orders.length !== 1 ? 's' : ''} pending</span>
+        <div className="flex items-center gap-4">
+          <span className="text-sm text-gray-500">{orders.length} order{orders.length !== 1 ? 's' : ''} pending</span>
+          <Link
+            href="/restaurant-dashboard/orders/history"
+            className="text-sm font-medium text-[#FF3008] hover:underline"
+          >
+            View History
+          </Link>
+        </div>
       </div>
 
       {orders.length === 0 ? (
@@ -159,6 +180,14 @@ export default function RestaurantOrdersPage() {
                   {order.status === 'ready' && (
                     <span className="text-sm text-green-600 font-medium">Waiting for driver</span>
                   )}
+
+                  <button
+                    onClick={() => cancelOrder(order.id)}
+                    disabled={cancellingId === order.id || updatingId === order.id}
+                    className="text-sm font-medium text-red-600 hover:text-red-700 px-3 py-2 rounded-xl hover:bg-red-50 transition-colors disabled:opacity-50 cursor-pointer"
+                  >
+                    {cancellingId === order.id ? 'Cancelling...' : 'Cancel'}
+                  </button>
                 </div>
               </div>
             </div>

@@ -110,7 +110,7 @@ export interface CartItem {
   special_requests?: string | null;
 }
 
-export type OrderStatus = 'placed' | 'preparing' | 'ready' | 'picked_up' | 'delivered';
+export type OrderStatus = 'placed' | 'preparing' | 'ready' | 'picked_up' | 'delivered' | 'cancelled';
 
 export interface Order {
   id: number;

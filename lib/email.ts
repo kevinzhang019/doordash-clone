@@ -7,7 +7,7 @@ function getResend(): Resend | null {
 }
 
 const FROM = process.env.RESEND_FROM_EMAIL || 'DashEats <orders@resend.dev>';
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
 function orderItemsList(items: OrderItem[]): string {
   return items
@@ -114,6 +114,38 @@ export async function sendDriverCancellation(
     to: userEmail,
     subject: `Driver update for your ${order.restaurant_name} order`,
     html: baseTemplate('Driver Cancelled — Finding a New One', body),
+  });
+}
+
+export async function sendOrderCancelledByRestaurant(
+  order: Order & { restaurant_name: string },
+  items: OrderItem[],
+  userEmail: string,
+  userName: string
+): Promise<void> {
+  const resend = getResend();
+  if (!resend) return;
+
+  const body = `
+    <p style="color:#374151;margin:0 0 16px;">Hi ${userName},</p>
+    <p style="color:#374151;margin:0 0 16px;">We're sorry — <strong>${order.restaurant_name}</strong> had to cancel your order. A full refund has been issued and should appear on your statement within 5–10 business days.</p>
+    <div style="background:#f9fafb;border-radius:12px;padding:16px;margin:0 0 20px;">
+      <p style="margin:0 0 8px;font-size:13px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">Order #${order.id} — Cancelled</p>
+      <ul style="margin:0;padding:0 0 0 16px;">${orderItemsList(items)}</ul>
+      <div style="margin-top:12px;padding-top:12px;border-top:1px solid #e5e7eb;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="color:#111827;font-weight:700;font-size:15px;">
+          <tr><td>Refund</td><td align="right">$${order.total.toFixed(2)}</td></tr>
+        </table>
+      </div>
+    </div>
+    <a href="/" style="display:inline-block;background:#FF3008;color:#ffffff;font-weight:600;padding:12px 24px;border-radius:10px;text-decoration:none;">Order Again</a>
+  `;
+
+  await resend.emails.send({
+    from: FROM,
+    to: userEmail,
+    subject: `Your ${order.restaurant_name} order was cancelled — full refund issued`,
+    html: baseTemplate('Order Cancelled', body),
   });
 }
 
