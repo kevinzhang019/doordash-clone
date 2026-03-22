@@ -1,19 +1,20 @@
-import type { Metadata } from 'next';
-import './globals.css';
+import CartAutoRemovedWatcher from '@/components/cart/CartAutoRemovedWatcher';
+import CartSidebar from '@/components/cart/CartSidebar';
+import FloatingDriverChat from '@/components/chat/FloatingDriverChat';
+import ModeSidebar from '@/components/layout/ModeSidebar';
+import Navbar from '@/components/layout/Navbar';
 import { AuthProvider } from '@/components/providers/AuthProvider';
 import { CartProvider } from '@/components/providers/CartProvider';
-import { LocationProvider } from '@/components/providers/LocationProvider';
-import { SearchProvider } from '@/components/providers/SearchProvider';
-import { CuisineProvider } from '@/components/providers/CuisineProvider';
 import { ChatSeenProvider } from '@/components/providers/ChatSeenProvider';
+import { CuisineProvider } from '@/components/providers/CuisineProvider';
+import { LocationProvider } from '@/components/providers/LocationProvider';
 import { ModeProvider } from '@/components/providers/ModeProvider';
-import Navbar from '@/components/layout/Navbar';
-import ModeSidebar from '@/components/layout/ModeSidebar';
-import CartSidebar from '@/components/cart/CartSidebar';
+import { SearchProvider } from '@/components/providers/SearchProvider';
 import OnboardingModal from '@/components/ui/OnboardingModal';
-import FloatingDriverChat from '@/components/chat/FloatingDriverChat';
-import CartAutoRemovedWatcher from '@/components/cart/CartAutoRemovedWatcher';
 import { Analytics } from '@vercel/analytics/next';
+import { SpeedInsights } from '@vercel/speed-insights/next';
+import type { Metadata } from 'next';
+import './globals.css';
 
 export const metadata: Metadata = {
   title: 'DashDoor - Food Delivery',
@@ -68,6 +69,7 @@ export default function RootLayout({
           </ModeProvider>
         </AuthProvider>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
